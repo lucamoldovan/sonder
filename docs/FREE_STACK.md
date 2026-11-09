@@ -64,7 +64,7 @@ Apple Sign In is intentionally excluded from the zero-cost plan because Apple di
 - Configure usage alerts where available, but treat quotas as hard ceilings.
 - If a free quota is exhausted, pause that feature until the quota resets or replace it with a local/self-hosted option. Do not silently upgrade.
 - No custom domain is required; use the free Vercel subdomain.
-- Publishing to app stores can have separate developer fees. During development, use Expo Go or local Android builds instead.
+- App-store publishing is not zero-cost: Google Play charges a US$25 one-time registration fee, and Apple Developer Program membership is US$99/year. We will not publish to either store under the zero-cost rule. Use Expo Go or locally built Android APKs for private testing instead.
 
 ## Local setup
 
