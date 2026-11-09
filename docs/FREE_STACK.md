@@ -64,8 +64,9 @@ The deploy command includes `--keep-vars` so dashboard-configured runtime variab
 4. Generate and apply the database schema:
 
 ```bash
-bun --cwd apps/api run db:generate
-bun --cwd apps/api run db:migrate
+cd apps/api
+bun run db:generate
+bun run db:migrate
 ```
 
 5. Run `bun run dev:web` and `bun run dev:mobile`.
