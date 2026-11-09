@@ -1,13 +1,13 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateCalendarEventSchema, UpdateCalendarEventSchema, UuidSchema } from "@sonder/contracts";
-import { calendarEvents, lifeAreas, projects } from "../db/schema";
+import { calendarEvents, lifeAreas, projects } from "../db/schema";\nimport type { Database } from "../db";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
 export const calendarRoutes = new Hono<AppEnv>();
 
-async function validRelations(db: ReturnType<typeof Object>, userId: string, lifeAreaId?: string | null, projectId?: string | null) {
+async function validRelations(db: Database, userId: string, lifeAreaId?: string | null, projectId?: string | null) {
   if (lifeAreaId) {
     const [area] = await db.select({ id: lifeAreas.id }).from(lifeAreas).where(and(eq(lifeAreas.id, lifeAreaId), eq(lifeAreas.userId, userId))).limit(1);
     if (!area) return "The selected life area does not exist.";
