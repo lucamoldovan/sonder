@@ -51,8 +51,13 @@ jobs:
             echo "No generated bootstrap files to commit"
             exit 0
           fi
+          git diff --cached --binary > /tmp/sonder-bootstrap.patch
+          git fetch origin "${HEAD_REF}"
+          git checkout -B "${HEAD_REF}" "origin/${HEAD_REF}"
+          git apply /tmp/sonder-bootstrap.patch
+          git add bun.lock apps/api/drizzle
           git commit -m "chore: add Bun lockfile and initial Drizzle migration"
-          git push origin "HEAD:${HEAD_REF}"
+          git push origin "${HEAD_REF}"
 
       - name: Typecheck all workspaces
         run: bun run typecheck:all
