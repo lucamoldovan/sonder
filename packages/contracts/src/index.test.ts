@@ -43,5 +43,10 @@ describe("shared request contracts", () => {
       name: "Sonder MVP",
       startDate: "09/11/2026"
     }).success).toBe(false);
+
+    expect(CreateProjectSchema.safeParse({
+      name: "Sonder MVP",
+      startDate: "2026-02-30"
+    }).success).toBe(false);
   });
 });
