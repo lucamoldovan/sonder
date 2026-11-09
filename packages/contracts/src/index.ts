@@ -174,3 +174,40 @@ export type InboxItemRecord = {
   convertedTaskId: string | null;
   createdAt: string;
 };
+
+
+const OptionalDateSchema = DateOnlySchema.nullable().optional();
+
+export const CreateGoalSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  description: z.string().max(10_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  targetDate: OptionalDateSchema,
+  status: z.enum(["active", "completed", "paused"]).default("active")
+});
+export const UpdateGoalSchema = CreateGoalSchema.partial();
+export type GoalRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; targetDate: string | null; status: "active" | "completed" | "paused"; createdAt: string };
+
+export const CreateHabitSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  description: z.string().max(2_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  frequency: z.enum(["daily", "weekdays", "weekly"]).default("daily"),
+  targetPerWeek: z.number().int().min(1).max(7).default(7)
+});
+export const UpdateHabitSchema = CreateHabitSchema.partial().extend({ archived: z.boolean().optional() });
+export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
+export type HabitEntryRecord = { id: string; habitId: string; entryDate: string; note: string | null };
+
+export const CreateCalendarEventSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  description: z.string().max(10_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime().nullable().optional(),
+  allDay: z.boolean().default(false),
+  location: z.string().max(240).nullable().optional()
+}).refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
+export const UpdateCalendarEventSchema = CreateCalendarEventSchema.partial();
+export type CalendarEventRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; projectId: string | null; startsAt: string; endsAt: string | null; allDay: boolean; location: string | null };
