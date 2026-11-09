@@ -61,13 +61,15 @@ The deploy command includes `--keep-vars` so dashboard-configured runtime variab
 1. Copy root `.env.example` to `.env.local`.
 2. Set `DATABASE_URL` to a Supabase connection string and generate `BETTER_AUTH_SECRET`.
 3. Copy `apps/api/.env.example` to `apps/api/.env` and set the database URL there too.
-4. Generate and apply the database schema:
+4. Apply the committed initial database migration:
 
 ```bash
 cd apps/api
-bun run db:generate
 bun run db:migrate
+cd ../..
 ```
+
+For future schema changes, generate a migration with `bun run db:generate` from `apps/api`, commit the generated files, then apply it with `bun run db:migrate`.
 
 5. Run `bun run dev:web` and `bun run dev:mobile`.
 
