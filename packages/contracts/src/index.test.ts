@@ -7,7 +7,13 @@ import {
   UpdateTaskSchema,
   UpdateLifeAreaSchema,
   UpdateProjectSchema,
-  UpdateInboxItemSchema
+  UpdateInboxItemSchema,
+  CreateGoalSchema,
+  UpdateGoalSchema,
+  CreateHabitSchema,
+  UpdateHabitSchema,
+  CreateCalendarEventSchema,
+  UpdateCalendarEventSchema
 } from "./index";
 
 describe("shared request contracts", () => {
