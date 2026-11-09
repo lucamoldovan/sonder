@@ -61,7 +61,7 @@ describe("shared request contracts", () => {
   });
 
   test("validates habit frequency and check-in configuration", () => {
-    expect(CreateHabitSchema.parse({ name: "Read", frequency: "weekdays" })).toMatchObject({ frequency: "weekdays", targetPerWeek: 7 });
+    expect(CreateHabitSchema.parse({ name: "Read", frequency: "weekdays" })).toMatchObject({ frequency: "weekdays", targetPerWeek: 5 });
     expect(UpdateHabitSchema.parse({ archived: true })).toEqual({ archived: true });
     expect(CreateHabitSchema.safeParse({ name: "Read", frequency: "monthly" }).success).toBe(false);
   });
