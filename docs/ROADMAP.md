@@ -27,7 +27,7 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Life areas CRUD API and ownership enforcement
 - [x] Life areas web/mobile navigation and default setup
 - [x] Universal Inbox API, web capture, archive, and convert-to-task flow
-- [x] Mobile quick capture and shared inbox sync
+- [x] Mobile quick capture, archive, convert-to-task, and shared inbox sync
 - [x] Initial tasks API CRUD with validation and ownership checks
 - [x] Projects API CRUD with life-area ownership validation
 - [x] Shared contract tests and workspace typecheck scripts
