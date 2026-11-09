@@ -48,7 +48,7 @@ const databaseMiddleware: MiddlewareHandler<AppEnv> = async (context, next) => {
   } finally {
     // In the Workers runtime, Hyperdrive cleans up the per-invocation client
     // automatically. Close only ordinary local Node.js development clients.
-    if (connected && context.env.ENVIRONMENT === "development") {
+    if (connected && (context.env.ENVIRONMENT === "development" || !context.env.HYPERDRIVE)) {
       await client.end().catch(() => undefined);
     }
   }
@@ -66,7 +66,16 @@ app.get("/api/health", (context) =>
 // Better Auth schema are available, without exposing database details.
 app.get("/api/health/database", databaseMiddleware, async (context) => {
   const result = await context.get("db").execute(
-    sql`SELECT to_regclass('public."user"') IS NOT NULL AS schema_ready`
+    sql`SELECT
+      to_regclass('public."user"') IS NOT NULL
+      AND to_regclass('public."session"') IS NOT NULL
+      AND to_regclass('public."account"') IS NOT NULL
+      AND to_regclass('public."verification"') IS NOT NULL
+      AND to_regclass('public.life_areas') IS NOT NULL
+      AND to_regclass('public.projects') IS NOT NULL
+      AND to_regclass('public.tasks') IS NOT NULL
+      AND to_regclass('public.inbox_items') IS NOT NULL
+      AS schema_ready`
   );
   const row = result.rows[0] as { schema_ready?: boolean } | undefined;
   const schemaReady = Boolean(row?.schema_ready);
