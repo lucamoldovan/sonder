@@ -6,23 +6,31 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Confirm product name and visual direction
 - [x] Define product vision and principles
 - [x] Define feature catalogue and MVP boundary
-- [ ] Confirm technical architecture
-- [ ] Establish repository structure, linting, formatting, tests, and CI
-- [ ] Establish design tokens and reusable UI primitives
-- [ ] Define data model and migration strategy
-- [ ] Define authentication, authorization, and privacy model
+- [x] Confirm web/mobile strategy: Next.js + Expo + shared TypeScript packages
+- [x] Define backend: Hono on Cloudflare Workers
+- [x] Define database: Neon PostgreSQL + Drizzle
+- [x] Define authentication: Better Auth with Expo support
+- [x] Scaffold API Worker and health endpoint
+- [x] Add initial PostgreSQL schema for auth, life areas, projects, and tasks
+- [x] Add shared task contracts
+- [x] Scaffold Expo mobile application
+- [ ] Install dependencies and verify all workspaces
+- [ ] Generate and review initial Drizzle migration
+- [ ] Configure a development Neon database and local secrets
+- [ ] Run API and auth smoke tests
+- [ ] Establish CI, formatting, and automated tests
 
 ## Phase 1 — Core workspace (MVP)
 - [ ] App shell and responsive navigation
-- [ ] Authentication and user profile
-- [ ] Life areas
+- [ ] Authentication UI and verified account flows
+- [ ] Life areas CRUD and ownership enforcement
 - [ ] Universal Inbox and triage
-- [ ] Tasks with priorities, status, dates, recurrence, and filters
-- [ ] Projects with linked tasks and milestones
-- [ ] Today dashboard
+- [ ] Tasks API and UI with priorities, status, dates, recurrence, and filters
+- [ ] Projects CRUD with linked tasks and milestones
+- [ ] Today dashboard backed by the API
 - [ ] Calendar with events and task time blocks
 - [ ] Global search
-- [ ] Persistence, sync, empty/error/loading states
+- [ ] Reliable sync and loading/error/empty states
 - [ ] Import/export and account deletion
 
 **Exit criteria:** A user can capture an item, turn it into a task, assign it to a life area/project, schedule it, complete it, and see the result reflected throughout the app on both desktop and mobile.
