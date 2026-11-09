@@ -41,6 +41,7 @@ Create a Vercel Hobby project from the public GitHub repository. Set these envir
 - `WEB_APP_URL`: the same Vercel origin.
 - `NEXT_PUBLIC_APP_URL`: the same Vercel origin (used by the browser auth client during SSR and hydration).
 - `ENVIRONMENT=production`.
+- Optional Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true` only after configuring the Google OAuth client.
 
 Do not add a custom domain or enable a paid Vercel plan. The app and API deploy together, so no API proxy URL is required.
 
