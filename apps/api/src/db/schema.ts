@@ -133,3 +133,29 @@ export const tasks = pgTable("tasks", {
   index("tasks_life_area_id_idx").on(table.lifeAreaId),
   index("tasks_due_at_idx").on(table.userId, table.dueAt)
 ]);
+
+
+export const inboxItemType = pgEnum("inbox_item_type", [
+  "task",
+  "idea",
+  "note",
+  "link",
+  "event",
+  "reminder"
+]);
+
+export const inboxItems = pgTable("inbox_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  type: inboxItemType("type").notNull().default("task"),
+  title: text("title").notNull(),
+  content: text("content"),
+  url: text("url"),
+  status: text("status").notNull().default("inbox"),
+  convertedTaskId: uuid("converted_task_id").references(() => tasks.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("inbox_items_user_status_idx").on(table.userId, table.status),
+  index("inbox_items_created_at_idx").on(table.userId, table.createdAt)
+]);
