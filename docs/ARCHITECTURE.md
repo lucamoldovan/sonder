@@ -64,7 +64,10 @@ Clients must never connect directly to PostgreSQL or receive database credential
 - API base URL is configured per environment.
 - Health endpoint: `GET /health`.
 - Better Auth endpoint prefix: `/api/auth/*`.
-- Product endpoints live under `/api/v1/*`:\n  - `GET /api/v1/me` — current authenticated user.\n  - `GET|POST /api/v1/life-areas` and `PATCH|DELETE /api/v1/life-areas/:id`.\n  - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
+- Product endpoints live under `/api/v1/*`:
+  - `GET /api/v1/me` — current authenticated user.
+  - `GET|POST /api/v1/life-areas` and `PATCH|DELETE /api/v1/life-areas/:id`.
+  - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
 - Validate all request bodies, params, and query strings.
 - Return predictable JSON errors; do not expose stack traces or secrets.
 - Add pagination to list endpoints before datasets grow.
