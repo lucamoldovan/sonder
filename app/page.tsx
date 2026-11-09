@@ -95,7 +95,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) void loadWorkspace();
+    if (!session?.user?.id) return;
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) void loadWorkspace();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [session?.user?.id, loadWorkspace]);
 
   const today = localDate(new Date().toISOString());
