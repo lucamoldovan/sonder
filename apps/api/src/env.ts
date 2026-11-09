@@ -4,4 +4,6 @@ export type Bindings = {
   BETTER_AUTH_URL: string;
   WEB_APP_URL: string;
   ENVIRONMENT?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 };
