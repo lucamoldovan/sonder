@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  CreateLifeAreaSchema,\n  CreateInboxItemSchema,
+  CreateLifeAreaSchema,
+  CreateInboxItemSchema,
   CreateProjectSchema,
   CreateTaskSchema,
   UpdateTaskSchema
@@ -31,7 +32,12 @@ describe("shared request contracts", () => {
     expect(CreateLifeAreaSchema.safeParse({ name: "School", color: "lavender" }).success).toBe(false);
   });
 
-  test("validates universal inbox items and safe links", () => {\n    expect(CreateInboxItemSchema.safeParse({ title: "Read this", type: "link", url: "https://example.com" }).success).toBe(true);\n    expect(CreateInboxItemSchema.safeParse({ title: "Unsafe", type: "link", url: "javascript:alert(1)" }).success).toBe(false);\n  });\n\n  test("validates project names, status, and date-only fields", () => {
+  test("validates universal inbox items and safe links", () => {
+    expect(CreateInboxItemSchema.safeParse({ title: "Read this", type: "link", url: "https://example.com" }).success).toBe(true);
+    expect(CreateInboxItemSchema.safeParse({ title: "Unsafe", type: "link", url: "javascript:alert(1)" }).success).toBe(false);
+  });
+
+  test("validates project names, status, and date-only fields", () => {
     expect(CreateProjectSchema.safeParse({
       name: "Sonder MVP",
       status: "active",
