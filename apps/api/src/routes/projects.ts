@@ -1,15 +1,15 @@
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateProjectSchema, UpdateProjectSchema, UuidSchema } from "@sonder/contracts";
-import { createDatabase } from "../db";
+import type { Database } from "../db";
 import { lifeAreas, projects } from "../db/schema";
-import type { Bindings } from "../env";
+import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
-export const projectRoutes = new Hono<{ Bindings: Bindings }>();
+export const projectRoutes = new Hono<AppEnv>();
 
 async function validateLifeArea(
-  database: ReturnType<typeof createDatabase>,
+  database: Database,
   userId: string,
   lifeAreaId?: string | null
 ) {
@@ -29,7 +29,7 @@ projectRoutes.get("/", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const rows = await db.select().from(projects)
     .where(eq(projects.userId, user.id))
     .orderBy(asc(projects.name));
@@ -51,7 +51,7 @@ projectRoutes.post("/", async (context) => {
     }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId);
   if (relationError) {
     return context.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
@@ -88,7 +88,7 @@ projectRoutes.patch("/:id", async (context) => {
     return context.json({ error: { code: "VALIDATION_ERROR", message: "Provide valid project changes." } }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId);
   if (relationError) {
     return context.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
@@ -128,7 +128,7 @@ projectRoutes.delete("/:id", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [deleted] = await db.delete(projects)
     .where(and(eq(projects.id, context.req.param("id")), eq(projects.userId, user.id)))
     .returning({ id: projects.id });
