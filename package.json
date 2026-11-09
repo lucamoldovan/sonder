@@ -16,7 +16,9 @@
     "build:all": "turbo run build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:all": "turbo run typecheck",
+    "test": "bun test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
