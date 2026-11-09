@@ -9,3 +9,5 @@ build
 .DS_Store
 .wrangler
 .dev.vars
+.env.local
+apps/mobile/.env
