@@ -4,7 +4,10 @@ import {
   CreateInboxItemSchema,
   CreateProjectSchema,
   CreateTaskSchema,
-  UpdateTaskSchema
+  UpdateTaskSchema,
+  UpdateLifeAreaSchema,
+  UpdateProjectSchema,
+  UpdateInboxItemSchema
 } from "./index";
 
 describe("shared request contracts", () => {
@@ -25,6 +28,13 @@ describe("shared request contracts", () => {
       projectId: null,
       lifeAreaId: null
     });
+  });
+
+  test("PATCH schemas do not apply create-time defaults to omitted fields", () => {
+    expect(UpdateLifeAreaSchema.parse({ name: "Church" })).toEqual({ name: "Church" });
+    expect(UpdateProjectSchema.parse({ description: "A project" })).toEqual({ description: "A project" });
+    expect(UpdateInboxItemSchema.parse({ status: "archived" })).toEqual({ status: "archived" });
+    expect(UpdateTaskSchema.parse({ priority: "high" })).toEqual({ priority: "high" });
   });
 
   test("validates life area colors", () => {
