@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View
@@ -36,9 +36,9 @@ export default function App() {
       return;
     }
     void loadData();
-  }, [session?.user?.id]);
+  }, [session?.user?.id, loadData]);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -53,7 +53,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   async function submitAuth() {
     setAuthBusy(true);
