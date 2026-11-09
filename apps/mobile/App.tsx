@@ -71,6 +71,22 @@ export default function App() {
     }
   }
 
+  async function signInWithGoogle() {
+    setAuthBusy(true);
+    setError("");
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/"
+      });
+      if (result.error) throw new Error(result.error.message || "Google sign-in failed.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Google sign-in failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   async function addCapture() {
     if (!capture.trim()) return;
     try {
@@ -145,6 +161,7 @@ export default function App() {
             <TouchableOpacity style={[styles.primaryButton, authBusy && styles.disabled]} disabled={authBusy} onPress={() => void submitAuth()}>
               {authBusy ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.primaryText}>{mode === "signup" ? "Create free account" : "Sign in"}</Text>}
             </TouchableOpacity>
+            {process.env.EXPO_PUBLIC_GOOGLE_OAUTH_ENABLED === "true" && <TouchableOpacity style={styles.googleButton} disabled={authBusy} onPress={() => void signInWithGoogle()}><Text style={styles.googleText}>Continue with Google</Text></TouchableOpacity>}
             <TouchableOpacity onPress={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); }}>
               <Text style={styles.switchText}>{mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}</Text>
             </TouchableOpacity>
@@ -210,7 +227,7 @@ const styles = StyleSheet.create({
   primaryButton: { height: 48, borderRadius: 10, backgroundColor: colors.lavender, alignItems: "center", justifyContent: "center", marginTop: 18 },
   primaryText: { color: colors.bg, fontWeight: "700", fontSize: 13 },
   disabled: { opacity: 0.6 },
-  switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
+  googleButton: { height: 46, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: "center", justifyContent: "center", marginTop: 10 },\n  googleText: { color: colors.text, fontSize: 12, fontWeight: "600" },\n  switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
   footnote: { color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 28 },
   apiHint: { color: "#514d5a", fontSize: 9, textAlign: "center", marginTop: 12 },
   content: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 50 },
