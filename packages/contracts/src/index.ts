@@ -47,3 +47,28 @@ export type CreateLifeAreaInput = z.infer<typeof CreateLifeAreaSchema>;
 export type UpdateLifeAreaInput = z.infer<typeof UpdateLifeAreaSchema>;
 
 export const UuidSchema = z.string().uuid();
+
+
+export const ProjectStatusSchema = z.enum([
+  "active",
+  "on_hold",
+  "completed",
+  "archived"
+]);
+
+const DateOnlySchema = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/, "Expected a date in YYYY-MM-DD format");
+
+export const CreateProjectSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(10_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  status: ProjectStatusSchema.default("active"),
+  startDate: DateOnlySchema.nullable().optional(),
+  dueDate: DateOnlySchema.nullable().optional()
+});
+
+export const UpdateProjectSchema = CreateProjectSchema.partial();
+
+export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
+export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
+export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
