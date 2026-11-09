@@ -2,58 +2,65 @@
 
 ## Decision
 
-Sonder uses a TypeScript monorepo with a Next.js web application, an Expo native application, one Hono API, and a shared PostgreSQL database.
+Sonder is a TypeScript monorepo with a Next.js web application, an Expo native application, one Hono API, and one PostgreSQL database.
 
 ### Applications
+
 - **Web:** Next.js App Router at the repository root.
 - **Mobile:** Expo + React Native in `apps/mobile`.
-- **API:** Hono in `apps/api`, mounted by a Next.js catch-all route at `app/api/[[...path]]/route.ts` and executed in the Node.js runtime.
-
-### Shared packages
-- **`@sonder/contracts`:** Zod request schemas and inferred TypeScript types.
-- Shared API response types and UI primitives can be extracted when the same implementation is genuinely used by both apps.
+- **API:** Hono in `apps/api`, mounted by `app/api/[[...path]]/route.ts` and executed through the OpenNext Node.js compatibility runtime on Cloudflare Workers.
 
 ### Backend services
-- **Hosting:** Vercel Hobby for the personal, non-commercial app; web pages and API routes share one deployment and origin.
-- **Database:** Neon Free PostgreSQL, accessed with the Neon serverless HTTP driver from the Node.js API runtime.
-- **ORM/migrations:** Drizzle ORM + Drizzle Kit. The Neon HTTP driver is used for independent queries; Better Auth's Drizzle adapter has `transaction: false`. Use a transaction-capable driver if future workflows require multi-statement transactions.
+
+- **Hosting:** Cloudflare Workers Free, using the OpenNext Cloudflare adapter.
+- **Database:** Supabase Free PostgreSQL.
+- **Database connectivity:** Cloudflare Hyperdrive, bound as `HYPERDRIVE`. Production uses Supabase's direct database connection string; Hyperdrive provides connection pooling.
+- **ORM/migrations:** Drizzle ORM + Drizzle Kit, using `pg@8.16.3`.
 - **Authentication:** Better Auth email/password with the Expo client plugin.
-- **File storage:** local-only initially; add a free-quota provider only when attachments are implemented.
+- **File storage:** not enabled yet.
 - **AI:** optional local Ollama integration after core workflows exist. No paid inference API.
 
-Cloudflare Workers are intentionally not part of the selected runtime. Better Auth's default scrypt password hashing is CPU-intensive; the free Workers CPU budget is too tight to make sign-up reliability a safe assumption. The Node.js runtime uses the native Node password-hashing implementation instead.
+The app uses one public origin for web and API. Native clients call the same Worker URL. Clients never connect directly to PostgreSQL and never receive database credentials.
+
+## Cloudflare constraints
+
+Workers Free currently allows 100,000 requests per day and 10 ms CPU time per HTTP request. Hyperdrive Free currently allows 100,000 database statements per day and approximately 20 origin database connections per configuration. Network waits do not count toward Worker CPU time, but CPU-heavy authentication and server rendering do.
+
+Better Auth's default pure-JavaScript scrypt fallback can exceed the Workers Free CPU budget. Sonder therefore explicitly uses Node's native `node:crypto.scryptSync` with Better Auth's default scrypt parameters and compatible stored-hash format. This avoids the pure-JavaScript fallback, but actual signup/sign-in CPU usage must still be measured in the deployed Worker.
+
+Do not silently switch to a paid Workers plan. If real-world CPU metrics show the free limit is insufficient, stop and discuss the trade-off before enabling billing.
 
 ## Request flow
 
-1. Web calls same-origin `/api/*` routes on the Next.js deployment.
-2. Native calls the same deployment URL configured by `EXPO_PUBLIC_API_URL`.
-3. The Next catch-all route passes the request to Hono.
-4. Hono validates input using shared Zod contracts and derives user identity from the verified Better Auth session.
-5. Drizzle queries Neon PostgreSQL.
-6. Responses use predictable JSON shapes.
+1. Web calls same-origin `/api/*` routes.
+2. Native calls the same Worker origin configured by `EXPO_PUBLIC_API_URL`.
+3. The Next.js catch-all route obtains Cloudflare bindings using `getCloudflareContext({ async: true })` and passes them to Hono.
+4. Hono validates inputs and derives user identity from the verified Better Auth session.
+5. Drizzle queries PostgreSQL through a fresh `pg.Client` connected to Hyperdrive.
+6. Hyperdrive manages pooled origin connections to Supabase.
 
-Clients must never connect directly to PostgreSQL or receive database credentials. Never trust a client-supplied `userId`; derive ownership from the authenticated session.
+Create database clients inside each Worker request. Do not keep clients or pools in module scope. Hyperdrive cleans up the Worker-side connection at the end of the invocation; local Node development explicitly closes its client.
 
 ## Authentication and sessions
 
-- Better Auth owns user, session, account, and verification records.
+- Better Auth owns `user`, `session`, `account`, and `verification` records.
 - Web uses secure, HTTP-only same-origin cookies.
-- Native uses the Better Auth Expo client and Expo SecureStore for session persistence.
+- Native uses Better Auth Expo and Expo SecureStore.
 - The Expo deep-link scheme is `sonder://`.
-- `BETTER_AUTH_URL` and `WEB_APP_URL` should both be the deployed Vercel origin in production.
-- Email verification and email password reset are not enabled until a free transactional email provider is configured.
-- Google OAuth is optional and enabled only when client credentials are configured; Apple Sign In is deferred to preserve the zero-cost requirement.
+- `BETTER_AUTH_SECRET` is a Cloudflare Worker Secret and must be at least 32 characters of high entropy.
+- `BETTER_AUTH_URL` and `WEB_APP_URL` are the production Worker origin.
+- Email verification and password reset are not enabled until a free transactional email provider is selected.
+- Google OAuth is optional and disabled until configured.
 
 ## Database conventions
 
 - UUID primary keys for product records.
-- Better Auth user IDs remain text IDs as required by its adapter schema.
+- Better Auth user IDs remain text IDs.
 - Every user-owned table has a non-null `user_id` foreign key.
-- Ownership is checked in the API for every read/write.
 - Use timestamptz for instants and date for date-only values.
 - Keep created/updated timestamps; update `updated_at` on writes.
 - Use explicit enums for task status and priority.
-- Generate and review migrations with Drizzle Kit before applying them.
+- Generate, review, and apply migrations with Drizzle Kit before using the app.
 
 ## Initial schema
 
@@ -64,53 +71,71 @@ Clients must never connect directly to PostgreSQL or receive database credential
 ## API conventions
 
 - API base path: `/api`.
-- Health endpoint: `GET /api/health`.
-- Better Auth endpoint prefix: `/api/auth/*`.
-- Product endpoints live under `/api/v1/*`:
+- `GET /api/health` — API health.
+- `GET /api/health/database` — database connectivity and initial auth-schema readiness.
+- Better Auth endpoints: `/api/auth/*`.
+- Product endpoints under `/api/v1/*`:
   - `GET /api/v1/me` — current authenticated user.
-  - `GET|POST /api/v1/life-areas` and `PATCH|DELETE /api/v1/life-areas/:id`.
-  - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
-  - `GET|POST /api/v1/projects` and `PATCH|DELETE /api/v1/projects/:id`.
-  - `GET|POST /api/v1/inbox`, `PATCH|DELETE /api/v1/inbox/:id`, and `POST /api/v1/inbox/:id/convert-to-task`.
-- Validate all request bodies and route params.
+  - Life areas, tasks, projects, and inbox CRUD.
+- Validate request bodies and route params.
 - Return predictable JSON errors; do not expose stack traces or secrets.
 - Add pagination and rate limiting before broad public release.
 
 ## Local development
 
-Copy root `.env.example` to `.env.local` and set:
-- `DATABASE_URL` — Neon pooled connection string.
+Copy the root `.env.example` to `.env.local` and set:
+
+- `DATABASE_URL` — Supabase PostgreSQL connection string.
 - `BETTER_AUTH_SECRET` — at least 32 characters of high-entropy random data.
 - `BETTER_AUTH_URL=http://localhost:3000`.
 - `WEB_APP_URL=http://localhost:3000`.
-- `NEXT_PUBLIC_APP_URL=http://localhost:3000`.
+- `ENVIRONMENT=development`.
 
-Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before running Drizzle Kit. Never commit either environment file.
+Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` for Drizzle Kit. If the local network is IPv4-only, use Supabase's shared session pooler for local migrations. Hyperdrive itself should be configured with Supabase's direct connection string.
 
-For an Android emulator, set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000`. For a physical phone, use the computer's LAN IP and keep both devices on the same Wi-Fi network. For production, use the free Vercel app URL.
+Generate and apply migrations:
 
-## Deployment and cost policy
+```bash
+bun --cwd apps/api run db:generate
+bun --cwd apps/api run db:migrate
+```
 
-- Web + API: Vercel Hobby, $0 for personal, non-commercial use and within included quotas.
-- Database: Neon Free, $0 within compute, storage, and egress quotas.
-- Mobile development: Expo SDK + Expo Go, $0; use local builds when cloud build quotas are exhausted.
-- CI: GitHub Actions on the public repository.
-- AI: local Ollama only unless a future free option is verified.
-- No custom domain, paid add-on, paid AI API, paid email provider, or paid app-store account is required for development.
+For local web development, run `bun run dev:web`. For native, run `bun run dev:mobile`. Android emulator API URL: `http://10.0.2.2:3000`; physical device: the computer's LAN IP and port 3000.
 
-See [FREE_STACK.md](./FREE_STACK.md) for the strict zero-cost policy and current provider limits.
+## Cloudflare Workers Builds
+
+Configure:
+
+- Root directory: `/`
+- Production branch: `main`
+- Build command: `bunx opennextjs-cloudflare build`
+- Deploy command:
+
+```bash
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://placeholder:placeholder@127.0.0.1:5432/placeholder bunx opennextjs-cloudflare deploy -- --keep-vars
+```
+
+OpenNext's deploy command initializes a local platform proxy while preparing the remote deployment. The placeholder local connection string prevents Wrangler from failing before deployment; it is only set for the deploy command. The production Worker still receives the real `HYPERDRIVE` binding from `wrangler.jsonc`.
+
+Set runtime variables in the Cloudflare dashboard, not build variables:
+
+- Secret `BETTER_AUTH_SECRET`.
+- Variables `BETTER_AUTH_URL`, `WEB_APP_URL`, and `ENVIRONMENT=production`.
+- Optional Google OAuth credentials.
+
+The `--keep-vars` flag preserves dashboard-configured runtime values during deployments.
+
+## Cost policy
+
+Stay on Cloudflare Workers Free, Hyperdrive Free, and Supabase Free. Their quotas are hard ceilings. Pause a feature rather than enabling paid billing. Cloudflare Workers Free's 10 ms CPU limit is the main runtime constraint and must be monitored.
 
 ## Security requirements
 
 - Enforce user ownership on every data query and mutation.
-- Never accept a user ID from an untrusted client as proof of ownership.
+- Never accept a client-supplied user ID as proof of ownership.
 - Keep secrets out of source control and client bundles.
 - Use HTTPS in production.
 - Configure Better Auth trusted origins explicitly.
 - Validate inputs at the API boundary.
 - Add audit history for consequential AI-assisted changes.
 - Provide data export and account deletion before broad release.
-
-## Architecture evolution
-
-Start with one Next.js deployment, one Hono API surface, and one PostgreSQL database. Avoid premature microservices. Keep domain modules separated inside the API so they can be extracted only if real scale or operational needs justify it.
