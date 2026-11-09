@@ -64,3 +64,18 @@
 .google-button{height:43px;margin-top:10px;border:1px solid var(--line-strong);border-radius:9px;background:rgba(255,255,255,.035);color:#e7e2ed;font:inherit;font-size:11px;font-weight:600;cursor:pointer}
 .google-button:hover{background:rgba(255,255,255,.07)}
 .google-button:disabled{opacity:.55;cursor:wait}
+
+
+/* Core life modules */
+.upcoming-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--line)}
+.upcoming-row:first-of-type{border-top:0}
+.upcoming-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--lav);box-shadow:0 0 12px rgba(167,139,250,.35)}
+.upcoming-row>div{display:grid;gap:4px;min-width:0}
+.upcoming-row strong{font-size:11px;font-weight:600;color:#ded9e5}
+.upcoming-row span{font-size:9px;color:var(--muted)}
+.habit-row{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line)}
+.habit-row:last-child{border-bottom:0}
+.goal-actions{display:flex;align-items:center;gap:8px;margin-top:13px}
+.goal-actions .icon-button{margin-left:auto}
+.calendar-event .icon-button{width:22px;height:22px;margin-left:4px}
+@media(max-width:560px){.upcoming-row{padding:9px 0}.habit-row{gap:9px}}
