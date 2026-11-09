@@ -1,18 +1,19 @@
-import { Hono } from "hono";
+import { Client } from "pg";
+import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { createAuth } from "./auth";
-import type { Bindings } from "./env";
+import { createDatabase } from "./db";
+import type { AppEnv } from "./env";
 import { v1Routes } from "./routes";
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<AppEnv>();
 
 app.use(
   "/api/*",
   cors({
     origin: (origin, context) => {
-      const env = context.env as Bindings;
       const allowedOrigins = [
-        env.WEB_APP_URL,
+        context.env.WEB_APP_URL,
         "http://localhost:3000",
         "http://localhost:8081",
         "http://127.0.0.1:8081"
@@ -27,6 +28,26 @@ app.use(
   })
 );
 
+const databaseMiddleware: MiddlewareHandler<AppEnv> = async (context, next) => {
+  const connectionString = context.env.HYPERDRIVE?.connectionString ?? context.env.DATABASE_URL;
+  if (!connectionString) {
+    return context.json({ error: { code: "DATABASE_NOT_CONFIGURED", message: "Database connection is not configured." } }, 500);
+  }
+
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    context.set("db", createDatabase(client));
+    await next();
+  } finally {
+    await client.end();
+  }
+};
+
+app.use("/api/auth/*", databaseMiddleware);
+app.use("/api/v1/*", databaseMiddleware);
+
 app.get("/api/health", (context) =>
   context.json({
     status: "ok",
@@ -36,14 +57,15 @@ app.get("/api/health", (context) =>
 );
 
 app.on(["GET", "POST"], "/api/auth/*", (context) =>
-  createAuth(context.env).handler(context.req.raw)
+  createAuth(context.env, context.get("db")).handler(context.req.raw)
 );
 
 app.route("/api/v1", v1Routes);
 
 app.get("/api/v1/me", async (context) => {
-  const auth = createAuth(context.env);
-  const session = await auth.api.getSession({ headers: context.req.raw.headers });
+  const session = await createAuth(context.env, context.get("db")).api.getSession({
+    headers: context.req.raw.headers
+  });
 
   if (!session) {
     return context.json(
