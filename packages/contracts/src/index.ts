@@ -75,3 +75,28 @@ export const UpdateProjectSchema = CreateProjectSchema.partial();
 export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
+
+
+export const InboxItemTypeSchema = z.enum([
+  "task",
+  "idea",
+  "note",
+  "link",
+  "event",
+  "reminder"
+]);
+
+export const CreateInboxItemSchema = z.object({
+  type: InboxItemTypeSchema.default("task"),
+  title: z.string().trim().min(1).max(200),
+  content: z.string().max(20_000).nullable().optional(),
+  url: z.string().url().max(2_048).nullable().optional()
+});
+
+export const UpdateInboxItemSchema = CreateInboxItemSchema.partial().extend({
+  status: z.enum(["inbox", "processed", "archived"]).optional()
+});
+
+export type InboxItemType = z.infer<typeof InboxItemTypeSchema>;
+export type CreateInboxItemInput = z.infer<typeof CreateInboxItemSchema>;
+export type UpdateInboxItemInput = z.infer<typeof UpdateInboxItemSchema>;
