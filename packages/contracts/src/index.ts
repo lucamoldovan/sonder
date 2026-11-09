@@ -90,7 +90,7 @@ export const CreateInboxItemSchema = z.object({
   type: InboxItemTypeSchema.default("task"),
   title: z.string().trim().min(1).max(200),
   content: z.string().max(20_000).nullable().optional(),
-  url: z.string().url().max(2_048).nullable().optional()
+  url: z.string().url().max(2_048).refine(value => {\n    const protocol = new URL(value).protocol;\n    return protocol === "http:" || protocol === "https:";\n  }, "Only HTTP and HTTPS links are allowed").nullable().optional()
 });
 
 export const UpdateInboxItemSchema = CreateInboxItemSchema.partial().extend({
