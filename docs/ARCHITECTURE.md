@@ -83,6 +83,7 @@ Copy root `.env.example` to `.env.local` and set:
 - `BETTER_AUTH_SECRET` — at least 32 characters of high-entropy random data.
 - `BETTER_AUTH_URL=http://localhost:3000`.
 - `WEB_APP_URL=http://localhost:3000`.
+- `NEXT_PUBLIC_APP_URL=http://localhost:3000`.
 
 Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before running Drizzle Kit. Never commit either environment file.
 
