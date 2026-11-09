@@ -137,6 +137,66 @@ export const tasks = pgTable("tasks", {
   index("tasks_due_at_idx").on(table.userId, table.dueAt)
 ]).enableRLS();
 
+export const goals = pgTable("goals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("active"),
+  targetDate: date("target_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("goals_user_id_idx").on(table.userId),
+  index("goals_life_area_id_idx").on(table.lifeAreaId)
+]).enableRLS();
+
+export const habits = pgTable("habits", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  frequency: text("frequency").notNull().default("daily"),
+  targetPerWeek: integer("target_per_week").notNull().default(7),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("habits_user_id_idx").on(table.userId)
+]).enableRLS();
+
+export const habitEntries = pgTable("habit_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  habitId: uuid("habit_id").notNull().references(() => habits.id, { onDelete: "cascade" }),
+  entryDate: date("entry_date").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  uniqueIndex("habit_entries_habit_date_unique").on(table.habitId, table.entryDate),
+  index("habit_entries_user_date_idx").on(table.userId, table.entryDate)
+]).enableRLS();
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  allDay: boolean("all_day").notNull().default(false),
+  location: text("location"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("calendar_events_user_start_idx").on(table.userId, table.startsAt),
+  index("calendar_events_project_id_idx").on(table.projectId)
+]).enableRLS();
+
 export const inboxItemType = pgEnum("inbox_item_type", [
   "task",
   "idea",
