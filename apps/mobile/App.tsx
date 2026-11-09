@@ -3,16 +3,11 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from "react-native";
+import type { InboxItemRecord, TaskRecord } from "@sonder/contracts";
 import { API_BASE_URL, apiRequest, authClient } from "./auth-client";
 
-type Task = {
-  id: string;
-  title: string;
-  status: "inbox" | "todo" | "in_progress" | "done" | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  dueAt: string | null;
-};
-type InboxItem = { id: string; title: string; createdAt: string };
+type Task = TaskRecord;
+type InboxItem = Pick<InboxItemRecord, "id" | "title" | "createdAt">;
 type List<T> = { data: T };
 
 const colors = {
