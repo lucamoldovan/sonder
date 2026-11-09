@@ -110,6 +110,8 @@ See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never
 - API Worker scaffold and health endpoint are in place.
 - Better Auth + Neon + Drizzle configuration is scaffolded; it needs a real database URL and generated/applied migrations before authentication can run.
 - Initial product schema covers users, life areas, projects, and tasks.
+- Authenticated CRUD APIs exist for life areas, projects, and tasks, with request validation and user-ownership checks.
 - Expo native app shell is scaffolded.
-- Shared task validation contracts are in place.
+- Shared Zod contracts and initial validation tests are in place.
+- GitHub Actions CI checks workspace types, shared contracts, the web build, and API Worker bundling.
 - Initial task and life-area API CRUD endpoints include validation and per-user ownership checks. The existing web dashboard is not yet connected to these endpoints; cloud sync and cross-device synchronization remain unfinished.
