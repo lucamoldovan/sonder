@@ -15,7 +15,8 @@ export function createAuth(env: Bindings) {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
       provider: "pg",
-      schema
+      schema,
+      transaction: false
     }),
     emailAndPassword: {
       enabled: true,
