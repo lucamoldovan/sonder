@@ -53,9 +53,14 @@ lifeAreaRoutes.post("/", async (context) => {
     color: parsed.data.color,
     icon: parsed.data.icon ?? null,
     position: parsed.data.position
-  }).returning();
+  }).onConflictDoNothing().returning();
 
-  return context.json({ data: created }, 201);
+  if (created) return context.json({ data: created }, 201);
+
+  const [existing] = await db.select().from(lifeAreas)
+    .where(and(eq(lifeAreas.userId, user.id), eq(lifeAreas.slug, slug)))
+    .limit(1);
+  return context.json({ data: existing }, 200);
 });
 
 lifeAreaRoutes.patch("/:id", async (context) => {
