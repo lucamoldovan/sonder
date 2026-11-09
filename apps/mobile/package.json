@@ -13,10 +13,10 @@
   "dependencies": {
     "expo": "~55.0.0",
     "react": "19.2.0",
-    "react-native": "0.83.1",
+    "react-native": "0.83.6",
     "better-auth": "^1.6.0",
     "@better-auth/expo": "^1.6.0",
-    "expo-secure-store": "~16.0.7"
+    "expo-secure-store": "~55.0.18"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
