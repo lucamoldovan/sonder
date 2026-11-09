@@ -7,8 +7,8 @@ Sonder is intended for private use by the owner and a few friends. Keep all serv
 | Need | Provider / tool | Cost target | Important limits |
 |---|---|---:|---|
 | Source control and CI | GitHub Free | $0 | Public repository Actions minutes are free. |
-| Web + API hosting | Cloudflare Workers Free | $0 | 100,000 requests/day; 10 ms CPU per request. |
-| Database connectivity | Cloudflare Hyperdrive Free | $0 | 100,000 database statements/day; approximately 20 origin connections per configuration. |
+| Web + API hosting | Cloudflare Workers Free | $0 | 100,000 requests/day; 10 ms CPU per request; 64 MiB uncompressed Worker bundle. |
+| Database connectivity | Cloudflare Hyperdrive Free | $0 | Approximately 20 origin database connections per configuration. |
 | PostgreSQL | Supabase Free | $0 | 500 MB database, 5 GB egress; direct connection is IPv6. Low-activity projects can pause after 7 days. |
 | Native development | Expo SDK + Expo Go | $0 | Local development; cloud builds are optional and quota-limited. |
 | AI (future) | Ollama with a local model | $0 | Uses the user's own computer; no hosted inference or API key. |
