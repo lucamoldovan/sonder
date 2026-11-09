@@ -36,6 +36,21 @@ jobs:
             bun.lock
             apps/api/drizzle/
 
+      - name: Commit generated lockfile and initial migration
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock apps/api/drizzle
+          if git diff --cached --quiet; then
+            echo "No generated bootstrap files to commit"
+            exit 0
+          fi
+          git commit -m "chore: add Bun lockfile and initial Drizzle migration"
+          git push origin "HEAD:${HEAD_REF}"
+
       - name: Typecheck all workspaces
         run: bun run typecheck:all
 
@@ -49,4 +64,5 @@ jobs:
         run: bun run build:cloudflare
 
       - name: Typecheck API workspace
-        run: bun --cwd apps/api run typecheck
+        working-directory: apps/api
+        run: bun run typecheck
