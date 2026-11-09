@@ -114,4 +114,3 @@ See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never
 - Expo native app shell is scaffolded.
 - Shared Zod contracts and initial validation tests are in place.
 - GitHub Actions CI checks workspace types, shared contracts, the web build, and API Worker bundling.
-- Initial task and life-area API CRUD endpoints include validation and per-user ownership checks. The existing web dashboard is not yet connected to these endpoints; cloud sync and cross-device synchronization remain unfinished.
