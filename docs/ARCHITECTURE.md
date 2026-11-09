@@ -14,8 +14,8 @@ Sonder uses a TypeScript monorepo with separate web and native applications, a s
 - Future packages may include domain logic, API client, design tokens, and shared UI primitives. Only add a package when real code is shared.
 
 ### Backend services
-- **Database:** Neon managed PostgreSQL.
-- **ORM/migrations:** Drizzle ORM + Drizzle Kit.
+- **Database:** Neon managed PostgreSQL, accessed through the serverless HTTP driver from Cloudflare Workers.
+- **ORM/migrations:** Drizzle ORM + Drizzle Kit. The HTTP driver is intended for independent queries; Better Auth's Drizzle adapter explicitly runs without interactive transactions. If future workflows require multi-statement interactive transactions, switch that path to a transaction-capable Neon WebSocket driver or Cloudflare Hyperdrive.
 - **Authentication:** Better Auth, hosted by the Hono API. Email/password first; Google and Apple OAuth after provider credentials and callback URLs are configured.
 - **File storage:** Cloudflare R2, introduced when attachment workflows are implemented.
 - **AI:** provider-independent server-side service, introduced after core data workflows exist.
