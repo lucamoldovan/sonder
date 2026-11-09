@@ -10,8 +10,9 @@ app.use(
   "/api/*",
   cors({
     origin: (origin, context) => {
+      const env = context.env as Bindings;
       const allowedOrigins = [
-        context.env.WEB_APP_URL,
+        env.WEB_APP_URL,
         "http://localhost:3000",
         "http://localhost:8081",
         "http://127.0.0.1:8081"
