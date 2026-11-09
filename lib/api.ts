@@ -1,3 +1,10 @@
+import type {
+  InboxItemRecord,
+  LifeAreaRecord,
+  ProjectRecord,
+  TaskRecord
+} from "@sonder/contracts";
+
 type ApiError = {
   error?: {
     code?: string;
@@ -46,46 +53,8 @@ export async function apiRequest<T>(
   return payload as T;
 }
 
-export type ApiTask = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: "inbox" | "todo" | "in_progress" | "done" | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  dueAt: string | null;
-  lifeAreaId: string | null;
-  projectId: string | null;
-  createdAt: string;
-  completedAt: string | null;
-};
-
-export type ApiLifeArea = {
-  id: string;
-  name: string;
-  color: string;
-  icon: string | null;
-  position: number;
-};
-
-export type ApiProject = {
-  id: string;
-  name: string;
-  description: string | null;
-  status: "active" | "on_hold" | "completed" | "archived";
-  lifeAreaId: string | null;
-  startDate: string | null;
-  dueDate: string | null;
-};
-
-export type ApiInboxItem = {
-  id: string;
-  type: "task" | "idea" | "note" | "link" | "event" | "reminder";
-  title: string;
-  content: string | null;
-  url: string | null;
-  status: "inbox" | "processed" | "archived";
-  convertedTaskId: string | null;
-  createdAt: string;
-};
-
+export type ApiTask = TaskRecord;
+export type ApiLifeArea = LifeAreaRecord;
+export type ApiProject = ProjectRecord;
+export type ApiInboxItem = InboxItemRecord;
 export type ApiList<T> = { data: T };
