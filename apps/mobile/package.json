@@ -18,7 +18,10 @@
     "@better-auth/expo": "^1.6.0",
     "expo-secure-store": "~55.0.18",
     "expo-network": "~55.0.14",
-    "@sonder/contracts": "workspace:*"
+    "@sonder/contracts": "workspace:*",
+    "expo-linking": "~55.0.15",
+    "expo-web-browser": "~55.0.16",
+    "expo-constants": "~55.0.16"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
