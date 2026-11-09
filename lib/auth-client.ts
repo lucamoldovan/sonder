@@ -1,9 +1,8 @@
 import { createAuthClient } from "better-auth/react";
 
-const appOrigin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
+// The web app and API share an origin. Let Better Auth use the current origin
+// instead of baking localhost:3000 into the production client bundle.
 export const authClient = createAuthClient({
-  baseURL: appOrigin,
   fetchOptions: {
     credentials: "include"
   }
