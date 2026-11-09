@@ -81,7 +81,7 @@ Required environment variables:
 - `BETTER_AUTH_URL` (local API URL, normally http://localhost:8787)
 - `WEB_APP_URL` (local web URL, normally http://localhost:3000)
 
-Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars` for Wrangler local secrets. Copy `.env.example` to `.env` for Drizzle CLI commands. Never commit real values.
+Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars` for Wrangler local secrets. Copy `apps/api/.env.example` to `apps/api/.env` for Drizzle CLI commands. Never commit real values.
 
 ## Deployment
 
