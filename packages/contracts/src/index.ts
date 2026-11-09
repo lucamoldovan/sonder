@@ -188,14 +188,18 @@ export const CreateGoalSchema = z.object({
 export const UpdateGoalSchema = CreateGoalSchema.partial();
 export type GoalRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; targetDate: string | null; status: "active" | "completed" | "paused"; createdAt: string };
 
-export const CreateHabitSchema = z.object({
+const HabitFieldsSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().max(2_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
   frequency: z.enum(["daily", "weekdays", "weekly"]).default("daily"),
-  targetPerWeek: z.number().int().min(1).max(7).default(7)
+  targetPerWeek: z.number().int().min(1).max(7).optional()
 });
-export const UpdateHabitSchema = CreateHabitSchema.partial().extend({ archived: z.boolean().optional() });
+export const CreateHabitSchema = HabitFieldsSchema.transform(data => ({
+  ...data,
+  targetPerWeek: data.targetPerWeek ?? (data.frequency === "weekdays" ? 5 : data.frequency === "weekly" ? 1 : 7)
+}));
+export const UpdateHabitSchema = HabitFieldsSchema.partial().extend({ archived: z.boolean().optional() });
 export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
 export type HabitEntryRecord = { id: string; habitId: string; entryDate: string; note: string | null };
 
