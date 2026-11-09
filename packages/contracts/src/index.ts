@@ -71,6 +71,11 @@ export const ProjectStatusSchema = z.enum([
   "archived"
 ]);
 
+const SafeHttpUrlSchema = z.string().url().max(2_048).refine(
+  value => /^https?:\\/\\//i.test(value),
+  "Only HTTP and HTTPS links are allowed"
+);
+
 const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format").refine((value) => {
   const parsed = new Date(value + "T00:00:00.000Z");
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
@@ -112,20 +117,14 @@ export const CreateInboxItemSchema = z.object({
   type: InboxItemTypeSchema.default("task"),
   title: z.string().trim().min(1).max(200),
   content: z.string().max(20_000).nullable().optional(),
-  url: z.string().url().max(2_048).refine(value => {
-    const protocol = new URL(value).protocol;
-    return protocol === "http:" || protocol === "https:";
-  }, "Only HTTP and HTTPS links are allowed").nullable().optional()
+  url: SafeHttpUrlSchema.nullable().optional()
 });
 
 export const UpdateInboxItemSchema = z.object({
   type: InboxItemTypeSchema.optional(),
   title: z.string().trim().min(1).max(200).optional(),
   content: z.string().max(20_000).nullable().optional(),
-  url: z.string().url().max(2_048).refine(value => {
-    const protocol = new URL(value).protocol;
-    return protocol === "http:" || protocol === "https:";
-  }, "Only HTTP and HTTPS links are allowed").nullable().optional(),
+  url: SafeHttpUrlSchema.nullable().optional(),
   status: z.enum(["inbox", "processed", "archived"]).optional()
 });
 
