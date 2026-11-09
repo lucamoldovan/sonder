@@ -48,7 +48,7 @@ export const account = pgTable("account", {
   scope: text("scope"),
   password: text("password"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").notNull()
+  updatedAt: timestamp("updatedAt").defaultNow().notNull()
 }, (table) => [
   index("account_user_id_idx").on(table.userId)
 ]);
