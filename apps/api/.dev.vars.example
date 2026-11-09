@@ -1,4 +1,6 @@
-# Copy this file to .dev.vars and fill in real local values.
-# Never commit .dev.vars or production secrets.
+# Copy to .dev.vars for local Wrangler development. Never commit real values.
 DATABASE_URL=
 BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:8787
+WEB_APP_URL=http://localhost:3000
+ENVIRONMENT=development
