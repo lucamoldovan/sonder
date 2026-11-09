@@ -11,7 +11,9 @@ async function handle(request: Request) {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || "",
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || requestOrigin,
     WEB_APP_URL: process.env.WEB_APP_URL || requestOrigin,
-    ENVIRONMENT: process.env.NODE_ENV || "production"
+    ENVIRONMENT: process.env.ENVIRONMENT || process.env.NODE_ENV || "production",
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET
   };
 
   return app.fetch(request, env);
