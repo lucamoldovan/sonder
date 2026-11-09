@@ -81,11 +81,14 @@ export default function Home() {
         loadedAreas = seeded.data;
       }
 
+      setError("");
       setTasks(taskResult.data);
       setAreas(loadedAreas);
       setProjects(projectResult.data);
       setInbox(inboxResult.data);
-      setTaskArea(current => current || loadedAreas[0]?.id || "");
+      setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
+      setTaskProject("");
+      setFilterArea(current => current === "all" || loadedAreas.some(area => area.id === current) ? current : "all");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your workspace.");
     }
