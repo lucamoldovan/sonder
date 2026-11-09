@@ -98,7 +98,7 @@ bun --cwd apps/api run db:generate
 bun --cwd apps/api run db:migrate
 ```
 
-The Drizzle CLI reads `.env` from the repository root. Copy `.env.example` to `.env` and set `DATABASE_URL` before generating or applying migrations.
+Drizzle Kit runs from the API workspace. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before generating or applying migrations. Wrangler uses the separate `apps/api/.dev.vars` file.
 
 ## Environment and secrets
 
