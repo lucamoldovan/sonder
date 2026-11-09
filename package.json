@@ -9,9 +9,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:web": "next dev",
-    "dev:api": "bun --cwd apps/api run dev",
     "dev:mobile": "bun --cwd apps/mobile run start",
-    "dev:all": "concurrently -k -n web,api,mobile \"bun run dev:web\" \"bun run dev:api\" \"bun run dev:mobile\"",
+    "dev:all": "concurrently -k -n web,mobile \"bun run dev:web\" \"bun run dev:mobile\"",
     "build": "next build",
     "build:all": "bun run build && bun run typecheck:all",
     "start": "next start",
