@@ -13,17 +13,6 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 - Multi-device: desktop and mobile are first-class experiences.
 - User-owned data: clear privacy controls, export, and deletion.
 
-## Brand
-
-- Name: Sonder
-- Tagline: Your life, in perspective.
-- Visual direction: clean, minimal, Apple-inspired
-- Theme: dark-first
-- Background: Obsidian `#0B0B0F`
-- Accent: Lavender `#A78BFA`
-- Typography: Inter
-- Logo: abstract geometric symbol + wordmark
-
 ## Repository structure
 
 ```text
@@ -31,34 +20,29 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 ├── app/                    # Next.js web application and same-origin API route
 ├── apps/
 │   ├── api/                # Hono API, Better Auth, Drizzle schema
-│   └── mobile/             # Expo / React Native application
+│   └── mobile/             # Expo / React Native
 ├── packages/
 │   └── contracts/          # Shared Zod schemas and TypeScript types
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── FREE_STACK.md
-│   ├── PRODUCT_SPEC.md
-│   └── ROADMAP.md
+├── docs/                   # Product, architecture, roadmap, and free-stack docs
 └── lib/                    # Web API and auth clients
 ```
 
 ## Architecture
 
-- Web + API hosting: Next.js on Vercel Hobby (personal, non-commercial use).
-- API: Hono mounted at `app/api/[[...path]]/route.ts`, Node.js runtime.
-- Mobile: Expo + React Native.
-- Database: Neon Free PostgreSQL.
-- ORM and migrations: Drizzle.
-- Authentication: Better Auth (web cookies + Expo SecureStore).
+- Web + API: Next.js 15 App Router + Hono, deployed to Cloudflare Workers with OpenNext.
+- Database: Supabase Free PostgreSQL, accessed in production through Cloudflare Hyperdrive.
+- ORM: Drizzle ORM + Drizzle Kit.
+- Authentication: Better Auth email/password with Expo support.
+- Mobile: Expo SDK 55 + React Native.
 - Shared contracts: Zod + TypeScript.
 - AI: local Ollama only, planned after core workflows.
 - Package manager: Bun workspaces.
 
-See [Technical Architecture](docs/ARCHITECTURE.md), [Product Specification](docs/PRODUCT_SPEC.md), [Roadmap](docs/ROADMAP.md), and [Zero-cost plan](docs/FREE_STACK.md).
+The web app and API share one origin. The mobile app calls the same Cloudflare Worker URL. Production database credentials stay inside Hyperdrive and are never shipped to clients.
 
 ## Development
 
-Requirements: Bun, Node.js compatible with the installed Next.js version, and a Neon Free PostgreSQL database.
+Requirements: Bun 1.2.15, Node.js 24, and a Supabase PostgreSQL project.
 
 Install dependencies:
 
@@ -66,18 +50,18 @@ Install dependencies:
 bun install
 ```
 
-Environment:
+Local environment:
 
-1. Copy `.env.example` to `.env.local`.
-2. Create a Neon Free project and set `DATABASE_URL` to its pooled PostgreSQL connection string.
-3. Generate a random `BETTER_AUTH_SECRET` (32+ bytes).
-4. Keep `BETTER_AUTH_URL`, `WEB_APP_URL`, and `NEXT_PUBLIC_APP_URL` set to `http://localhost:3000` for local development.
-5. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before running Drizzle Kit.
+1. Copy the root `.env.example` to `.env.local`.
+2. Set `DATABASE_URL` to your Supabase connection string and generate a random `BETTER_AUTH_SECRET`.
+3. Keep `BETTER_AUTH_URL` and `WEB_APP_URL` set to `http://localhost:3000`.
+4. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` there too. Use Supabase's session pooler if your local network does not support IPv6.
 
-Generate a secret:
+Generate and apply the initial database migrations:
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+bun --cwd apps/api run db:generate
+bun --cwd apps/api run db:migrate
 ```
 
 Run the web app:
@@ -92,31 +76,49 @@ Run the native app:
 bun run dev:mobile
 ```
 
-Run web and mobile together:
+Run both:
 
 ```bash
 bun run dev:all
 ```
 
-The API is served by Next.js on the same origin. Health endpoint: `http://localhost:3000/api/health`.
+The API is served from the web app's same origin. Health endpoints:
 
-Database migrations:
+- `/api/health` — Worker/API is responding.
+- `/api/health/database` — Hyperdrive can reach PostgreSQL and the Better Auth user table exists.
+
+## Cloudflare deployment
+
+The repository is configured for Cloudflare Workers Builds:
+
+- Root directory: `/`
+- Production branch: `main`
+- Build command: `bunx opennextjs-cloudflare build`
+- Deploy command:
 
 ```bash
-bun --cwd apps/api run db:generate
-bun --cwd apps/api run db:migrate
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://placeholder:placeholder@127.0.0.1:5432/placeholder bunx opennextjs-cloudflare deploy -- --keep-vars
 ```
 
-For a physical Android phone, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_URL` to your computer's LAN IP on port 3000. Keep both devices on the same Wi-Fi network. The Android emulator uses `http://10.0.2.2:3000`.
+The placeholder connection string is only used by OpenNext's deployment-time local binding proxy. It is not a production database credential. The deployed Worker uses the real Hyperdrive binding configured in `wrangler.jsonc`.
+
+Set these runtime values in Cloudflare **Settings → Variables and Secrets**:
+
+- Secret: `BETTER_AUTH_SECRET` (at least 32 characters of high-entropy random data).
+- Variable: `BETTER_AUTH_URL` = the production Worker origin.
+- Variable: `WEB_APP_URL` = the same production Worker origin.
+- Variable: `ENVIRONMENT` = `production`.
+- Optional Google OAuth: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+Do not put database passwords in build variables or source control. Production database access is through the `HYPERDRIVE` binding.
 
 ## Current implementation status
 
 - Web sign-up/sign-in UI is connected to Better Auth email/password sessions.
-- Web tasks, projects, life areas, and Today dashboard read/write through the authenticated API.
+- Web tasks, projects, life areas, and Today dashboard use the authenticated API.
 - Universal Inbox supports capture, archive, and convert-to-task on web and mobile.
-- Mobile sign-up/sign-in uses Better Auth and Expo SecureStore; Today tasks and Inbox triage use the same API.
 - API CRUD exists for life areas, projects, tasks, and inbox items with validation and per-user ownership checks.
-- Neon/Drizzle schema is scaffolded; migrations still need to be generated, reviewed, and applied against the user's database.
-- Automated validation tests and GitHub Actions CI are configured but still need a successful run.
+- Cloudflare/OpenNext build succeeds in Workers Builds; production deployment and live database/auth smoke tests still need to be confirmed.
+- The initial Drizzle migration must be generated and applied to the Supabase database before sign-up can work.
 
 Real credentials must never be committed. Never enable a paid plan or usage-based billing for this project.
