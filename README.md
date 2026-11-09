@@ -24,31 +24,92 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 - Typography: Inter
 - Logo: abstract geometric symbol + wordmark
 
-## Current implementation
+## Repository structure
 
-The repository contains an early Next.js App Router + React + TypeScript prototype. It currently includes a responsive dashboard and task management backed by browser localStorage. Calendar, Insights, and Settings are preliminary views; cloud sync, authentication, projects, and the full product architecture are not implemented yet.
+```text
+.
+├── app/                    # Existing Next.js web application
+├── apps/
+│   ├── api/                # Hono API on Cloudflare Workers
+│   └── mobile/             # Expo / React Native application
+├── packages/
+│   └── contracts/          # Shared Zod schemas and TypeScript types
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── PRODUCT_SPEC.md
+│   └── ROADMAP.md
+└── lib/                    # Existing web prototype utilities
+```
 
-## Product documents
+The web prototype remains at the repository root for now so we can preserve the existing work while the monorepo foundation is established.
 
-- [Product specification](docs/PRODUCT_SPEC.md)
-- [Roadmap](docs/ROADMAP.md)
+## Architecture
 
-## Run locally
+- Web: Next.js App Router
+- Mobile: Expo + React Native
+- API: Hono on Cloudflare Workers
+- Database: Neon PostgreSQL
+- ORM and migrations: Drizzle
+- Authentication: Better Auth (web cookies + Expo secure session storage)
+- Shared contracts: Zod + TypeScript
+- File storage: Cloudflare R2 (planned when attachments are implemented)
+- Package manager: Bun workspaces
 
-Requirements: Node.js 20.9+ and Bun (or npm/pnpm/yarn).
+See [Technical Architecture](docs/ARCHITECTURE.md), [Product Specification](docs/PRODUCT_SPEC.md), and [Roadmap](docs/ROADMAP.md).
+
+## Development
+
+Requirements: Bun, Node.js compatible with the installed Next.js version, and a Neon PostgreSQL database for authenticated API/database work.
+
+Install dependencies:
 
 ```bash
 bun install
-bun dev
 ```
 
-Open http://localhost:3000.
+Run the web app:
 
-## Current stack
+```bash
+bun run dev:web
+```
 
-- Next.js App Router
-- React + TypeScript
-- CSS design system
-- lucide-react
+Run the API:
 
-The long-term web/mobile architecture, backend, database, authentication, hosting, sync, and AI provider are still to be finalized.
+1. Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars`.
+2. Add `DATABASE_URL` and a generated `BETTER_AUTH_SECRET`.
+3. Run:
+
+```bash
+bun run dev:api
+```
+
+Run the native app:
+
+```bash
+bun run dev:mobile
+```
+
+The API health endpoint is `http://localhost:8787/health`.
+
+Database migrations:
+
+```bash
+bun --cwd apps/api run db:generate
+bun --cwd apps/api run db:migrate
+```
+
+The Drizzle CLI reads `.env` from the repository root. Copy `.env.example` to `.env` and set `DATABASE_URL` before generating or applying migrations.
+
+## Environment and secrets
+
+See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never be committed. Production Cloudflare secrets and Neon resources must be configured separately.
+
+## Current implementation status
+
+- Existing web dashboard and local task prototype are preserved.
+- API Worker scaffold and health endpoint are in place.
+- Better Auth + Neon + Drizzle configuration is scaffolded; it needs a real database URL and generated/applied migrations before authentication can run.
+- Initial product schema covers users, life areas, projects, and tasks.
+- Expo native app shell is scaffolded.
+- Shared task validation contracts are in place.
+- Cloud sync, production auth, complete task CRUD API, and cross-device synchronization are not yet finished.
