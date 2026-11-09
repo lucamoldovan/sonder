@@ -7,23 +7,26 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Define product vision and principles
 - [x] Define feature catalogue and MVP boundary
 - [x] Confirm web/mobile strategy: Next.js + Expo + shared TypeScript packages
-- [x] Define backend: Hono on Next.js Node.js runtime
-- [x] Define database: Neon Free PostgreSQL + Drizzle
+- [x] Define backend: Hono API mounted in Next.js
+- [x] Select Cloudflare Workers Free + OpenNext for web/API hosting
+- [x] Select Supabase Free PostgreSQL + Cloudflare Hyperdrive
 - [x] Define authentication: Better Auth with Expo support
-- [x] Scaffold Hono API and same-origin health endpoint
-- [x] Add initial PostgreSQL schema for auth, life areas, projects, tasks, and inbox
+- [x] Scaffold Hono API and health endpoints
+- [x] Add PostgreSQL schema for auth, life areas, projects, tasks, and inbox
 - [x] Add shared task contracts
 - [x] Scaffold Expo mobile application
-- [ ] Install dependencies and verify all workspaces
-- [ ] Generate and review initial Drizzle migration
-- [ ] Configure a development Neon database and local secrets
-- [ ] Run API and auth smoke tests
-- [x] Configure GitHub Actions CI and shared contract tests (first successful run pending)
+- [ ] Commit Bun lockfile and verify frozen installs
+- [x] Generate and commit initial Drizzle migration\n- [ ] Apply initial Drizzle migration to Supabase
+- [ ] Configure Cloudflare runtime variables and Better Auth secret
+- [ ] Complete first production deployment
+- [ ] Run production database, signup, signin, session, and CRUD smoke tests
+- [ ] Verify Worker CPU usage stays within the Free plan limit
+- [x] Configure GitHub Actions CI and shared contract tests
 
 ## Phase 1 — Core workspace (MVP)
 - [x] Responsive web workspace shell and native Today workspace
 - [x] Email/password sign-up and sign-in UI on web and mobile
-- [ ] Email verification, password reset, and production auth smoke tests (requires free email setup or a later decision)
+- [ ] Email verification and password reset (requires free email setup or a later decision)
 - [x] Life areas CRUD API and ownership enforcement
 - [x] Web default life-area setup and life-area API CRUD
 - [ ] Native life-area navigation and project views
@@ -37,8 +40,8 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Web task creation, completion, deletion, priorities, and due dates
 - [x] Native Today task list, completion toggle, and shared cloud data
 - [x] Basic project creation/listing UI backed by the API
-- [ ] Project editing, archive, milestones, and linked-task management
 - [x] Today dashboard backed by the API on web and mobile
+- [ ] Project editing, archive, milestones, and linked-task management
 - [ ] Calendar with events and task time blocks
 - [ ] Global search
 - [ ] Reliable sync and loading/error/empty states

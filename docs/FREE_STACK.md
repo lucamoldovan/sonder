@@ -1,79 +1,87 @@
 # Sonder — Zero-cost development and hosting plan
 
-Sonder is being built so the owner can develop and use it without paying for subscriptions or usage-based services. Use free tiers only. Do not enable billing, paid add-ons, metered AI APIs, paid email services, or paid storage.
+Sonder is intended for private use by the owner and a few friends. Keep all services on free tiers. Never enable a paid plan, trial, or usage-based billing without explicit approval.
 
 ## Approved free stack
 
 | Need | Provider / tool | Cost target | Important limits |
 |---|---|---:|---|
 | Source control and CI | GitHub Free | $0 | Public repository Actions minutes are free. |
-| Web + API hosting | Vercel Hobby | $0 | Personal, non-commercial use only; usage is capped and deployments may pause at limits. |
-| PostgreSQL | Neon Free | $0 | Free compute, storage, and egress quotas; compute suspends when monthly limits are reached. |
-| Native development | Expo SDK + Expo Go | $0 | Build and run locally; EAS cloud builds are optional and quota-limited. |
+| Web + API hosting | Cloudflare Workers Free | $0 | 100,000 requests/day; 10 ms CPU per request. |
+| Database connectivity | Cloudflare Hyperdrive Free | $0 | 100,000 database statements/day; approximately 20 origin connections per configuration. |
+| PostgreSQL | Supabase Free | $0 | 500 MB database, 5 GB egress; direct connection is IPv6. Low-activity projects can pause after 7 days. |
+| Native development | Expo SDK + Expo Go | $0 | Local development; cloud builds are optional and quota-limited. |
 | AI (future) | Ollama with a local model | $0 | Uses the user's own computer; no hosted inference or API key. |
 
-Vercel Hobby is suitable for this personal project, not a commercial SaaS. If Sonder becomes a commercial product, we must move to a host whose free plan permits that use before launch.
-
-Neon's current Free allowance includes 100 CU-hours and 1 GB of database storage per project, plus a monthly public network transfer allowance. The exact allowance can change; check the provider dashboard before relying on it.
-
-Do not add Cloudflare Workers, R2, hosted vector databases, paid analytics, paid observability, paid automation platforms, or paid AI providers to the default setup. Keep attachments local until a free option is verified.
+Do not add R2, paid analytics, paid observability, hosted vector databases, paid AI providers, or paid email services to the default setup. Keep attachments disabled until a free option is verified.
 
 ## Authentication policy
 
-- Use Better Auth email/password authentication.
-- Keep email verification disabled for the private MVP until a free transactional email provider is selected and checked.
-- Do not add Apple Sign In or paid developer-program dependencies to the MVP.
-- Google OAuth is optional and remains disabled until provider setup is confirmed free and configured.
+- Use Better Auth email/password.
+- Keep email verification disabled for the private MVP until a free transactional email provider is selected.
+- Use secure, HTTP-only same-origin web cookies and Expo SecureStore on native.
+- Sonder uses native Node.js scrypt with Better Auth's default parameters and hash format to avoid the pure-JavaScript scrypt path on Workers Free. Monitor Worker CPU metrics after signup and sign-in tests; do not assume the 10 ms CPU limit is automatically sufficient.
 - Do not promise password reset by email until outbound email is configured.
-- Use secure HTTP-only same-origin web cookies and Expo SecureStore on native.
+- Google OAuth is optional and remains disabled until configured.
 
-## One origin for web and API
+## Database and connection setup
 
-The Hono API is mounted inside Next.js at `/api/*` and runs in the Node.js runtime. Web requests are same-origin, so auth cookies do not depend on third-party cookie behavior. The mobile app calls the same Vercel deployment URL.
+- Supabase hosts PostgreSQL.
+- Cloudflare Hyperdrive connects to Supabase using the **direct connection string**. Hyperdrive handles pooling, so do not use the Supabase pooler as the Hyperdrive origin.
+- For local Drizzle migrations, use the Supabase session pooler if the local network does not support IPv6.
+- Production Worker requests use the `HYPERDRIVE` binding; no production `DATABASE_URL` variable is required.
 
-## Vercel deployment environment
+## Cloudflare Workers Builds
 
-Create a Vercel Hobby project from the public GitHub repository. Set these environment variables for Production:
+Set:
 
-- `DATABASE_URL`: Neon pooled PostgreSQL connection string.
-- `BETTER_AUTH_SECRET`: generated high-entropy secret.
-- `BETTER_AUTH_URL`: the assigned `https://<project>.vercel.app` origin.
-- `WEB_APP_URL`: the same Vercel origin.
-- `NEXT_PUBLIC_APP_URL`: the same Vercel origin (used by the browser auth client during SSR and hydration).
-- `ENVIRONMENT=production`.
-- Optional Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true` only after configuring the Google OAuth client.
+- Root directory: `/`
+- Production branch: `main`
+- Build command: `bunx opennextjs-cloudflare build`
+- Deploy command:
 
-Do not add a custom domain or enable a paid Vercel plan. The app and API deploy together, so no API proxy URL is required.
+```bash
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://placeholder:placeholder@127.0.0.1:5432/placeholder bunx opennextjs-cloudflare deploy -- --keep-vars
+```
 
-## Optional Google sign-in (free)
+The placeholder is used only by the OpenNext deployment command to satisfy Wrangler's local Hyperdrive platform proxy. It is not a database password and is not used by the deployed Worker. The Worker uses the real Hyperdrive binding.
 
-Google OAuth is optional and does not require a paid Google Cloud plan for this personal app. Create an OAuth 2.0 Web client in Google Cloud Console and configure:
+Set the following in **Worker Settings → Variables and Secrets** (runtime, not build variables):
 
-- Authorized JavaScript origins: `http://localhost:3000` and `https://<project>.vercel.app`.
-- Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google` and `https://<project>.vercel.app/api/auth/callback/google`.
-- Add your own Google account as a test user while the consent screen is in Testing mode.
+- Secret `BETTER_AUTH_SECRET`: generate a high-entropy secret of at least 32 characters.
+- Variable `BETTER_AUTH_URL`: the production Worker origin, for example `https://sonder.<your-subdomain>.workers.dev`.
+- Variable `WEB_APP_URL`: the same production Worker origin.
+- Variable `ENVIRONMENT`: `production`.
+- Optional Google OAuth variables if enabled.
 
-Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the local `.env.local` and Vercel environment, then set `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true`. In `apps/mobile/.env`, set `EXPO_PUBLIC_GOOGLE_OAUTH_ENABLED=true` and restart Expo. Leave the toggles false if you do not configure Google credentials.
-
-Apple Sign In is intentionally excluded from the zero-cost plan because Apple distribution and developer services can require a paid Apple Developer membership. Email/password remains available without it.
-
-## Avoiding surprise charges
-
-- Never add a credit card or enable pay-as-you-go billing just to unlock a free tier.
-- Do not select a paid plan or paid trial.
-- Configure usage alerts where available, but treat quotas as hard ceilings.
-- If a free quota is exhausted, pause that feature until the quota resets or replace it with a local/self-hosted option. Do not silently upgrade.
-- No custom domain is required; use the free Vercel subdomain.
-- App-store publishing is not zero-cost: Google Play charges a US$25 one-time registration fee, and Apple Developer Program membership is US$99/year. We will not publish to either store under the zero-cost rule. Use Expo Go or locally built Android APKs for private testing instead.
+The deploy command includes `--keep-vars` so dashboard-configured runtime variables are preserved.
 
 ## Local setup
 
-1. Copy `.env.example` to `.env.local` and set the Neon connection string, a generated Better Auth secret, and local URLs.
-2. Create a Neon Free project and use its pooled PostgreSQL connection string.
-3. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` for Drizzle Kit.
-4. Generate and inspect migrations before applying them.
-5. Run `bun run dev:all` for the web and native development servers.
-6. For a physical Android phone, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_URL` to your computer's LAN IP on port 3000.
+1. Copy root `.env.example` to `.env.local`.
+2. Set `DATABASE_URL` to a Supabase connection string and generate `BETTER_AUTH_SECRET`.
+3. Copy `apps/api/.env.example` to `apps/api/.env` and set the database URL there too.
+4. Apply the committed initial database migration:
+
+```bash
+cd apps/api
+bun run db:migrate
+cd ../..
+```
+
+For future schema changes, generate a migration with `bun run db:generate` from `apps/api`, commit the generated files, then apply it with `bun run db:migrate`.
+
+5. Run `bun run dev:web` and `bun run dev:mobile`.
+
+For a physical Android phone, set `EXPO_PUBLIC_API_URL` to your computer's LAN IP on port 3000. For production, use the Cloudflare Worker origin.
+
+## Avoiding surprise charges
+
+- Do not upgrade Cloudflare Workers or Supabase.
+- Do not enable pay-as-you-go billing.
+- Treat free quotas as hard ceilings. If a quota is exhausted, pause the feature until it resets or replace it with a local option.
+- No custom domain is required; use the free `workers.dev` subdomain.
+- App-store publishing is not zero-cost. Use Expo Go or locally built Android APKs for private testing.
 
 Generate a Better Auth secret:
 

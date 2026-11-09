@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 
 async function handle(request: Request) {
   const requestOrigin = new URL(request.url).origin;
-  const { env: cloudflareEnv } = await getCloudflareContext({ async: true });
+  const isLocalNodeDevelopment =
+    process.env.NODE_ENV === "development" && process.env.OPENNEXT_DEV !== "true";
+
+  // Ordinary "next dev" uses DATABASE_URL directly and does not need a
+  // local Workers platform proxy. Wrangler/OpenNext dev and production do.
+  const cloudflareEnv = isLocalNodeDevelopment
+    ? {}
+    : (await getCloudflareContext({ async: true })).env;
+
   const workerEnv = cloudflareEnv as unknown as {
     HYPERDRIVE?: { connectionString: string };
     BETTER_AUTH_SECRET?: string;

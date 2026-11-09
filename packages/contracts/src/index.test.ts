@@ -4,7 +4,10 @@ import {
   CreateInboxItemSchema,
   CreateProjectSchema,
   CreateTaskSchema,
-  UpdateTaskSchema
+  UpdateTaskSchema,
+  UpdateLifeAreaSchema,
+  UpdateProjectSchema,
+  UpdateInboxItemSchema
 } from "./index";
 
 describe("shared request contracts", () => {
@@ -27,6 +30,13 @@ describe("shared request contracts", () => {
     });
   });
 
+  test("PATCH schemas do not apply create-time defaults to omitted fields", () => {
+    expect(UpdateLifeAreaSchema.parse({ name: "Church" })).toEqual({ name: "Church" });
+    expect(UpdateProjectSchema.parse({ description: "A project" })).toEqual({ description: "A project" });
+    expect(UpdateInboxItemSchema.parse({ status: "archived" })).toEqual({ status: "archived" });
+    expect(UpdateTaskSchema.parse({ priority: "high" })).toEqual({ priority: "high" });
+  });
+
   test("validates life area colors", () => {
     expect(CreateLifeAreaSchema.safeParse({ name: "School", color: "#A78BFA" }).success).toBe(true);
     expect(CreateLifeAreaSchema.safeParse({ name: "School", color: "lavender" }).success).toBe(false);
@@ -35,6 +45,7 @@ describe("shared request contracts", () => {
   test("validates universal inbox items and safe links", () => {
     expect(CreateInboxItemSchema.safeParse({ title: "Read this", type: "link", url: "https://example.com" }).success).toBe(true);
     expect(CreateInboxItemSchema.safeParse({ title: "Unsafe", type: "link", url: "javascript:alert(1)" }).success).toBe(false);
+    expect(CreateInboxItemSchema.safeParse({ title: "Malformed", url: "not a URL" }).success).toBe(false);
   });
 
   test("validates project names, status, and date-only fields", () => {

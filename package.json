@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:web": "next dev -H 0.0.0.0",
-    "dev:mobile": "bun --cwd apps/mobile run start",
+    "dev:mobile": "bun --filter @sonder/mobile run start",
     "dev:all": "concurrently -k -n web,mobile \"bun run dev:web\" \"bun run dev:mobile\"",
     "build": "next build",
     "build:cloudflare": "opennextjs-cloudflare build",

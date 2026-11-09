@@ -17,6 +17,9 @@
       "id": "d3e217583f344a92935bd3d33be26ddb"
     }
   ],
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRET"]
+  },
   "observability": {
     "enabled": true
   },
