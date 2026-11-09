@@ -22,6 +22,12 @@ export function createAuth(env: Bindings) {
       enabled: true,
       requireEmailVerification: false
     },
+    socialProviders: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? {
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET
+      }
+    } : {},
     trustedOrigins: [
       env.WEB_APP_URL,
       "sonder://",
