@@ -178,14 +178,15 @@ export type InboxItemRecord = {
 
 const OptionalDateSchema = DateOnlySchema.nullable().optional();
 
-export const CreateGoalSchema = z.object({
+const GoalFieldsSchema = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
   targetDate: OptionalDateSchema,
-  status: z.enum(["active", "completed", "paused"]).default("active")
+  status: z.enum(["active", "completed", "paused"]).optional()
 });
-export const UpdateGoalSchema = CreateGoalSchema.partial();
+export const CreateGoalSchema = GoalFieldsSchema.transform(data => ({ ...data, status: data.status ?? "active" }));
+export const UpdateGoalSchema = GoalFieldsSchema.partial();
 export type GoalRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; targetDate: string | null; status: "active" | "completed" | "paused"; createdAt: string };
 
 const HabitFieldsSchema = z.object({
