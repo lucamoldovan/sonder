@@ -9,7 +9,7 @@ app.use(
   "/api/*",
   cors({
     origin: (origin, context) => {
-      const allowedOrigins = [context.env.WEB_APP_URL, "http://localhost:3000"];
+      const allowedOrigins = [\n        context.env.WEB_APP_URL,\n        "http://localhost:3000",\n        "http://localhost:8081",\n        "http://127.0.0.1:8081"\n      ];
       return allowedOrigins.includes(origin) ? origin : null;
     },
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
