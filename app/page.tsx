@@ -1,14 +1,14 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import {
   ArrowRight, CalendarDays, Check, CheckCheck, Command, Inbox,
   LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Sparkles, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import {
-  apiRequest, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask
-} from "@/lib/api";
+import { apiRequest } from "@/lib/api";
+import type { ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask } from "@/lib/api";
 
 type View = "Today" | "Inbox" | "Tasks" | "Projects";
 type Priority = ApiTask["priority"];
