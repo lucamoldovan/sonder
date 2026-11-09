@@ -19,7 +19,7 @@ app.use(
       ];
       return allowedOrigins.includes(origin) ? origin : null;
     },
-    allowHeaders: ["Content-Type", "Authorization", "Cookie"],
+    allowHeaders: ["Content-Type", "Authorization", "Cookie", "expo-origin"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Set-Cookie"],
     credentials: true,
