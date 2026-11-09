@@ -52,14 +52,14 @@ The web prototype remains at the repository root for now so we can preserve the 
 - ORM and migrations: Drizzle
 - Authentication: Better Auth (web cookies + Expo secure session storage)
 - Shared contracts: Zod + TypeScript
-- File storage: Cloudflare R2 (planned when attachments are implemented)
+- File storage: local initially; free-quota storage only if needed
 - Package manager: Bun workspaces
 
-See [Technical Architecture](docs/ARCHITECTURE.md), [Product Specification](docs/PRODUCT_SPEC.md), and [Roadmap](docs/ROADMAP.md).
+See [Technical Architecture](docs/ARCHITECTURE.md), [Product Specification](docs/PRODUCT_SPEC.md), [Roadmap](docs/ROADMAP.md), and [Zero-cost plan](docs/FREE_STACK.md).
 
 ## Development
 
-Requirements: Bun, Node.js compatible with the installed Next.js version, and a Neon PostgreSQL database for authenticated API/database work.
+Requirements: Bun, Node.js compatible with the installed Next.js version, and a Neon Free PostgreSQL database for authenticated API/database work.
 
 Install dependencies:
 
@@ -114,11 +114,10 @@ See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never
 
 ## Current implementation status
 
-- Existing web dashboard and local task prototype are preserved.
-- API Worker scaffold and health endpoint are in place.
-- Better Auth + Neon + Drizzle configuration is scaffolded; it needs a real database URL and generated/applied migrations before authentication can run.
-- Initial product schema covers users, life areas, projects, and tasks.
-- Authenticated CRUD APIs exist for life areas, projects, and tasks, with request validation and user-ownership checks.
-- Expo native app shell is scaffolded.
-- Shared Zod contracts and initial validation tests are in place.
-- GitHub Actions CI checks workspace types, shared contracts, the web build, and API Worker bundling.
+- Web sign-up/sign-in UI is connected to Better Auth email/password sessions.
+- Web tasks, projects, life areas, and Today dashboard read/write through the authenticated API.
+- Universal Inbox supports capture, archive, and convert-to-task.
+- Mobile sign-up/sign-in uses Better Auth and Expo SecureStore; Today tasks and Inbox capture use the same API.
+- API CRUD exists for life areas, projects, tasks, and inbox items with validation and per-user ownership checks.
+- Neon/Drizzle schema and Better Auth are scaffolded; migrations still need to be generated, reviewed, and applied against the user's database.
+- Automated validation tests and GitHub Actions CI are configured but still need a successful run.
