@@ -71,7 +71,7 @@ Environment:
 1. Copy `.env.example` to `.env.local`.
 2. Create a Neon Free project and set `DATABASE_URL` to its pooled PostgreSQL connection string.
 3. Generate a random `BETTER_AUTH_SECRET` (32+ bytes).
-4. Keep `BETTER_AUTH_URL` and `WEB_APP_URL` set to `http://localhost:3000` for local development.
+4. Keep `BETTER_AUTH_URL`, `WEB_APP_URL`, and `NEXT_PUBLIC_APP_URL` set to `http://localhost:3000` for local development.
 5. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before running Drizzle Kit.
 
 Generate a secret:
