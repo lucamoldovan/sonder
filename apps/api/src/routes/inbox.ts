@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import {
   CreateInboxItemSchema,
@@ -137,11 +137,26 @@ inboxRoutes.post("/:id/convert-to-task", async (context) => {
     priority: "medium"
   }).returning();
 
+  // Claim the inbox item only if it is still unprocessed. This guards against
+  // double taps/racing requests creating multiple tasks with Neon HTTP (no transaction).
   const [updated] = await db.update(inboxItems).set({
     status: "processed",
     convertedTaskId: task.id,
     updatedAt: new Date()
-  }).where(and(eq(inboxItems.id, item.id), eq(inboxItems.userId, user.id))).returning();
+  }).where(and(
+    eq(inboxItems.id, item.id),
+    eq(inboxItems.userId, user.id),
+    eq(inboxItems.status, "inbox"),
+    isNull(inboxItems.convertedTaskId)
+  )).returning();
+
+  if (!updated) {
+    // Another request won the conversion race; remove this request's orphan task.
+    await db.delete(tasks).where(and(eq(tasks.id, task.id), eq(tasks.userId, user.id)));
+    return context.json({
+      error: { code: "ALREADY_CONVERTED", message: "This item has already been processed." }
+    }, 409);
+  }
 
   return context.json({ data: { inboxItem: updated, task } }, 201);
 });
