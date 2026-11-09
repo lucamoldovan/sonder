@@ -12,6 +12,7 @@
     "dev:mobile": "bun --cwd apps/mobile run start",
     "dev:all": "concurrently -k -n web,mobile \"bun run dev:web\" \"bun run dev:mobile\"",
     "build": "next build",
+    "build:cloudflare": "opennextjs-cloudflare build",
     "build:all": "bun run build && bun run typecheck:all",
     "start": "next start",
     "lint": "eslint .",
