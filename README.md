@@ -119,7 +119,7 @@ Set these runtime values in Cloudflare **Settings → Variables and Secrets**:
 - Variable: `BETTER_AUTH_URL` = the production Worker origin.
 - Variable: `WEB_APP_URL` = the same production Worker origin.
 - Variable: `ENVIRONMENT` = `production`.
-- Optional Google OAuth: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+- Optional Google OAuth: runtime variables `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; if the web Google button is enabled, set build variable `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true`.
 
 Do not put database passwords in build variables or source control. Production database access is through the `HYPERDRIVE` binding.
 
