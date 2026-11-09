@@ -32,3 +32,16 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
 export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
+
+
+export const CreateLifeAreaSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default("#A78BFA"),
+  icon: z.string().max(48).nullable().optional(),
+  position: z.number().int().min(0).max(10_000).default(0)
+});
+
+export const UpdateLifeAreaSchema = CreateLifeAreaSchema.partial();
+
+export type CreateLifeAreaInput = z.infer<typeof CreateLifeAreaSchema>;
+export type UpdateLifeAreaInput = z.infer<typeof UpdateLifeAreaSchema>;
