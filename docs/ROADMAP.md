@@ -25,7 +25,8 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Email/password sign-up and sign-in UI on web and mobile
 - [ ] Email verification, password reset, and production auth smoke tests (requires free email setup or a later decision)
 - [x] Life areas CRUD API and ownership enforcement
-- [x] Life areas web/mobile navigation and default setup
+- [x] Web default life-area setup and life-area API CRUD
+- [ ] Native life-area navigation and project views
 - [x] Universal Inbox API, web capture, archive, and convert-to-task flow
 - [x] Mobile quick capture, archive, convert-to-task, and shared inbox sync
 - [x] Initial tasks API CRUD with validation and ownership checks
@@ -33,7 +34,8 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Shared contract tests and workspace typecheck scripts
 - [x] GitHub Actions CI workflow
 - [x] Zero-cost provider policy documented
-- [x] Tasks web/mobile UI with priorities, status, dates, and shared cloud data
+- [x] Web task creation, completion, deletion, priorities, and due dates
+- [x] Native Today task list, completion toggle, and shared cloud data
 - [x] Basic project creation/listing UI backed by the API
 - [ ] Project editing, archive, milestones, and linked-task management
 - [x] Today dashboard backed by the API on web and mobile
