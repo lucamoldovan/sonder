@@ -2,45 +2,47 @@
 
 ## Decision
 
-Sonder uses a TypeScript monorepo with separate web and native applications, a shared contracts/domain layer, and one API/backend.
+Sonder uses a TypeScript monorepo with a Next.js web application, an Expo native application, one Hono API, and a shared PostgreSQL database.
 
 ### Applications
-- **Web:** Next.js App Router at the repository root; deploy on Vercel Hobby for personal, non-commercial use, or run locally.
+- **Web:** Next.js App Router at the repository root.
 - **Mobile:** Expo + React Native in `apps/mobile`.
-- **API:** Hono on Cloudflare Workers in `apps/api`.
+- **API:** Hono in `apps/api`, mounted by a Next.js catch-all route at `app/api/[[...path]]/route.ts` and executed in the Node.js runtime.
 
 ### Shared packages
-- **`@sonder/contracts`:** Zod request/response schemas and inferred TypeScript types.
-- Future packages may include domain logic, API client, design tokens, and shared UI primitives. Only add a package when real code is shared.
+- **`@sonder/contracts`:** Zod request schemas and inferred TypeScript types.
+- Shared API response types and UI primitives can be extracted when the same implementation is genuinely used by both apps.
 
 ### Backend services
-- **Database:** Neon Free PostgreSQL, accessed through the serverless HTTP driver from Cloudflare Workers.
-- **ORM/migrations:** Drizzle ORM + Drizzle Kit. The HTTP driver is intended for independent queries; Better Auth's Drizzle adapter explicitly runs without interactive transactions. If future workflows require multi-statement interactive transactions, switch that path to a transaction-capable Neon WebSocket driver or Cloudflare Hyperdrive.
-- **Authentication:** Better Auth, hosted by the Hono API. Email/password first; social OAuth is deferred to avoid unnecessary provider setup.
-- **File storage:** local files initially; evaluate free-quota object storage only when attachment workflows are implemented.
-- **AI:** optional local Ollama integration after core workflows exist; no paid inference API.
+- **Hosting:** Vercel Hobby for the personal, non-commercial app; web pages and API routes share one deployment and origin.
+- **Database:** Neon Free PostgreSQL, accessed with the Neon serverless HTTP driver from the Node.js API runtime.
+- **ORM/migrations:** Drizzle ORM + Drizzle Kit.
+- **Authentication:** Better Auth email/password with the Expo client plugin.
+- **File storage:** local-only initially; add a free-quota provider only when attachments are implemented.
+- **AI:** optional local Ollama integration after core workflows exist. No paid inference API.
+
+Cloudflare Workers are intentionally not part of the selected runtime. Better Auth's default scrypt password hashing is CPU-intensive; the free Workers CPU budget is too tight to make sign-up reliability a safe assumption. The Node.js runtime uses the native Node password-hashing implementation instead.
 
 ## Request flow
 
-1. Web and mobile clients call the same HTTPS API.
-2. The API validates inputs using shared Zod contracts.
-3. The API authenticates the request and derives the user identity from the verified session.
-4. Domain services apply ownership checks and business rules.
+1. Web calls same-origin `/api/*` routes on the Next.js deployment.
+2. Native calls the same deployment URL configured by `EXPO_PUBLIC_API_URL`.
+3. The Next catch-all route passes the request to Hono.
+4. Hono validates input using shared Zod contracts and derives user identity from the verified Better Auth session.
 5. Drizzle queries Neon PostgreSQL.
-6. Responses use shared contracts.
+6. Responses use predictable JSON shapes.
 
 Clients must never connect directly to PostgreSQL or receive database credentials. Never trust a client-supplied `userId`; derive ownership from the authenticated session.
 
 ## Authentication and sessions
 
 - Better Auth owns user, session, account, and verification records.
-- Web uses secure, HTTP-only cookies.
+- Web uses secure, HTTP-only same-origin cookies.
 - Native uses the Better Auth Expo client and Expo SecureStore for session persistence.
 - The Expo deep-link scheme is `sonder://`.
-- Configure trusted origins explicitly for production and local development.
-- Secrets are environment variables / Cloudflare Worker secrets, never committed.
+- `BETTER_AUTH_URL` and `WEB_APP_URL` should both be the deployed Vercel origin in production.
 - Email verification and email password reset are not enabled until a free transactional email provider is configured.
-- OAuth requires separately configured Google/Apple credentials.
+- Social OAuth is deferred; email/password is sufficient for the first private MVP.
 
 ## Database conventions
 
@@ -51,18 +53,18 @@ Clients must never connect directly to PostgreSQL or receive database credential
 - Use timestamptz for instants and date for date-only values.
 - Keep created/updated timestamps; update `updated_at` on writes.
 - Use explicit enums for task status and priority.
-- Migrations are generated and applied with Drizzle Kit; do not edit production schema manually.
+- Generate and review migrations with Drizzle Kit before applying them.
 
 ## Initial schema
 
 - Better Auth: user, session, account, verification.
 - Product: life_areas, projects, tasks, inbox_items.
-- Later: inbox_items, goals, milestones, habits, notes, calendar_events, time_blocks, attachments, focus_sessions, reminders, activity_events, AI proposals.
+- Later: goals, milestones, habits, notes, calendar_events, time_blocks, attachments, focus_sessions, reminders, activity_events, AI proposals.
 
 ## API conventions
 
-- API base URL is configured per environment.
-- Health endpoint: `GET /health`.
+- API base path: `/api`.
+- Health endpoint: `GET /api/health`.
 - Better Auth endpoint prefix: `/api/auth/*`.
 - Product endpoints live under `/api/v1/*`:
   - `GET /api/v1/me` — current authenticated user.
@@ -70,30 +72,32 @@ Clients must never connect directly to PostgreSQL or receive database credential
   - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
   - `GET|POST /api/v1/projects` and `PATCH|DELETE /api/v1/projects/:id`.
   - `GET|POST /api/v1/inbox`, `PATCH|DELETE /api/v1/inbox/:id`, and `POST /api/v1/inbox/:id/convert-to-task`.
-- Validate all request bodies, params, and query strings.
+- Validate all request bodies and route params.
 - Return predictable JSON errors; do not expose stack traces or secrets.
-- Add pagination to list endpoints before datasets grow.
-- Use rate limiting for authentication and sensitive operations before public launch.
+- Add pagination and rate limiting before broad public release.
 
 ## Local development
 
-Required environment variables:
-- `DATABASE_URL`
-- `BETTER_AUTH_SECRET` (at least 32 characters, high entropy)
-- `BETTER_AUTH_URL` (local API URL, normally http://localhost:8787)
-- `WEB_APP_URL` (local web URL, normally http://localhost:3000)
+Copy root `.env.example` to `.env.local` and set:
+- `DATABASE_URL` — Neon pooled connection string.
+- `BETTER_AUTH_SECRET` — at least 32 characters of high-entropy random data.
+- `BETTER_AUTH_URL=http://localhost:3000`.
+- `WEB_APP_URL=http://localhost:3000`.
 
-Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars` for Wrangler local secrets. Copy `apps/api/.env.example` to `apps/api/.env` for Drizzle CLI commands. Never commit real values.
+Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` before running Drizzle Kit. Never commit either environment file.
 
-## Deployment
+For an Android emulator, set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000`. For a physical phone, use the computer's LAN IP and keep both devices on the same Wi-Fi network. For production, use the free Vercel app URL.
 
-- Web: Vercel Hobby for personal, non-commercial use; Next.js rewrites `/api/*` to the API Worker using server-only `API_PROXY_URL` so web auth cookies remain same-origin.
-- API: Cloudflare Workers Free, within the published request and CPU quotas.
-- Database: Neon Free PostgreSQL, within the published compute, storage, and egress quotas.
-- Files: local initially; no paid object storage.
-- Mobile: Expo SDK + Expo Go and local builds; cloud builds are optional and quota-limited.
+## Deployment and cost policy
 
-Free accounts and credentials must be created by the project owner. No paid tier, custom domain, app-store account, or external AI provider is required for development.
+- Web + API: Vercel Hobby, $0 for personal, non-commercial use and within included quotas.
+- Database: Neon Free, $0 within compute, storage, and egress quotas.
+- Mobile development: Expo SDK + Expo Go, $0; use local builds when cloud build quotas are exhausted.
+- CI: GitHub Actions on the public repository.
+- AI: local Ollama only unless a future free option is verified.
+- No custom domain, paid add-on, paid AI API, paid email provider, or paid app-store account is required for development.
+
+See [FREE_STACK.md](./FREE_STACK.md) for the strict zero-cost policy and current provider limits.
 
 ## Security requirements
 
@@ -101,11 +105,11 @@ Free accounts and credentials must be created by the project owner. No paid tier
 - Never accept a user ID from an untrusted client as proof of ownership.
 - Keep secrets out of source control and client bundles.
 - Use HTTPS in production.
-- Configure CORS and Better Auth trusted origins explicitly.
+- Configure Better Auth trusted origins explicitly.
 - Validate inputs at the API boundary.
 - Add audit history for consequential AI-assisted changes.
 - Provide data export and account deletion before broad release.
 
 ## Architecture evolution
 
-Start with a single API Worker and a single PostgreSQL database. Avoid premature microservices. Keep domain modules separated inside the API so they can be extracted only if real scale or operational needs justify it.
+Start with one Next.js deployment, one Hono API surface, and one PostgreSQL database. Avoid premature microservices. Keep domain modules separated inside the API so they can be extracted only if real scale or operational needs justify it.
