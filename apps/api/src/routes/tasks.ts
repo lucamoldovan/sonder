@@ -1,15 +1,15 @@
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateTaskSchema, UpdateTaskSchema, UuidSchema } from "@sonder/contracts";
-import { createDatabase } from "../db";
+import type { Database } from "../db";
 import { lifeAreas, projects, tasks } from "../db/schema";
-import type { Bindings } from "../env";
+import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
-export const taskRoutes = new Hono<{ Bindings: Bindings }>();
+export const taskRoutes = new Hono<AppEnv>();
 
 async function validateRelations(
-  database: ReturnType<typeof createDatabase>,
+  database: Database,
   userId: string,
   lifeAreaId?: string | null,
   projectId?: string | null
@@ -39,7 +39,7 @@ taskRoutes.get("/", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const rows = await db.select().from(tasks)
     .where(eq(tasks.userId, user.id))
     .orderBy(desc(tasks.createdAt));
@@ -61,7 +61,7 @@ taskRoutes.post("/", async (context) => {
     }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const relationError = await validateRelations(
     db, user.id, parsed.data.lifeAreaId, parsed.data.projectId
   );
@@ -101,7 +101,7 @@ taskRoutes.patch("/:id", async (context) => {
     return context.json({ error: { code: "VALIDATION_ERROR", message: "Provide valid task changes." } }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const relationError = await validateRelations(
     db, user.id, parsed.data.lifeAreaId, parsed.data.projectId
   );
@@ -145,7 +145,7 @@ taskRoutes.delete("/:id", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [deleted] = await db.delete(tasks)
     .where(and(eq(tasks.id, context.req.param("id")), eq(tasks.userId, user.id)))
     .returning({ id: tasks.id });
