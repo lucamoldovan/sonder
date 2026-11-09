@@ -16,7 +16,7 @@ Sonder uses a TypeScript monorepo with a Next.js web application, an Expo native
 ### Backend services
 - **Hosting:** Vercel Hobby for the personal, non-commercial app; web pages and API routes share one deployment and origin.
 - **Database:** Neon Free PostgreSQL, accessed with the Neon serverless HTTP driver from the Node.js API runtime.
-- **ORM/migrations:** Drizzle ORM + Drizzle Kit.
+- **ORM/migrations:** Drizzle ORM + Drizzle Kit. The Neon HTTP driver is used for independent queries; Better Auth's Drizzle adapter has `transaction: false`. Use a transaction-capable driver if future workflows require multi-statement transactions.
 - **Authentication:** Better Auth email/password with the Expo client plugin.
 - **File storage:** local-only initially; add a free-quota provider only when attachments are implemented.
 - **AI:** optional local Ollama integration after core workflows exist. No paid inference API.
