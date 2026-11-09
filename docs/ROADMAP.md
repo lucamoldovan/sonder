@@ -16,7 +16,7 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Add shared task contracts
 - [x] Scaffold Expo mobile application
 - [ ] Commit Bun lockfile and verify frozen installs
-- [ ] Generate and apply initial Drizzle migration to Supabase
+- [x] Generate and commit initial Drizzle migration\n- [ ] Apply initial Drizzle migration to Supabase
 - [ ] Configure Cloudflare runtime variables and Better Auth secret
 - [ ] Complete first production deployment
 - [ ] Run production database, signup, signin, session, and CRUD smoke tests
