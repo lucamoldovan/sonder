@@ -113,8 +113,8 @@ For a physical Android phone, copy `apps/mobile/.env.example` to `apps/mobile/.e
 
 - Web sign-up/sign-in UI is connected to Better Auth email/password sessions.
 - Web tasks, projects, life areas, and Today dashboard read/write through the authenticated API.
-- Universal Inbox supports capture, archive, and convert-to-task on web.
-- Mobile sign-up/sign-in uses Better Auth and Expo SecureStore; Today tasks and Inbox capture use the same API.
+- Universal Inbox supports capture, archive, and convert-to-task on web and mobile.
+- Mobile sign-up/sign-in uses Better Auth and Expo SecureStore; Today tasks and Inbox triage use the same API.
 - API CRUD exists for life areas, projects, tasks, and inbox items with validation and per-user ownership checks.
 - Neon/Drizzle schema is scaffolded; migrations still need to be generated, reviewed, and applied against the user's database.
 - Automated validation tests and GitHub Actions CI are configured but still need a successful run.
