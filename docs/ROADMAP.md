@@ -23,12 +23,14 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 ## Phase 1 — Core workspace (MVP)
 - [ ] App shell and responsive navigation
 - [ ] Authentication UI and verified account flows
-- [x] Life areas CRUD API and ownership enforcement\n- [ ] Life areas web/mobile UI
+- [x] Life areas CRUD API and ownership enforcement
+- [ ] Life areas web/mobile UI
 - [ ] Universal Inbox and triage
 - [x] Initial tasks API CRUD with validation and ownership checks
 - [x] Projects API CRUD with life-area ownership validation
 - [x] Shared contract tests and workspace typecheck scripts
-- [x] GitHub Actions CI workflow\n- [ ] Tasks web/mobile UI with priorities, status, dates, recurrence, and filters
+- [x] GitHub Actions CI workflow
+- [ ] Tasks web/mobile UI with priorities, status, dates, recurrence, and filters
 - [ ] Projects CRUD with linked tasks and milestones
 - [ ] Today dashboard backed by the API
 - [ ] Calendar with events and task time blocks
