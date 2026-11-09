@@ -17,13 +17,13 @@ export const authClient = createAuthClient({
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const cookie = await authClient.getCookie();
+  const headers = new Headers(options.headers);
+  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (cookie) headers.set("Cookie", cookie);
+
   const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
     ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(cookie ? { Cookie: cookie } : {}),
-      ...options.headers
-    },
+    headers,
     credentials: "omit"
   });
 
