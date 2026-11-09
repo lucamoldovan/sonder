@@ -45,6 +45,7 @@ describe("shared request contracts", () => {
   test("validates universal inbox items and safe links", () => {
     expect(CreateInboxItemSchema.safeParse({ title: "Read this", type: "link", url: "https://example.com" }).success).toBe(true);
     expect(CreateInboxItemSchema.safeParse({ title: "Unsafe", type: "link", url: "javascript:alert(1)" }).success).toBe(false);
+    expect(CreateInboxItemSchema.safeParse({ title: "Malformed", url: "not a URL" }).success).toBe(false);
   });
 
   test("validates project names, status, and date-only fields", () => {
