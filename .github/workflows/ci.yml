@@ -1,7 +1,7 @@
 name: CI
 
 permissions:
-  contents: write
+  contents: read
 
 on:
   push:
@@ -23,43 +23,13 @@ jobs:
           bun-version: 1.2.15
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
-      - name: Generate initial Drizzle migration
-        working-directory: apps/api
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/sonder
-        run: bun run db:generate
-
-      - name: Upload generated bootstrap files
-        uses: actions/upload-artifact@v4
-        with:
-          name: sonder-bootstrap-files
-          path: |
-            bun.lock
-            apps/api/drizzle/
-
-      - name: Commit generated lockfile and initial migration
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          HEAD_REF: ${{ github.head_ref }}
+      - name: Verify committed Drizzle migrations
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bun.lock apps/api/drizzle
-          if git diff --cached --quiet; then
-            echo "No generated bootstrap files to commit"
-            exit 0
-          fi
-          git diff --cached --binary > /tmp/sonder-bootstrap.patch
-          git fetch origin "${HEAD_REF}"
-          git checkout -B "${HEAD_REF}" "origin/${HEAD_REF}"
-          git reset --hard "origin/${HEAD_REF}"
-          git clean -fd -- bun.lock apps/api/drizzle
-          git apply /tmp/sonder-bootstrap.patch
-          git add bun.lock apps/api/drizzle
-          git commit -m "chore: add Bun lockfile and initial Drizzle migration"
-          git push origin "${HEAD_REF}"
+          test -f apps/api/drizzle/meta/_journal.json
+          test -f apps/api/drizzle/meta/0000_snapshot.json
+          test -n "$(find apps/api/drizzle -maxdepth 1 -name '*.sql' -print -quit)"
 
       - name: Typecheck all workspaces
         run: bun run typecheck:all
@@ -72,6 +42,15 @@ jobs:
 
       - name: Build Cloudflare Worker
         run: bun run build:cloudflare
+
+      - name: Dry-run Cloudflare deployment
+        env:
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+          BETTER_AUTH_SECRET: ci-only-placeholder-secret-do-not-use
+          BETTER_AUTH_URL: https://sonder.example.workers.dev
+          WEB_APP_URL: https://sonder.example.workers.dev
+          ENVIRONMENT: production
+        run: bunx opennextjs-cloudflare deploy -- --dry-run --keep-vars
 
       - name: Typecheck API workspace
         working-directory: apps/api
