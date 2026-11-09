@@ -2,14 +2,12 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity, ArrowRight, CalendarDays, Check, CheckCheck, CircleHelp,
-  Command, Inbox, LayoutDashboard, ListTodo, LogOut, Plus, Search,
-  Settings2, Sparkles, Target, Trash2, X
+  ArrowRight, CalendarDays, Check, CheckCheck, Command, Inbox,
+  LayoutDashboard, ListTodo, LogOut, Plus, Search, Sparkles, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import {
-  apiRequest, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask,
-  ApiRequestError
+  apiRequest, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask
 } from "@/lib/api";
 
 type View = "Today" | "Inbox" | "Tasks" | "Projects";
