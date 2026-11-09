@@ -134,6 +134,22 @@ export default function Home() {
     }
   }
 
+  async function handleGoogleSignIn() {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/"
+      });
+      if (result.error) throw new Error(result.error.message || "Google sign-in failed.");
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : "Google sign-in failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   async function createTask(event: FormEvent) {
     event.preventDefault();
     if (!taskTitle.trim()) return;
@@ -258,6 +274,7 @@ export default function Home() {
           <label className="form-label">Password<input required type="password" minLength={8} autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={authPassword} onChange={event => setAuthPassword(event.target.value)} placeholder="At least 8 characters" /></label>
           {authError && <p className="inline-error">{authError}</p>}
           <button className="primary-button auth-submit" disabled={authBusy}>{authBusy ? "Please wait…" : authMode === "signup" ? "Create free account" : "Sign in"}<ArrowRight size={16} /></button>
+          {process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true" && <button type="button" className="google-button" disabled={authBusy} onClick={() => void handleGoogleSignIn()}>Continue with Google</button>}
         </form>
         <p className="auth-switch">{authMode === "signup" ? "Already have an account?" : "New to Sonder?"} <button onClick={() => { setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError(""); }}>{authMode === "signup" ? "Sign in" : "Create an account"}</button></p>
         <p className="auth-footnote">Free to use. Your data belongs to you.</p>
