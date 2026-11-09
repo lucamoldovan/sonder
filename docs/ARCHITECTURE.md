@@ -96,8 +96,9 @@ Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` for Drizz
 Generate and apply migrations:
 
 ```bash
-bun --cwd apps/api run db:generate
-bun --cwd apps/api run db:migrate
+cd apps/api
+bun run db:generate
+bun run db:migrate
 ```
 
 For local web development, run `bun run dev:web`. For native, run `bun run dev:mobile`. Android emulator API URL: `http://10.0.2.2:3000`; physical device: the computer's LAN IP and port 3000.
