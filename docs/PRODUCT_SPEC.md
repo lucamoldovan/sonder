@@ -9,7 +9,7 @@ Sonder is a personal life operating system that helps people understand, organiz
 ## 2. Product principles
 
 1. **Clarity over density.** Show what matters now; keep secondary information discoverable.
-2. **Connected by design.** A task can belong to a project, life area, goal, and calendar block.
+2. **Connected by design.** A task can belong to a project, goal, life area, and calendar block.
 3. **Human-paced productivity.** Make realistic plans, account for capacity, and avoid shame-based streak mechanics.
 4. **AI with context and consent.** AI can recommend and prepare changes; it must explain consequential actions and ask before applying them.
 5. **User ownership.** Provide export, deletion, transparent sync, and privacy controls.
@@ -208,7 +208,7 @@ Core relationships:
 - Distinguish observed facts from estimates and suggestions.
 - Never silently reschedule, delete, or materially alter records.
 - Present a preview/diff for multi-record changes.
-- Require confirmation for consequential actions.
+- Require confirmation for consequential changes.
 - Keep an auditable history of AI-applied changes.
 - Allow users to disable AI access to specific areas or integrations.
 - Make data retention and provider processing transparent.
@@ -238,17 +238,8 @@ Do not ship finance, social networking, advanced automations, or broad health tr
 - Motion: subtle, purposeful, reduced-motion aware
 - Avoid: excessive cards, noisy gradients, gamification, decorative charts, cramped dashboards
 
-## 9. Open technical decisions
+## 9. Technical architecture
 
-The following must be finalized before committing implementation architecture:
-- Web/mobile strategy and shared-code boundaries
-- Frontend framework and monorepo structure
-- Backend/API and database
-- Authentication provider
-- Hosting and deployment
-- Offline-first and synchronization strategy
-- AI provider, model routing, and cost controls
-- File storage and notification infrastructure
-- Calendar integration strategy
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the chosen web/mobile monorepo, API, authentication, database, storage, security, and deployment decisions.
 
-Evaluate options against cross-platform quality, maintainability, privacy, cost, and the ability to ship a reliable MVP.
+The selected stack is Next.js, Expo, Hono on Cloudflare Workers, Neon PostgreSQL, Drizzle, Better Auth, and shared TypeScript/Zod contracts.
