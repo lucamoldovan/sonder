@@ -90,7 +90,10 @@ export const CreateInboxItemSchema = z.object({
   type: InboxItemTypeSchema.default("task"),
   title: z.string().trim().min(1).max(200),
   content: z.string().max(20_000).nullable().optional(),
-  url: z.string().url().max(2_048).refine(value => {\n    const protocol = new URL(value).protocol;\n    return protocol === "http:" || protocol === "https:";\n  }, "Only HTTP and HTTPS links are allowed").nullable().optional()
+  url: z.string().url().max(2_048).refine(value => {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  }, "Only HTTP and HTTPS links are allowed").nullable().optional()
 });
 
 export const UpdateInboxItemSchema = CreateInboxItemSchema.partial().extend({
@@ -100,3 +103,46 @@ export const UpdateInboxItemSchema = CreateInboxItemSchema.partial().extend({
 export type InboxItemType = z.infer<typeof InboxItemTypeSchema>;
 export type CreateInboxItemInput = z.infer<typeof CreateInboxItemSchema>;
 export type UpdateInboxItemInput = z.infer<typeof UpdateInboxItemSchema>;
+
+
+export type TaskRecord = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueAt: string | null;
+  lifeAreaId: string | null;
+  projectId: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type LifeAreaRecord = {
+  id: string;
+  name: string;
+  color: string;
+  icon: string | null;
+  position: number;
+};
+
+export type ProjectRecord = {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  lifeAreaId: string | null;
+  startDate: string | null;
+  dueDate: string | null;
+};
+
+export type InboxItemRecord = {
+  id: string;
+  type: InboxItemType;
+  title: string;
+  content: string | null;
+  url: string | null;
+  status: "inbox" | "processed" | "archived";
+  convertedTaskId: string | null;
+  createdAt: string;
+};
