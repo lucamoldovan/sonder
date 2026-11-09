@@ -27,7 +27,7 @@ app.use(
   })
 );
 
-app.get("/health", (context) =>
+app.get("/api/health", (context) =>
   context.json({
     status: "ok",
     service: "sonder-api",
