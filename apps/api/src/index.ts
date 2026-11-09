@@ -17,7 +17,7 @@ app.use(
         "http://localhost:8081",
         "http://127.0.0.1:8081"
       ];
-      return allowedOrigins.includes(origin) ? origin : undefined;
+      return allowedOrigins.includes(origin) ? origin : "";
     },
     allowHeaders: ["Content-Type", "Authorization", "Cookie", "expo-origin"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
