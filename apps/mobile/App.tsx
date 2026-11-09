@@ -29,15 +29,6 @@ export default function App() {
   const [capture, setCapture] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setTasks([]);
-      setInbox([]);
-      return;
-    }
-    void loadData();
-  }, [session?.user?.id, loadData]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -54,6 +45,15 @@ export default function App() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setTasks([]);
+      setInbox([]);
+      return;
+    }
+    void loadData();
+  }, [session?.user?.id, loadData]);
 
   async function submitAuth() {
     setAuthBusy(true);
