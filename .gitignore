@@ -8,5 +8,4 @@ build
 *.tsbuildinfo
 .DS_Store
 .wrangler
-.dev.vars
 apps/mobile/.env
