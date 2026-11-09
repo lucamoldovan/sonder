@@ -45,3 +45,5 @@ export const UpdateLifeAreaSchema = CreateLifeAreaSchema.partial();
 
 export type CreateLifeAreaInput = z.infer<typeof CreateLifeAreaSchema>;
 export type UpdateLifeAreaInput = z.infer<typeof UpdateLifeAreaSchema>;
+
+export const UuidSchema = z.string().uuid();
