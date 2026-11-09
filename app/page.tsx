@@ -39,7 +39,6 @@ export default function Home() {
   const [areas, setAreas] = useState<ApiLifeArea[]>([]);
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [inbox, setInbox] = useState<ApiInboxItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -62,8 +61,6 @@ export default function Home() {
   const [projectName, setProjectName] = useState("");
 
   const loadWorkspace = useCallback(async () => {
-    setLoading(true);
-    setError("");
     try {
       const [taskResult, areaResult, projectResult, inboxResult] = await Promise.all([
         apiRequest<ApiList<ApiTask[]>>("/tasks"),
@@ -88,26 +85,14 @@ export default function Home() {
       setAreas(loadedAreas);
       setProjects(projectResult.data);
       setInbox(inboxResult.data);
-      if (!taskArea && loadedAreas[0]) setTaskArea(loadedAreas[0].id);
+      setTaskArea(current => current || loadedAreas[0]?.id || "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your workspace.");
-    } finally {
-      setLoading(false);
     }
-  }, [taskArea]);
+  }, []);
 
   useEffect(() => {
     if (session?.user?.id) void loadWorkspace();
-    else {
-      setTasks([]);
-      setAreas([]);
-      setProjects([]);
-      setInbox([]);
-      setTaskArea("");
-      setTaskProject("");
-      setFilterArea("all");
-      setQuery("");
-    }
   }, [session?.user?.id, loadWorkspace]);
 
   const today = localDate(new Date().toISOString());
@@ -271,7 +256,7 @@ export default function Home() {
         <div className="brand-lockup"><span className="brand-mark"><span /></span><span>sonder</span></div>
         <div className="eyebrow">YOUR LIFE, IN PERSPECTIVE</div>
         <h1>{authMode === "signup" ? "Make space for what matters." : "Welcome back."}</h1>
-        <p className="subheading">A calm place for everything you're carrying.</p>
+        <p className="subheading">A calm place for everything you&apos;re carrying.</p>
         <form onSubmit={handleAuth} className="auth-form">
           {authMode === "signup" && <label className="form-label">Your name<input required autoComplete="name" value={authName} onChange={event => setAuthName(event.target.value)} placeholder="How should we call you?" /></label>}
           <label className="form-label">Email<input required type="email" autoComplete="email" value={authEmail} onChange={event => setAuthEmail(event.target.value)} placeholder="you@example.com" /></label>
@@ -312,7 +297,7 @@ export default function Home() {
           </button>)}
         </div>
         <div className="sidebar-bottom">
-          <div className="sidebar-quote">“You don't have to do it all. Just the next thing.”</div>
+          <div className="sidebar-quote">“You don&apos;t have to do it all. Just the next thing.”</div>
           <button className="nav-item settings-link" onClick={() => void authClient.signOut()}><LogOut size={17} /><span>Sign out</span></button>
           <div className="profile-row"><div className="avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div><div className="profile-copy"><strong>{session.user.name}</strong><span>{session.user.email}</span></div></div>
         </div>
@@ -326,15 +311,15 @@ export default function Home() {
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
           {view === "Today" && <>
-            <div className="welcome-row"><div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1><p className="subheading">A little clarity goes a long way. Here's your day at a glance.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div>
+            <div className="welcome-row"><div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1><p className="subheading">A little clarity goes a long way. Here&apos;s your day at a glance.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div>
             <div className="stat-grid">
               <div className="stat-card"><div className="stat-top"><span>Open tasks</span><ListTodo size={16} /></div><div className="stat-value">{openTasks.length}</div><div className="stat-foot">Across your life areas</div></div>
               <div className="stat-card"><div className="stat-top"><span>Due today</span><Target size={16} /></div><div className="stat-value">{dueToday.length}</div><div className="stat-foot">{overdue.length} overdue</div></div>
               <div className="stat-card"><div className="stat-top"><span>Completed</span><CheckCheck size={16} /></div><div className="stat-value">{completed.length}</div><div className="stat-foot">A little progress counts</div></div>
             </div>
             <div className="content-grid">
-              <section className="panel tasks-panel"><div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today's priorities</h2></div><button className="text-button" onClick={() => setView("Tasks")}>View all <ArrowRight size={14} /></button></div>
-                {loading ? <div className="empty-state">Loading your tasks…</div> : dueToday.length || openTasks.length ? (dueToday.length ? dueToday : openTasks).slice(0, 7).map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><Check size={20} /><strong>All clear for now</strong><span>Enjoy the breathing room. You've earned it.</span></div>}
+              <section className="panel tasks-panel"><div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today&apos;s priorities</h2></div><button className="text-button" onClick={() => setView("Tasks")}>View all <ArrowRight size={14} /></button></div>
+                {dueToday.length || openTasks.length ? (dueToday.length ? dueToday : openTasks).slice(0, 7).map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><Check size={20} /><strong>All clear for now</strong><span>Enjoy the breathing room. You&apos;ve earned it.</span></div>}
                 <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15} />Add a task</button>
               </section>
               <div className="right-column">
@@ -343,9 +328,9 @@ export default function Home() {
               </div>
             </div>
           </>}
-          {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don't want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you're carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
-          {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU'RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <article className="panel project-card" key={project.id}><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks</span></article>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
+          {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU&apos;RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <article className="panel project-card" key={project.id}><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks</span></article>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
         </div>
       </section>
 
