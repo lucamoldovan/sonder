@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import app from "@/apps/api/src/index";
 import type { Bindings } from "@/apps/api/src/env";
 
@@ -6,8 +7,14 @@ export const dynamic = "force-dynamic";
 
 async function handle(request: Request) {
   const requestOrigin = new URL(request.url).origin;
+  const { env: cloudflareEnv } = await getCloudflareContext({ async: true });
+  const workerEnv = cloudflareEnv as unknown as {
+    HYPERDRIVE?: { connectionString: string };
+  };
+
   const env: Bindings = {
-    DATABASE_URL: process.env.DATABASE_URL || "",
+    HYPERDRIVE: workerEnv.HYPERDRIVE,
+    DATABASE_URL: process.env.DATABASE_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || "",
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || requestOrigin,
     WEB_APP_URL: process.env.WEB_APP_URL || requestOrigin,
