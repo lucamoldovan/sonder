@@ -8,10 +8,10 @@ CREATE TABLE "goals" (
   "target_date" date,
   "created_at" timestamptz DEFAULT now() NOT NULL,
   "updated_at" timestamptz DEFAULT now() NOT NULL
-);
-ALTER TABLE "goals" ENABLE ROW LEVEL SECURITY;
-CREATE INDEX "goals_user_id_idx" ON "goals" ("user_id");
-CREATE INDEX "goals_life_area_id_idx" ON "goals" ("life_area_id");
+);--> statement-breakpoint
+ALTER TABLE "goals" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE INDEX "goals_user_id_idx" ON "goals" ("user_id");--> statement-breakpoint
+CREATE INDEX "goals_life_area_id_idx" ON "goals" ("life_area_id");--> statement-breakpoint
 
 CREATE TABLE "habits" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -24,9 +24,9 @@ CREATE TABLE "habits" (
   "archived_at" timestamptz,
   "created_at" timestamptz DEFAULT now() NOT NULL,
   "updated_at" timestamptz DEFAULT now() NOT NULL
-);
-ALTER TABLE "habits" ENABLE ROW LEVEL SECURITY;
-CREATE INDEX "habits_user_id_idx" ON "habits" ("user_id");
+);--> statement-breakpoint
+ALTER TABLE "habits" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE INDEX "habits_user_id_idx" ON "habits" ("user_id");--> statement-breakpoint
 
 CREATE TABLE "habit_entries" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -35,10 +35,10 @@ CREATE TABLE "habit_entries" (
   "entry_date" date NOT NULL,
   "note" text,
   "created_at" timestamptz DEFAULT now() NOT NULL
-);
-ALTER TABLE "habit_entries" ENABLE ROW LEVEL SECURITY;
-CREATE UNIQUE INDEX "habit_entries_habit_date_unique" ON "habit_entries" ("habit_id", "entry_date");
-CREATE INDEX "habit_entries_user_date_idx" ON "habit_entries" ("user_id", "entry_date");
+);--> statement-breakpoint
+ALTER TABLE "habit_entries" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE UNIQUE INDEX "habit_entries_habit_date_unique" ON "habit_entries" ("habit_id", "entry_date");--> statement-breakpoint
+CREATE INDEX "habit_entries_user_date_idx" ON "habit_entries" ("user_id", "entry_date");--> statement-breakpoint
 
 CREATE TABLE "calendar_events" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE "calendar_events" (
   "location" text,
   "created_at" timestamptz DEFAULT now() NOT NULL,
   "updated_at" timestamptz DEFAULT now() NOT NULL
-);
-ALTER TABLE "calendar_events" ENABLE ROW LEVEL SECURITY;
-CREATE INDEX "calendar_events_user_start_idx" ON "calendar_events" ("user_id", "starts_at");
-CREATE INDEX "calendar_events_project_id_idx" ON "calendar_events" ("project_id");
+);--> statement-breakpoint
+ALTER TABLE "calendar_events" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE INDEX "calendar_events_user_start_idx" ON "calendar_events" ("user_id", "starts_at");--> statement-breakpoint
+CREATE INDEX "calendar_events_project_id_idx" ON "calendar_events" ("project_id");--> statement-breakpoint
