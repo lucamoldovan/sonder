@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { CreateLifeAreaSchema, UpdateLifeAreaSchema } from "@sonder/contracts";
+import { CreateLifeAreaSchema, UpdateLifeAreaSchema, UuidSchema } from "@sonder/contracts";
 import { createDatabase } from "../db";
 import { lifeAreas } from "../db/schema";
 import type { Bindings } from "../env";
@@ -59,6 +59,11 @@ lifeAreaRoutes.post("/", async (context) => {
 });
 
 lifeAreaRoutes.patch("/:id", async (context) => {
+  const parsedId = UuidSchema.safeParse(context.req.param("id"));
+  if (!parsedId.success) {
+    return context.json({ error: { code: "INVALID_ID", message: "The record ID must be a valid UUID." } }, 400);
+  }
+
   const user = await getSessionUser(context);
   if (!user) {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
@@ -97,6 +102,11 @@ lifeAreaRoutes.patch("/:id", async (context) => {
 });
 
 lifeAreaRoutes.delete("/:id", async (context) => {
+  const parsedId = UuidSchema.safeParse(context.req.param("id"));
+  if (!parsedId.success) {
+    return context.json({ error: { code: "INVALID_ID", message: "The record ID must be a valid UUID." } }, 400);
+  }
+
   const user = await getSessionUser(context);
   if (!user) {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
