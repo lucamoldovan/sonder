@@ -26,7 +26,7 @@ export function createAuth(env: Bindings) {
       env.WEB_APP_URL,
       "sonder://",
       "sonder://*",
-      ...(isDevelopment ? ["exp://**", "exp://192.168.*.*:*/**"] : [])
+      ...(isDevelopment ? ["exp://", "exp://**", "exp://192.168.*.*:*/**"] : [])
     ],
     plugins: [expo()]
   });
