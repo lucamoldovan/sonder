@@ -12,6 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Better Auth tables. Keep these fields aligned with the Better Auth Drizzle adapter.
+// RLS is enabled with no client-facing policies: only the trusted server-side
+// PostgreSQL connection should be able to access these records.
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -20,7 +22,7 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
-});
+}).enableRLS();
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
@@ -33,7 +35,7 @@ export const session = pgTable("session", {
   userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" })
 }, (table) => [
   index("session_user_id_idx").on(table.userId)
-]);
+]).enableRLS();
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
@@ -52,7 +54,7 @@ export const account = pgTable("account", {
 }, (table) => [
   index("account_user_id_idx").on(table.userId),
   uniqueIndex("account_provider_account_unique").on(table.providerId, table.accountId)
-]);
+]).enableRLS();
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -63,7 +65,7 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updatedAt").defaultNow()
 }, (table) => [
   index("verification_identifier_idx").on(table.identifier)
-]);
+]).enableRLS();
 
 export const taskStatus = pgEnum("task_status", [
   "inbox",
@@ -93,7 +95,7 @@ export const lifeAreas = pgTable("life_areas", {
 }, (table) => [
   uniqueIndex("life_areas_user_slug_unique").on(table.userId, table.slug),
   index("life_areas_user_id_idx").on(table.userId)
-]);
+]).enableRLS();
 
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -110,7 +112,7 @@ export const projects = pgTable("projects", {
 }, (table) => [
   index("projects_user_id_idx").on(table.userId),
   index("projects_life_area_id_idx").on(table.lifeAreaId)
-]);
+]).enableRLS();
 
 export const tasks = pgTable("tasks", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -133,8 +135,7 @@ export const tasks = pgTable("tasks", {
   index("tasks_project_id_idx").on(table.projectId),
   index("tasks_life_area_id_idx").on(table.lifeAreaId),
   index("tasks_due_at_idx").on(table.userId, table.dueAt)
-]);
-
+]).enableRLS();
 
 export const inboxItemType = pgEnum("inbox_item_type", [
   "task",
@@ -159,4 +160,4 @@ export const inboxItems = pgTable("inbox_items", {
 }, (table) => [
   index("inbox_items_user_status_idx").on(table.userId, table.status),
   index("inbox_items_created_at_idx").on(table.userId, table.createdAt)
-]);
+]).enableRLS();
