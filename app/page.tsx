@@ -92,7 +92,29 @@ export default function Home() {
     setModalOpen(false);
   }
   function toggleTask(id: string) {
-    setTasks(current => current.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    setTasks(current => {
+      const selected = current.find(t => t.id === id);
+      if (!selected) return current;
+      if (selected.completed) {
+        return current.map(t => t.id === id ? { ...t, completed: false } : t);
+      }
+      const completed = { ...selected, completed: true };
+      if (selected.repeat === "Never") {
+        return current.map(t => t.id === id ? completed : t);
+      }
+      const nextDate = selected.dueDate ? new Date(selected.dueDate + "T12:00:00") : new Date();
+      if (selected.repeat === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+      if (selected.repeat === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+      if (selected.repeat === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+      const nextTask: Task = {
+        ...selected,
+        id: crypto.randomUUID(),
+        dueDate: localDate(nextDate),
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+      return [nextTask, ...current.map(t => t.id === id ? completed : t)];
+    });
   }
   function deleteTask(id: string) {
     setTasks(current => current.filter(t => t.id !== id));
