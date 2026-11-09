@@ -5,7 +5,7 @@
 Sonder uses a TypeScript monorepo with separate web and native applications, a shared contracts/domain layer, and one API/backend.
 
 ### Applications
-- **Web:** existing Next.js App Router application at the repository root (kept in place initially to preserve the prototype).
+- **Web:** Next.js App Router at the repository root; deploy on Vercel Hobby for personal, non-commercial use, or run locally.
 - **Mobile:** Expo + React Native in `apps/mobile`.
 - **API:** Hono on Cloudflare Workers in `apps/api`.
 
@@ -14,11 +14,11 @@ Sonder uses a TypeScript monorepo with separate web and native applications, a s
 - Future packages may include domain logic, API client, design tokens, and shared UI primitives. Only add a package when real code is shared.
 
 ### Backend services
-- **Database:** Neon managed PostgreSQL, accessed through the serverless HTTP driver from Cloudflare Workers.
+- **Database:** Neon Free PostgreSQL, accessed through the serverless HTTP driver from Cloudflare Workers.
 - **ORM/migrations:** Drizzle ORM + Drizzle Kit. The HTTP driver is intended for independent queries; Better Auth's Drizzle adapter explicitly runs without interactive transactions. If future workflows require multi-statement interactive transactions, switch that path to a transaction-capable Neon WebSocket driver or Cloudflare Hyperdrive.
-- **Authentication:** Better Auth, hosted by the Hono API. Email/password first; Google and Apple OAuth after provider credentials and callback URLs are configured.
-- **File storage:** Cloudflare R2, introduced when attachment workflows are implemented.
-- **AI:** provider-independent server-side service, introduced after core data workflows exist.
+- **Authentication:** Better Auth, hosted by the Hono API. Email/password first; social OAuth is deferred to avoid unnecessary provider setup.
+- **File storage:** local files initially; evaluate free-quota object storage only when attachment workflows are implemented.
+- **AI:** optional local Ollama integration after core workflows exist; no paid inference API.
 
 ## Request flow
 
@@ -39,7 +39,7 @@ Clients must never connect directly to PostgreSQL or receive database credential
 - The Expo deep-link scheme is `sonder://`.
 - Configure trusted origins explicitly for production and local development.
 - Secrets are environment variables / Cloudflare Worker secrets, never committed.
-- Email verification and password reset require a configured transactional email provider before public launch.
+- Email verification and email password reset are not enabled until a free transactional email provider is configured.
 - OAuth requires separately configured Google/Apple credentials.
 
 ## Database conventions
@@ -56,7 +56,7 @@ Clients must never connect directly to PostgreSQL or receive database credential
 ## Initial schema
 
 - Better Auth: user, session, account, verification.
-- Product: life_areas, projects, tasks.
+- Product: life_areas, projects, tasks, inbox_items.
 - Later: inbox_items, goals, milestones, habits, notes, calendar_events, time_blocks, attachments, focus_sessions, reminders, activity_events, AI proposals.
 
 ## API conventions
@@ -69,6 +69,7 @@ Clients must never connect directly to PostgreSQL or receive database credential
   - `GET|POST /api/v1/life-areas` and `PATCH|DELETE /api/v1/life-areas/:id`.
   - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
   - `GET|POST /api/v1/projects` and `PATCH|DELETE /api/v1/projects/:id`.
+  - `GET|POST /api/v1/inbox`, `PATCH|DELETE /api/v1/inbox/:id`, and `POST /api/v1/inbox/:id/convert-to-task`.
 - Validate all request bodies, params, and query strings.
 - Return predictable JSON errors; do not expose stack traces or secrets.
 - Add pagination to list endpoints before datasets grow.
@@ -86,13 +87,13 @@ Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars` for Wrangler local sec
 
 ## Deployment
 
-- Web: deploy the existing Next.js app separately; choose the final hosting target after the first production build.
-- API: Cloudflare Workers.
-- Database: Neon PostgreSQL.
-- Files: Cloudflare R2.
-- Mobile: Expo EAS builds and app stores.
+- Web: Vercel Hobby for personal, non-commercial use; Next.js rewrites `/api/*` to the API Worker using server-only `API_PROXY_URL` so web auth cookies remain same-origin.
+- API: Cloudflare Workers Free, within the published request and CPU quotas.
+- Database: Neon Free PostgreSQL, within the published compute, storage, and egress quotas.
+- Files: local initially; no paid object storage.
+- Mobile: Expo SDK + Expo Go and local builds; cloud builds are optional and quota-limited.
 
-Production domains, database project, R2 bucket, OAuth applications, email provider, and secrets must be created/configured by the project owner. No production resource or credential is assumed to exist.
+Free accounts and credentials must be created by the project owner. No paid tier, custom domain, app-store account, or external AI provider is required for development.
 
 ## Security requirements
 
