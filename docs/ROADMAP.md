@@ -18,7 +18,7 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [ ] Generate and review initial Drizzle migration
 - [ ] Configure a development Neon database and local secrets
 - [ ] Run API and auth smoke tests
-- [ ] Establish CI, formatting, and automated tests
+- [x] Configure GitHub Actions CI and shared contract tests (first successful run pending)
 
 ## Phase 1 — Core workspace (MVP)
 - [x] Responsive web workspace shell and native Today workspace
