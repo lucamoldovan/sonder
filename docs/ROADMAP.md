@@ -21,18 +21,22 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [ ] Establish CI, formatting, and automated tests
 
 ## Phase 1 — Core workspace (MVP)
-- [ ] App shell and responsive navigation
-- [ ] Authentication UI and verified account flows
+- [x] Responsive web workspace shell and native Today workspace
+- [x] Email/password sign-up and sign-in UI on web and mobile
+- [ ] Email verification, password reset, and production auth smoke tests (requires free email setup or a later decision)
 - [x] Life areas CRUD API and ownership enforcement
 - [ ] Life areas web/mobile UI
-- [ ] Universal Inbox and triage
+- [x] Universal Inbox API, web capture, archive, and convert-to-task flow
+- [x] Mobile quick capture and shared inbox sync
 - [x] Initial tasks API CRUD with validation and ownership checks
 - [x] Projects API CRUD with life-area ownership validation
 - [x] Shared contract tests and workspace typecheck scripts
 - [x] GitHub Actions CI workflow
-- [ ] Tasks web/mobile UI with priorities, status, dates, recurrence, and filters
-- [ ] Projects CRUD with linked tasks and milestones
-- [ ] Today dashboard backed by the API
+- [x] Zero-cost provider policy documented
+- [x] Tasks web/mobile UI with priorities, status, dates, and shared cloud data
+- [x] Basic project creation/listing UI backed by the API
+- [ ] Project editing, archive, milestones, and linked-task management
+- [x] Today dashboard backed by the API on web and mobile
 - [ ] Calendar with events and task time blocks
 - [ ] Global search
 - [ ] Reliable sync and loading/error/empty states
