@@ -90,6 +90,31 @@ export default function App() {
     }
   }
 
+
+  async function convertInboxItem(item: InboxItem) {
+    try {
+      const result = await apiRequest<List<{ inboxItem: InboxItem; task: Task }>>(
+        `/inbox/${item.id}/convert-to-task`, { method: "POST" }
+      );
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+      setTasks(current => [result.data.task, ...current]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't convert the inbox item.");
+    }
+  }
+
+  async function archiveInboxItem(item: InboxItem) {
+    try {
+      await apiRequest(`/inbox/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "archived" })
+      });
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't archive the item.");
+    }
+  }
+
   async function toggleTask(task: Task) {
     try {
       const result = await apiRequest<List<Task>>(`/tasks/${task.id}`, {
@@ -167,7 +192,7 @@ export default function App() {
         ))}
         {!loading && activeTasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>All clear for now</Text><Text style={styles.muted}>Capture something above when it comes to mind.</Text></View>}
         <Text style={styles.sectionTitle}>Inbox</Text>
-        {inbox.slice(0, 5).map(item => <View key={item.id} style={styles.inboxRow}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>Saved for later</Text></View>)}
+        {inbox.slice(0, 5).map(item => <View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>Saved for later</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={() => void convertInboxItem(item)}><Text style={styles.link}>Make task</Text></TouchableOpacity><TouchableOpacity onPress={() => void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
     </SafeAreaView>
@@ -217,7 +242,7 @@ const styles = StyleSheet.create({
   taskMeta: { color: colors.muted, fontSize: 10, marginTop: 5, textTransform: "capitalize" },
   empty: { alignItems: "center", paddingVertical: 26, backgroundColor: colors.surface, borderRadius: 13 },
   emptyTitle: { color: colors.text, fontSize: 13, fontWeight: "600", marginBottom: 5 },
-  inboxRow: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
+  inboxRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },\n  inboxCopy: { flex: 1 },\n  inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },\n  archiveLink: { color: colors.muted, fontSize: 10 },
   error: { color: "#E18A91", fontSize: 11, marginTop: 12 },
   footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 }
 });
