@@ -26,7 +26,17 @@ export const CreateTaskSchema = z.object({
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
 
-export const UpdateTaskSchema = CreateTaskSchema.partial();
+// PATCH schemas must not inherit create-time defaults: omitted fields must stay omitted.
+export const UpdateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(160).optional(),
+  description: z.string().max(10_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
+  status: TaskStatusSchema.optional(),
+  priority: TaskPrioritySchema.optional(),
+  dueAt: z.string().datetime().nullable().optional(),
+  estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
+});
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
@@ -41,7 +51,12 @@ export const CreateLifeAreaSchema = z.object({
   position: z.number().int().min(0).max(10_000).default(0)
 });
 
-export const UpdateLifeAreaSchema = CreateLifeAreaSchema.partial();
+export const UpdateLifeAreaSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  icon: z.string().max(48).nullable().optional(),
+  position: z.number().int().min(0).max(10_000).optional()
+});
 
 export type CreateLifeAreaInput = z.infer<typeof CreateLifeAreaSchema>;
 export type UpdateLifeAreaInput = z.infer<typeof UpdateLifeAreaSchema>;
@@ -70,7 +85,14 @@ export const CreateProjectSchema = z.object({
   dueDate: DateOnlySchema.nullable().optional()
 });
 
-export const UpdateProjectSchema = CreateProjectSchema.partial();
+export const UpdateProjectSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().max(10_000).nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  status: ProjectStatusSchema.optional(),
+  startDate: DateOnlySchema.nullable().optional(),
+  dueDate: DateOnlySchema.nullable().optional()
+});
 
 export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
@@ -96,7 +118,14 @@ export const CreateInboxItemSchema = z.object({
   }, "Only HTTP and HTTPS links are allowed").nullable().optional()
 });
 
-export const UpdateInboxItemSchema = CreateInboxItemSchema.partial().extend({
+export const UpdateInboxItemSchema = z.object({
+  type: InboxItemTypeSchema.optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  content: z.string().max(20_000).nullable().optional(),
+  url: z.string().url().max(2_048).refine(value => {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  }, "Only HTTP and HTTPS links are allowed").nullable().optional(),
   status: z.enum(["inbox", "processed", "archived"]).optional()
 });
 
