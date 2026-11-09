@@ -110,6 +110,12 @@ Drizzle Kit runs from the API workspace. Copy `apps/api/.env.example` to `apps/a
 
 ## Environment and secrets
 
+For a physical Android phone, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_URL` to your computer's LAN IP (for example `http://192.168.1.20:8787`). Keep the phone and computer on the same Wi-Fi network. The Android emulator uses `http://10.0.2.2:8787`.
+
+The approved zero-cost stack and provider limits are documented in [FREE_STACK.md](docs/FREE_STACK.md).
+
+
+
 See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never be committed. Production Cloudflare secrets and Neon resources must be configured separately.
 
 ## Current implementation status
