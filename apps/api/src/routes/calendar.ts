@@ -1,7 +1,8 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateCalendarEventSchema, UpdateCalendarEventSchema, UuidSchema } from "@sonder/contracts";
-import { calendarEvents, lifeAreas, projects } from "../db/schema";\nimport type { Database } from "../db";
+import { calendarEvents, lifeAreas, projects } from "../db/schema";
+import type { Database } from "../db";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
