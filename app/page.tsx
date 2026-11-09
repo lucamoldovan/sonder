@@ -103,6 +103,10 @@ export default function Home() {
       setAreas([]);
       setProjects([]);
       setInbox([]);
+      setTaskArea("");
+      setTaskProject("");
+      setFilterArea("all");
+      setQuery("");
     }
   }, [session?.user?.id, loadWorkspace]);
 
