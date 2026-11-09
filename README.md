@@ -71,8 +71,9 @@ Local environment:
 Generate and apply the initial database migrations:
 
 ```bash
-bun --cwd apps/api run db:generate
-bun --cwd apps/api run db:migrate
+cd apps/api
+bun run db:generate
+bun run db:migrate
 ```
 
 Run the web app:
