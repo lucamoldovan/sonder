@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, CalendarDays, Check, CheckCheck, Command, Inbox,
-  LayoutDashboard, ListTodo, LogOut, Plus, Search, Sparkles, Target, Trash2, X
+  LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Sparkles, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -43,6 +43,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
+  const [filterArea, setFilterArea] = useState("all");
   const [capture, setCapture] = useState("");
   const [taskOpen, setTaskOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -111,10 +112,10 @@ export default function Home() {
   const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
   const completed = tasks.filter(task => task.status === "done");
   const visibleTasks = useMemo(() => tasks
-    .filter(task => (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
+    .filter(task => (filterArea === "all" || task.lifeAreaId === filterArea) && (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
       (a.dueAt || "9999").localeCompare(b.dueAt || "9999")),
-  [tasks, query]);
+  [tasks, query, filterArea]);
 
   async function handleAuth(event: FormEvent) {
     event.preventDefault();
@@ -285,7 +286,7 @@ export default function Home() {
         </nav>
         <div className="workspace-label areas-label">YOUR LIFE</div>
         <div className="area-nav">
-          {areas.map(area => <button key={area.id} className="area-item" onClick={() => { setTaskArea(area.id); setView("Tasks"); }}>
+          {areas.map(area => <button key={area.id} className="area-item" onClick={() => { setTaskArea(area.id); setFilterArea(area.id); setView("Tasks"); }}>
             <span className="area-dot" style={{ color: area.color, background: area.color + "20" }}><span>•</span></span><span>{area.name}</span>
           </button>)}
         </div>
@@ -299,7 +300,7 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-actions"><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
         </header>
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
@@ -322,7 +323,7 @@ export default function Home() {
             </div>
           </>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don't want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you're carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you're carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
           {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU'RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <article className="panel project-card" key={project.id}><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks</span></article>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
         </div>
       </section>
