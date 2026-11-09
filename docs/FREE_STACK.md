@@ -44,6 +44,18 @@ Create a Vercel Hobby project from the public GitHub repository. Set these envir
 
 Do not add a custom domain or enable a paid Vercel plan. The app and API deploy together, so no API proxy URL is required.
 
+## Optional Google sign-in (free)
+
+Google OAuth is optional and does not require a paid Google Cloud plan for this personal app. Create an OAuth 2.0 Web client in Google Cloud Console and configure:
+
+- Authorized JavaScript origins: `http://localhost:3000` and `https://<project>.vercel.app`.
+- Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google` and `https://<project>.vercel.app/api/auth/callback/google`.
+- Add your own Google account as a test user while the consent screen is in Testing mode.
+
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the local `.env.local` and Vercel environment, then set `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true`. In `apps/mobile/.env`, set `EXPO_PUBLIC_GOOGLE_OAUTH_ENABLED=true` and restart Expo. Leave the toggles false if you do not configure Google credentials.
+
+Apple Sign In is intentionally excluded from the zero-cost plan because Apple distribution and developer services can require a paid Apple Developer membership. Email/password remains available without it.
+
 ## Avoiding surprise charges
 
 - Never add a credit card or enable pay-as-you-go billing just to unlock a free tier.
