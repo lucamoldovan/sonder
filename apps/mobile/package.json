@@ -16,7 +16,8 @@
     "react-native": "0.83.6",
     "better-auth": "^1.6.0",
     "@better-auth/expo": "^1.6.0",
-    "expo-secure-store": "~55.0.18"
+    "expo-secure-store": "~55.0.18",
+    "expo-network": "~55.0.14"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
