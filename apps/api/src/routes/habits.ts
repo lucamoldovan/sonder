@@ -50,7 +50,7 @@ habitRoutes.post("/:id/check-in", async (c) => {
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const body = await c.req.json().catch(() => ({})) as { date?: string; note?: string | null };
   const date = body.date ?? new Date().toISOString().slice(0, 10);
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z"))) return c.json({ error: { code: "INVALID_DATE", message: "Use YYYY-MM-DD for the check-in date." } }, 400);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z"))) return c.json({ error: { code: "INVALID_DATE", message: "Use YYYY-MM-DD for the check-in date." } }, 400);
   const db = c.get("db");
   const [habit] = await db.select({ id: habits.id }).from(habits).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).limit(1);
   if (!habit) return c.json({ error: { code: "NOT_FOUND", message: "Habit not found." } }, 404);
@@ -63,7 +63,7 @@ habitRoutes.post("/:id/check-in", async (c) => {
 habitRoutes.delete("/:id/check-in/:date", async (c) => {
   const id = UuidSchema.safeParse(c.req.param("id"));
   const date = c.req.param("date");
-  if (!id.success || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) return c.json({ error: { code: "INVALID_ID", message: "Provide a valid habit ID and date." } }, 400);
+  if (!id.success || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return c.json({ error: { code: "INVALID_ID", message: "Provide a valid habit ID and date." } }, 400);
   const user = await getSessionUser(c);
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   await c.get("db").delete(habitEntries).where(and(eq(habitEntries.habitId, id.data), eq(habitEntries.entryDate, date), eq(habitEntries.userId, user.id)));
