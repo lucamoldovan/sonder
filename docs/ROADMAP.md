@@ -10,8 +10,8 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Define backend: Hono on Next.js Node.js runtime
 - [x] Define database: Neon Free PostgreSQL + Drizzle
 - [x] Define authentication: Better Auth with Expo support
-- [x] Scaffold API Worker and health endpoint
-- [x] Add initial PostgreSQL schema for auth, life areas, projects, and tasks
+- [x] Scaffold Hono API and same-origin health endpoint
+- [x] Add initial PostgreSQL schema for auth, life areas, projects, tasks, and inbox
 - [x] Add shared task contracts
 - [x] Scaffold Expo mobile application
 - [ ] Install dependencies and verify all workspaces
@@ -25,7 +25,7 @@ This roadmap is ordered by dependencies and user value. Each phase should ship a
 - [x] Email/password sign-up and sign-in UI on web and mobile
 - [ ] Email verification, password reset, and production auth smoke tests (requires free email setup or a later decision)
 - [x] Life areas CRUD API and ownership enforcement
-- [ ] Life areas web/mobile UI
+- [x] Life areas web/mobile navigation and default setup
 - [x] Universal Inbox API, web capture, archive, and convert-to-task flow
 - [x] Mobile quick capture and shared inbox sync
 - [x] Initial tasks API CRUD with validation and ownership checks
