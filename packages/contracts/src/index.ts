@@ -199,7 +199,7 @@ export const UpdateHabitSchema = CreateHabitSchema.partial().extend({ archived: 
 export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
 export type HabitEntryRecord = { id: string; habitId: string; entryDate: string; note: string | null };
 
-export const CreateCalendarEventSchema = z.object({
+const CalendarEventFieldsSchema = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
@@ -208,6 +208,7 @@ export const CreateCalendarEventSchema = z.object({
   endsAt: z.string().datetime().nullable().optional(),
   allDay: z.boolean().default(false),
   location: z.string().max(240).nullable().optional()
-}).refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
-export const UpdateCalendarEventSchema = CreateCalendarEventSchema.partial();
+});
+export const CreateCalendarEventSchema = CalendarEventFieldsSchema.refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
+export const UpdateCalendarEventSchema = CalendarEventFieldsSchema.partial().refine(value => !value.endsAt || !value.startsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
 export type CalendarEventRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; projectId: string | null; startsAt: string; endsAt: string | null; allDay: boolean; location: string | null };
