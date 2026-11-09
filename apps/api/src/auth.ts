@@ -47,6 +47,9 @@ export function createAuth(env: Bindings, db: Database) {
       schema,
       transaction: false
     }),
+    advanced: {
+      useSecureCookies: !isDevelopment
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
