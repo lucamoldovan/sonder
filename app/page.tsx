@@ -83,7 +83,7 @@ export default function Home() {
 
   const loadWorkspace = useCallback(async () => {
     try {
-      const [taskResult, areaResult, projectResult, inboxResult] = await Promise.all([
+      const [taskResult, areaResult, projectResult, inboxResult, goalResult, habitResult, eventResult] = await Promise.all([
         apiRequest<ApiList<ApiTask[]>>("/tasks"),
         apiRequest<ApiList<ApiLifeArea[]>>("/life-areas"),
         apiRequest<ApiList<ApiProject[]>>("/projects"),
