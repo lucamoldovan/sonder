@@ -60,3 +60,7 @@
 .area-filter:focus{border-color:rgba(167,139,250,.55)}
 .task-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .task-toolbar .search-field{flex:1;min-width:180px}
+
+.google-button{height:43px;margin-top:10px;border:1px solid var(--line-strong);border-radius:9px;background:rgba(255,255,255,.035);color:#e7e2ed;font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+.google-button:hover{background:rgba(255,255,255,.07)}
+.google-button:disabled{opacity:.55;cursor:wait}
