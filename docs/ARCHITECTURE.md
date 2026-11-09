@@ -42,7 +42,7 @@ Clients must never connect directly to PostgreSQL or receive database credential
 - The Expo deep-link scheme is `sonder://`.
 - `BETTER_AUTH_URL` and `WEB_APP_URL` should both be the deployed Vercel origin in production.
 - Email verification and email password reset are not enabled until a free transactional email provider is configured.
-- Social OAuth is deferred; email/password is sufficient for the first private MVP.
+- Google OAuth is optional and enabled only when client credentials are configured; Apple Sign In is deferred to preserve the zero-cost requirement.
 
 ## Database conventions
 
