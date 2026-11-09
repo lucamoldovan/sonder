@@ -30,6 +30,5 @@ jobs:
       - name: Build web application
         run: bun run build
 
-      - name: Bundle API Worker
-        working-directory: apps/api
-        run: bunx wrangler deploy --dry-run
+      - name: Typecheck API workspace
+        run: bun --cwd apps/api run typecheck
