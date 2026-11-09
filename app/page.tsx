@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
-  ArrowRight, CalendarDays, Check, CheckCheck, Command, Inbox,
-  LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Sparkles, Target, Trash2, X
+  ArrowRight, CalendarDays, CalendarRange, Check, CheckCheck, Command, Flag, Heart, Inbox,
+  LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
-import type { ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask } from "@/lib/api";
+import type { ApiCalendarEvent, ApiGoal, ApiHabit, ApiHabitEntry, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask } from "@/lib/api";
 
-type View = "Today" | "Inbox" | "Tasks" | "Projects";
+type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "Habits" | "Life Areas";
 type Priority = ApiTask["priority"];
 
 const defaultAreas = [
@@ -39,6 +39,10 @@ export default function Home() {
   const [areas, setAreas] = useState<ApiLifeArea[]>([]);
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [inbox, setInbox] = useState<ApiInboxItem[]>([]);
+  const [goals, setGoals] = useState<ApiGoal[]>([]);
+  const [habits, setHabits] = useState<ApiHabit[]>([]);
+  const [habitEntries, setHabitEntries] = useState<ApiHabitEntry[]>([]);
+  const [events, setEvents] = useState<ApiCalendarEvent[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -59,6 +63,23 @@ export default function Home() {
   const [taskArea, setTaskArea] = useState("");
   const [taskProject, setTaskProject] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [habitOpen, setHabitOpen] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
+  const [areaOpen, setAreaOpen] = useState(false);
+  const [goalTitle, setGoalTitle] = useState("");
+  const [goalDate, setGoalDate] = useState("");
+  const [goalArea, setGoalArea] = useState("");
+  const [habitName, setHabitName] = useState("");
+  const [habitFrequency, setHabitFrequency] = useState<"daily" | "weekdays" | "weekly">("daily");
+  const [habitArea, setHabitArea] = useState("");
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("09:00");
+  const [eventEndTime, setEventEndTime] = useState("10:00");
+  const [eventArea, setEventArea] = useState("");
+  const [areaName, setAreaName] = useState("");
+  const [areaColor, setAreaColor] = useState("#A78BFA");
 
   const loadWorkspace = useCallback(async () => {
     try {
@@ -66,7 +87,10 @@ export default function Home() {
         apiRequest<ApiList<ApiTask[]>>("/tasks"),
         apiRequest<ApiList<ApiLifeArea[]>>("/life-areas"),
         apiRequest<ApiList<ApiProject[]>>("/projects"),
-        apiRequest<ApiList<ApiInboxItem[]>>("/inbox?status=inbox")
+        apiRequest<ApiList<ApiInboxItem[]>>("/inbox?status=inbox"),
+        apiRequest<ApiList<ApiGoal[]>>("/goals"),
+        apiRequest<{ data: ApiHabit[]; entries: ApiHabitEntry[] }>("/habits"),
+        apiRequest<ApiList<ApiCalendarEvent[]>>("/calendar")
       ]);
 
       let loadedAreas = areaResult.data;
@@ -86,6 +110,10 @@ export default function Home() {
       setAreas(loadedAreas);
       setProjects(projectResult.data);
       setInbox(inboxResult.data);
+      setGoals(goalResult.data);
+      setHabits(habitResult.data);
+      setHabitEntries(habitResult.entries);
+      setEvents(eventResult.data);
       setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
       setTaskProject("");
       setFilterArea(current => current === "all" || loadedAreas.some(area => area.id === current) ? current : "all");
@@ -243,6 +271,74 @@ export default function Home() {
     }
   }
 
+  async function createGoal(event: FormEvent) {
+    event.preventDefault();
+    if (!goalTitle.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiGoal>>("/goals", { method: "POST", body: JSON.stringify({ title: goalTitle.trim(), targetDate: goalDate || null, lifeAreaId: goalArea || null }) });
+      setGoals(current => [...current, result.data]); setGoalTitle(""); setGoalDate(""); setGoalOpen(false); setNotice("Goal created.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the goal."); }
+  }
+
+  async function createHabit(event: FormEvent) {
+    event.preventDefault();
+    if (!habitName.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiHabit>>("/habits", { method: "POST", body: JSON.stringify({ name: habitName.trim(), frequency: habitFrequency, targetPerWeek: habitFrequency === "daily" ? 7 : habitFrequency === "weekdays" ? 5 : 1, lifeAreaId: habitArea || null }) });
+      setHabits(current => [...current, result.data]); setHabitName(""); setHabitOpen(false); setNotice("Habit created.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the habit."); }
+  }
+
+  async function checkInHabit(habit: ApiHabit) {
+    const today = localDate(new Date().toISOString());
+    const existing = habitEntries.find(entry => entry.habitId === habit.id && entry.entryDate === today);
+    try {
+      if (existing) {
+        await apiRequest("/habits/" + habit.id + "/check-in/" + today, { method: "DELETE" });
+        setHabitEntries(current => current.filter(entry => entry.id !== existing.id));
+      } else {
+        const result = await apiRequest<ApiList<ApiHabitEntry>>("/habits/" + habit.id + "/check-in", { method: "POST", body: JSON.stringify({ date: today }) });
+        setHabitEntries(current => [result.data, ...current]);
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the habit."); }
+  }
+
+  async function createEvent(event: FormEvent) {
+    event.preventDefault();
+    if (!eventTitle.trim() || !eventDate) return;
+    try {
+      const startsAt = new Date(eventDate + "T" + eventTime + ":00").toISOString();
+      const endsAt = new Date(eventDate + "T" + eventEndTime + ":00").toISOString();
+      const result = await apiRequest<ApiList<ApiCalendarEvent>>("/calendar", { method: "POST", body: JSON.stringify({ title: eventTitle.trim(), startsAt, endsAt, lifeAreaId: eventArea || null }) });
+      setEvents(current => [...current, result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      setEventTitle(""); setEventOpen(false); setNotice("Event added to your calendar.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the event."); }
+  }
+
+  async function deleteEvent(id: string) {
+    try { await apiRequest("/calendar/" + id, { method: "DELETE" }); setEvents(current => current.filter(item => item.id !== id)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the event."); }
+  }
+
+  async function createArea(event: FormEvent) {
+    event.preventDefault();
+    if (!areaName.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiLifeArea>>("/life-areas", { method: "POST", body: JSON.stringify({ name: areaName.trim(), color: areaColor, position: areas.length }) });
+      setAreas(current => [...current, result.data]); setAreaName(""); setAreaOpen(false); setNotice("Life area created.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the life area."); }
+  }
+
+  async function deleteArea(area: ApiLifeArea) {
+    if (!window.confirm("Delete " + area.name + "? Existing tasks and projects will become unassigned.")) return;
+    try {
+      await apiRequest("/life-areas/" + area.id, { method: "DELETE" });
+      setAreas(current => current.filter(item => item.id !== area.id));
+      setTasks(current => current.map(task => task.lifeAreaId === area.id ? { ...task, lifeAreaId: null } : task));
+      setProjects(current => current.map(project => project.lifeAreaId === area.id ? { ...project, lifeAreaId: null } : project));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the life area."); }
+  }
+
   async function createProject(event: FormEvent) {
     event.preventDefault();
     if (!projectName.trim()) return;
@@ -293,12 +389,17 @@ export default function Home() {
             ["Today", LayoutDashboard],
             ["Inbox", Inbox],
             ["Tasks", ListTodo],
-            ["Projects", Command]
+            ["Projects", Command],
+            ["Calendar", CalendarRange],
+            ["Goals", Flag],
+            ["Habits", Heart],
+            ["Life Areas", Target]
           ] as const).map(([name, Icon]) =>
             <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
               <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
               {name === "Inbox" && <span className="nav-count">{inbox.length}</span>}
               {name === "Tasks" && <span className="nav-count">{openTasks.length}</span>}
+              {name === "Goals" && <span className="nav-count">{goals.filter(goal => goal.status === "active").length}</span>}
             </button>
           )}
         </nav>
