@@ -56,5 +56,5 @@ export async function apiRequest<T>(
 export type ApiTask = TaskRecord;
 export type ApiLifeArea = LifeAreaRecord;
 export type ApiProject = ProjectRecord;
-export type ApiInboxItem = InboxItemRecord;
+export type ApiInboxItem = InboxItemRecord;\nexport type ApiGoal = GoalRecord;\nexport type ApiHabit = HabitRecord;\nexport type ApiHabitEntry = HabitEntryRecord;\nexport type ApiCalendarEvent = CalendarEventRecord;
 export type ApiList<T> = { data: T };
