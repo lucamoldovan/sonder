@@ -13,6 +13,17 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 - Multi-device: desktop and mobile are first-class experiences.
 - User-owned data: clear privacy controls, export, and deletion.
 
+## Brand
+
+- Name: Sonder
+- Tagline: Your life, in perspective.
+- Visual direction: clean, minimal, Apple-inspired
+- Theme: dark-first
+- Background: Obsidian `#0B0B0F`
+- Accent: Lavender `#A78BFA`
+- Typography: Inter
+- Logo: abstract geometric symbol + wordmark
+
 ## Repository structure
 
 ```text
