@@ -56,7 +56,8 @@ app.get("/api/health", (context) =>
   })
 );
 
-app.on(["GET", "POST"], "/api/auth/*", (context) =>
+// Better Auth uses more than GET and POST (for example, PATCH and DELETE).
+app.all("/api/auth/*", (context) =>
   createAuth(context.env, context.get("db")).handler(context.req.raw)
 );
 
