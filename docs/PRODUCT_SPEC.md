@@ -242,4 +242,4 @@ Do not ship finance, social networking, advanced automations, or broad health tr
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the chosen web/mobile monorepo, API, authentication, database, storage, security, and deployment decisions.
 
-The selected stack is Next.js, Expo, Hono on Cloudflare Workers, Neon PostgreSQL, Drizzle, Better Auth, and shared TypeScript/Zod contracts.
+The selected stack is Next.js, Expo, Hono in the Next.js Node.js runtime, Neon Free PostgreSQL, Drizzle, Better Auth, and shared TypeScript/Zod contracts.
