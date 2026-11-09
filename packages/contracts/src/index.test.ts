@@ -48,6 +48,32 @@ describe("shared request contracts", () => {
     expect(CreateInboxItemSchema.safeParse({ title: "Malformed", url: "not a URL" }).success).toBe(false);
   });
 
+  test("validates goals and preserves PATCH omission semantics", () => {
+    expect(CreateGoalSchema.parse({ title: "Finish school year" })).toMatchObject({ title: "Finish school year", status: "active" });
+    expect(UpdateGoalSchema.parse({ status: "completed" })).toEqual({ status: "completed" });
+    expect(CreateGoalSchema.safeParse({ title: "Invalid date", targetDate: "2026-02-30" }).success).toBe(false);
+  });
+
+  test("validates habit frequency and check-in configuration", () => {
+    expect(CreateHabitSchema.parse({ name: "Read", frequency: "weekdays" })).toMatchObject({ frequency: "weekdays", targetPerWeek: 7 });
+    expect(UpdateHabitSchema.parse({ archived: true })).toEqual({ archived: true });
+    expect(CreateHabitSchema.safeParse({ name: "Read", frequency: "monthly" }).success).toBe(false);
+  });
+
+  test("validates calendar event time ranges", () => {
+    expect(CreateCalendarEventSchema.safeParse({
+      title: "Study session",
+      startsAt: "2026-11-10T09:00:00.000Z",
+      endsAt: "2026-11-10T10:00:00.000Z"
+    }).success).toBe(true);
+    expect(CreateCalendarEventSchema.safeParse({
+      title: "Invalid event",
+      startsAt: "2026-11-10T10:00:00.000Z",
+      endsAt: "2026-11-10T09:00:00.000Z"
+    }).success).toBe(false);
+    expect(UpdateCalendarEventSchema.parse({ title: "Renamed event" })).toEqual({ title: "Renamed event" });
+  });
+
   test("validates project names, status, and date-only fields", () => {
     expect(CreateProjectSchema.safeParse({
       name: "Sonder MVP",
