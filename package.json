@@ -11,13 +11,13 @@
     "dev:web": "next dev",
     "dev:api": "bun --cwd apps/api run dev",
     "dev:mobile": "bun --cwd apps/mobile run start",
-    "dev:all": "turbo run dev --parallel",
+    "dev:all": "concurrently -k -n web,api,mobile \"bun run dev:web\" \"bun run dev:api\" \"bun run dev:mobile\"",
     "build": "next build",
-    "build:all": "turbo run build",
+    "build:all": "bun run build && bun run typecheck:all",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "typecheck:all": "turbo run typecheck",
+    "typecheck:all": "bun run typecheck && turbo run typecheck",
     "test": "bun test"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.5.0",
     "turbo": "^2.5.6",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "concurrently": "^9.2.1"
   }
 }
