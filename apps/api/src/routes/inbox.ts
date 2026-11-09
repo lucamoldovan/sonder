@@ -6,12 +6,12 @@ import {
   UpdateInboxItemSchema,
   UuidSchema
 } from "@sonder/contracts";
-import { createDatabase } from "../db";
+import type { Database } from "../db";
 import { inboxItems, tasks } from "../db/schema";
-import type { Bindings } from "../env";
+import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
-export const inboxRoutes = new Hono<{ Bindings: Bindings }>();
+export const inboxRoutes = new Hono<AppEnv>();
 
 inboxRoutes.get("/", async (context) => {
   const user = await getSessionUser(context);
@@ -24,7 +24,7 @@ inboxRoutes.get("/", async (context) => {
     return context.json({ error: { code: "INVALID_STATUS", message: "Unknown inbox status." } }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const rows = await db.select().from(inboxItems)
     .where(status
       ? and(eq(inboxItems.userId, user.id), eq(inboxItems.status, status))
@@ -48,7 +48,7 @@ inboxRoutes.post("/", async (context) => {
     }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [created] = await db.insert(inboxItems).values({
     userId: user.id,
     type: parsed.data.type,
@@ -84,7 +84,7 @@ inboxRoutes.patch("/:id", async (context) => {
   if (parsed.data.url !== undefined) updates.url = parsed.data.url;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [updated] = await db.update(inboxItems).set(updates)
     .where(and(eq(inboxItems.id, id.data), eq(inboxItems.userId, user.id)))
     .returning();
@@ -107,7 +107,7 @@ inboxRoutes.post("/:id/convert-to-task", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [item] = await db.select().from(inboxItems)
     .where(and(eq(inboxItems.id, id.data), eq(inboxItems.userId, user.id)))
     .limit(1);
@@ -172,7 +172,7 @@ inboxRoutes.delete("/:id", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [deleted] = await db.delete(inboxItems)
     .where(and(eq(inboxItems.id, id.data), eq(inboxItems.userId, user.id)))
     .returning({ id: inboxItems.id });
