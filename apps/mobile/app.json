@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Sonder",
+    "slug": "sonder",
+    "scheme": "sonder",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.sonder.life"
+    },
+    "android": {
+      "package": "app.sonder.life",
+      "edgeToEdgeEnabled": true
+    }
+  }
+}
