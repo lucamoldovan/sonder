@@ -72,7 +72,7 @@ export const ProjectStatusSchema = z.enum([
 ]);
 
 const SafeHttpUrlSchema = z.string().url().max(2_048).refine(
-  value => /^https?:\\/\\//i.test(value),
+  value => value.toLowerCase().startsWith("http://") || value.toLowerCase().startsWith("https://"),
   "Only HTTP and HTTPS links are allowed"
 );
 
