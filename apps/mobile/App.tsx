@@ -80,6 +80,7 @@ export default function App() {
         callbackURL: "/"
       });
       if (result.error) throw new Error(result.error.message || "Google sign-in failed.");
+      await refetch();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Google sign-in failed.");
     } finally {
