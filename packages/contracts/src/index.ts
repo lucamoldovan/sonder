@@ -192,13 +192,17 @@ const HabitFieldsSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().max(2_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
-  frequency: z.enum(["daily", "weekdays", "weekly"]).default("daily"),
+  frequency: z.enum(["daily", "weekdays", "weekly"]).optional(),
   targetPerWeek: z.number().int().min(1).max(7).optional()
 });
-export const CreateHabitSchema = HabitFieldsSchema.transform(data => ({
-  ...data,
-  targetPerWeek: data.targetPerWeek ?? (data.frequency === "weekdays" ? 5 : data.frequency === "weekly" ? 1 : 7)
-}));
+export const CreateHabitSchema = HabitFieldsSchema.transform(data => {
+  const frequency = data.frequency ?? "daily";
+  return {
+    ...data,
+    frequency,
+    targetPerWeek: data.targetPerWeek ?? (frequency === "weekdays" ? 5 : frequency === "weekly" ? 1 : 7)
+  };
+});
 export const UpdateHabitSchema = HabitFieldsSchema.partial().extend({ archived: z.boolean().optional() });
 export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
 export type HabitEntryRecord = { id: string; habitId: string; entryDate: string; note: string | null };
@@ -210,9 +214,9 @@ const CalendarEventFieldsSchema = z.object({
   projectId: z.string().uuid().nullable().optional(),
   startsAt: z.string().datetime(),
   endsAt: z.string().datetime().nullable().optional(),
-  allDay: z.boolean().default(false),
+  allDay: z.boolean().optional(),
   location: z.string().max(240).nullable().optional()
 });
-export const CreateCalendarEventSchema = CalendarEventFieldsSchema.refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
+export const CreateCalendarEventSchema = CalendarEventFieldsSchema.extend({ allDay: z.boolean().default(false) }).refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
 export const UpdateCalendarEventSchema = CalendarEventFieldsSchema.partial().refine(value => !value.endsAt || !value.startsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
 export type CalendarEventRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; projectId: string | null; startsAt: string; endsAt: string | null; allDay: boolean; location: string | null };
