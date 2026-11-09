@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { CreateTaskSchema, UpdateTaskSchema } from "@sonder/contracts";
+import { CreateTaskSchema, UpdateTaskSchema, UuidSchema } from "@sonder/contracts";
 import { createDatabase } from "../db";
 import { lifeAreas, projects, tasks } from "../db/schema";
 import type { Bindings } from "../env";
@@ -85,6 +85,11 @@ taskRoutes.post("/", async (context) => {
 });
 
 taskRoutes.patch("/:id", async (context) => {
+  const parsedId = UuidSchema.safeParse(context.req.param("id"));
+  if (!parsedId.success) {
+    return context.json({ error: { code: "INVALID_ID", message: "The record ID must be a valid UUID." } }, 400);
+  }
+
   const user = await getSessionUser(context);
   if (!user) {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
@@ -130,6 +135,11 @@ taskRoutes.patch("/:id", async (context) => {
 });
 
 taskRoutes.delete("/:id", async (context) => {
+  const parsedId = UuidSchema.safeParse(context.req.param("id"));
+  if (!parsedId.success) {
+    return context.json({ error: { code: "INVALID_ID", message: "The record ID must be a valid UUID." } }, 400);
+  }
+
   const user = await getSessionUser(context);
   if (!user) {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
