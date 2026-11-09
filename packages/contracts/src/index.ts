@@ -56,7 +56,10 @@ export const ProjectStatusSchema = z.enum([
   "archived"
 ]);
 
-const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format");
+const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format").refine((value) => {
+  const parsed = new Date(value + "T00:00:00.000Z");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, "Expected a real calendar date");
 
 export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120),
