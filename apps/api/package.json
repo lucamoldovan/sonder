@@ -1,0 +1,29 @@
+{
+  "name": "@sonder/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/expo": "^1.6.0",
+    "@neondatabase/serverless": "^1.0.2",
+    "@sonder/contracts": "workspace:*",
+    "better-auth": "^1.6.0",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.10.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261109.0",
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.50.0"
+  }
+}
