@@ -24,7 +24,7 @@ The app uses one public origin for web and API. Native clients call the same Wor
 
 ## Cloudflare constraints
 
-Workers Free currently allows 100,000 requests per day and 10 ms CPU time per HTTP request. Hyperdrive Free currently allows 100,000 database statements per day and approximately 20 origin database connections per configuration. Network waits do not count toward Worker CPU time, but CPU-heavy authentication and server rendering do.
+Workers Free currently allows 100,000 requests per day, 10 ms CPU time per HTTP request, 128 MB memory, and a 64 MiB uncompressed Worker bundle. Hyperdrive Free allows approximately 20 origin database connections per configuration. Network waits do not count toward Worker CPU time, but CPU-heavy authentication and server rendering do.
 
 Better Auth's default pure-JavaScript scrypt fallback can exceed the Workers Free CPU budget. Sonder therefore explicitly uses Node's native `node:crypto.scryptSync` with Better Auth's default scrypt parameters and compatible stored-hash format. This avoids the pure-JavaScript fallback, but actual signup/sign-in CPU usage must still be measured in the deployed Worker.
 
@@ -130,7 +130,7 @@ The `--keep-vars` flag preserves dashboard-configured runtime values during depl
 
 ## Cost policy
 
-Stay on Cloudflare Workers Free, Hyperdrive Free, and Supabase Free. Their quotas are hard ceilings. Pause a feature rather than enabling paid billing. Cloudflare Workers Free's 10 ms CPU limit is the main runtime constraint and must be monitored.
+Stay on Cloudflare Workers Free, Hyperdrive Free, and Supabase Free. Their quotas are hard ceilings. Pause a feature rather than enabling paid billing. Cloudflare Workers Free's 10 ms CPU limit is the main runtime constraint and must be monitored. The latest dry run reports a 5.8 MiB uncompressed Worker bundle, well below the 64 MiB limit.
 
 ## Security requirements
 
