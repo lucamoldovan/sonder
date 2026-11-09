@@ -1,9 +1,10 @@
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 
-// Cloudflare bindings are only initialized for the local Next.js dev server.
-// Running this during "next build" makes Hyperdrive look for a local database.
-if (process.env.NODE_ENV === "development") {
+// Only enable the local Cloudflare/Hyperdrive shim when a local database URL
+// is explicitly provided. Cloudflare's build environment may set NODE_ENV
+// differently, but production builds must never require a local DB.
+if (process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE) {
   initOpenNextCloudflareForDev();
 }
 
