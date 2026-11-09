@@ -89,6 +89,14 @@ Run the native app:
 bun run dev:mobile
 ```
 
+Run all three applications together:
+
+```bash
+bun run dev:all
+```
+
+Run all three applications with `bun run dev:all`. This starts the root Next.js app, API Worker, and Expo development server concurrently.
+
 The API health endpoint is `http://localhost:8787/health`.
 
 Database migrations:
