@@ -93,13 +93,15 @@ Copy the root `.env.example` to `.env.local` and set:
 
 Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` for Drizzle Kit. If the local network is IPv4-only, use Supabase's shared session pooler for local migrations. Hyperdrive itself should be configured with Supabase's direct connection string.
 
-Generate and apply migrations:
+Apply the committed initial migration:
 
 ```bash
 cd apps/api
-bun run db:generate
 bun run db:migrate
+cd ../..
 ```
+
+For future schema changes, run `bun run db:generate` from `apps/api`, review and commit the SQL/snapshot, then run `bun run db:migrate`.
 
 For local web development, run `bun run dev:web`. For native, run `bun run dev:mobile`. Android emulator API URL: `http://10.0.2.2:3000`; physical device: the computer's LAN IP and port 3000.
 
