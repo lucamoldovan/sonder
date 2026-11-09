@@ -1,0 +1,4 @@
+# Copy this file to .dev.vars and fill in real local values.
+# Never commit .dev.vars or production secrets.
+DATABASE_URL=
+BETTER_AUTH_SECRET=
