@@ -242,7 +242,10 @@ const styles = StyleSheet.create({
   taskMeta: { color: colors.muted, fontSize: 10, marginTop: 5, textTransform: "capitalize" },
   empty: { alignItems: "center", paddingVertical: 26, backgroundColor: colors.surface, borderRadius: 13 },
   emptyTitle: { color: colors.text, fontSize: 13, fontWeight: "600", marginBottom: 5 },
-  inboxRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },\n  inboxCopy: { flex: 1 },\n  inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },\n  archiveLink: { color: colors.muted, fontSize: 10 },
+  inboxRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
+  inboxCopy: { flex: 1 },
+  inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },
+  archiveLink: { color: colors.muted, fontSize: 10 },
   error: { color: "#E18A91", fontSize: 11, marginTop: 12 },
   footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 }
 });
