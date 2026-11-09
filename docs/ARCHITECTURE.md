@@ -67,7 +67,8 @@ Clients must never connect directly to PostgreSQL or receive database credential
 - Product endpoints live under `/api/v1/*`:
   - `GET /api/v1/me` — current authenticated user.
   - `GET|POST /api/v1/life-areas` and `PATCH|DELETE /api/v1/life-areas/:id`.
-  - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.\n  - `GET|POST /api/v1/projects` and `PATCH|DELETE /api/v1/projects/:id`.
+  - `GET|POST /api/v1/tasks` and `PATCH|DELETE /api/v1/tasks/:id`.
+  - `GET|POST /api/v1/projects` and `PATCH|DELETE /api/v1/projects/:id`.
 - Validate all request bodies, params, and query strings.
 - Return predictable JSON errors; do not expose stack traces or secrets.
 - Add pagination to list endpoints before datasets grow.
