@@ -1,279 +1,352 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity, ArrowDown, ArrowUpRight, Bell, BookOpen, CalendarDays, Check,
-  CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Circle, Command,
-  Compass, Dumbbell, Filter, Heart, LayoutDashboard, ListTodo, Menu,
-  MoreHorizontal, Plus, Search, Settings2, Sparkles, SquarePen, Target,
-  Trash2, TrendingUp, X
+  Activity, ArrowRight, CalendarDays, Check, CheckCheck, CircleHelp,
+  Command, Inbox, LayoutDashboard, ListTodo, LogOut, Plus, Search,
+  Settings2, Sparkles, Target, Trash2, X
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 import {
-  Area, Priority, Repeat, Task, formatDueDate, localDate, readTasks, writeTasks
-} from "@/lib/tasks";
+  apiRequest, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask,
+  ApiRequestError
+} from "@/lib/api";
 
-type Section = "Overview" | "Tasks" | "Calendar" | "Insights" | "Settings";
-const areas: Area[] = ["School", "Church", "Projects", "Personal", "Health"];
-const priorities: Priority[] = ["Low", "Medium", "High"];
-const repeats: Repeat[] = ["Never", "Daily", "Weekly", "Monthly"];
+type View = "Today" | "Inbox" | "Tasks" | "Projects";
+type Priority = ApiTask["priority"];
 
-const areaIcons = {
-  School: BookOpen,
-  Church: Heart,
-  Projects: Command,
-  Personal: Compass,
-  Health: Dumbbell
-};
+const defaultAreas = [
+  { name: "School", color: "#A78BFA", icon: "book-open" },
+  { name: "Church", color: "#E6A2B0", icon: "heart" },
+  { name: "Projects", color: "#82B8E7", icon: "layers" },
+  { name: "Personal", color: "#D5B77D", icon: "compass" },
+  { name: "Health", color: "#83C9A1", icon: "activity" }
+];
+
+function localDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
 
 function greeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-function blankTask(): Omit<Task, "id" | "createdAt"> {
-  return { title: "", notes: "", area: "Personal", priority: "Medium", dueDate: localDate(new Date()), repeat: "Never", completed: false };
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [ready, setReady] = useState(false);
-  const [section, setSection] = useState<Section>("Overview");
+  const { data: session, isPending: sessionPending, refetch } = authClient.useSession();
+  const [view, setView] = useState<View>("Today");
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [areas, setAreas] = useState<ApiLifeArea[]>([]);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [inbox, setInbox] = useState<ApiInboxItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
-  const [filterArea, setFilterArea] = useState<"All" | Area>("All");
-  const [filterStatus, setFilterStatus] = useState<"All" | "Open" | "Completed">("All");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Task | null>(null);
-  const [draft, setDraft] = useState(blankTask);
-  const [mobileNav, setMobileNav] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const [capture, setCapture] = useState("");
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [taskPriority, setTaskPriority] = useState<Priority>("medium");
+  const [taskArea, setTaskArea] = useState("");
+  const [taskProject, setTaskProject] = useState("");
+  const [projectName, setProjectName] = useState("");
 
-  useEffect(() => {
-    setTasks(readTasks());
-    setReady(true);
-  }, []);
+  const loadWorkspace = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [taskResult, areaResult, projectResult, inboxResult] = await Promise.all([
+        apiRequest<ApiList<ApiTask[]>>("/tasks"),
+        apiRequest<ApiList<ApiLifeArea[]>>("/life-areas"),
+        apiRequest<ApiList<ApiProject[]>>("/projects"),
+        apiRequest<ApiList<ApiInboxItem[]>>("/inbox?status=inbox")
+      ]);
 
-  useEffect(() => {
-    if (ready) writeTasks(tasks);
-  }, [tasks, ready]);
+      let loadedAreas = areaResult.data;
+      if (loadedAreas.length === 0) {
+        await Promise.all(defaultAreas.map((area, position) =>
+          apiRequest("/life-areas", {
+            method: "POST",
+            body: JSON.stringify({ ...area, position })
+          })
+        ));
+        const seeded = await apiRequest<ApiList<ApiLifeArea[]>>("/life-areas");
+        loadedAreas = seeded.data;
+      }
 
-  const today = localDate(new Date());
-  const openTasks = tasks.filter(t => !t.completed);
-  const completedToday = tasks.filter(t => t.completed).length;
-  const dueToday = openTasks.filter(t => t.dueDate === today);
-  const overdue = openTasks.filter(t => t.dueDate && t.dueDate < today);
-  const visibleTasks = useMemo(() => tasks
-    .filter(t => section !== "Overview" || showAll || !t.completed)
-    .filter(t => filterArea === "All" || t.area === filterArea)
-    .filter(t => filterStatus === "All" || (filterStatus === "Open" ? !t.completed : t.completed))
-    .filter(t => (t.title + " " + t.notes).toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => Number(a.completed) - Number(b.completed) || (a.dueDate || "9999").localeCompare(b.dueDate || "9999")),
-  [tasks, section, showAll, filterArea, filterStatus, query]);
-
-  function openNewTask() {
-    setEditing(null);
-    setDraft(blankTask());
-    setModalOpen(true);
-  }
-  function openEditTask(task: Task) {
-    setEditing(task);
-    setDraft({ title: task.title, notes: task.notes, area: task.area, priority: task.priority, dueDate: task.dueDate, repeat: task.repeat, completed: task.completed });
-    setModalOpen(true);
-  }
-  function saveTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!draft.title.trim()) return;
-    if (editing) {
-      setTasks(current => current.map(t => t.id === editing.id ? { ...t, ...draft, title: draft.title.trim() } : t));
-    } else {
-      setTasks(current => [{ ...draft, title: draft.title.trim(), id: crypto.randomUUID(), createdAt: new Date().toISOString() }, ...current]);
+      setTasks(taskResult.data);
+      setAreas(loadedAreas);
+      setProjects(projectResult.data);
+      setInbox(inboxResult.data);
+      if (!taskArea && loadedAreas[0]) setTaskArea(loadedAreas[0].id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't load your workspace.");
+    } finally {
+      setLoading(false);
     }
-    setModalOpen(false);
-  }
-  function toggleTask(id: string) {
-    setTasks(current => {
-      const selected = current.find(t => t.id === id);
-      if (!selected) return current;
-      if (selected.completed) {
-        return current.map(t => t.id === id ? { ...t, completed: false } : t);
-      }
-      const completed = { ...selected, completed: true };
-      if (selected.repeat === "Never") {
-        return current.map(t => t.id === id ? completed : t);
-      }
-      const nextDate = selected.dueDate ? new Date(selected.dueDate + "T12:00:00") : new Date();
-      if (selected.repeat === "Daily") nextDate.setDate(nextDate.getDate() + 1);
-      if (selected.repeat === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
-      if (selected.repeat === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
-      const nextTask: Task = {
-        ...selected,
-        id: crypto.randomUUID(),
-        dueDate: localDate(nextDate),
-        completed: false,
-        createdAt: new Date().toISOString()
-      };
-      return [nextTask, ...current.map(t => t.id === id ? completed : t)];
-    });
-  }
-  function deleteTask(id: string) {
-    setTasks(current => current.filter(t => t.id !== id));
+  }, [taskArea]);
+
+  useEffect(() => {
+    if (session?.user?.id) void loadWorkspace();
+    else {
+      setTasks([]);
+      setAreas([]);
+      setProjects([]);
+      setInbox([]);
+    }
+  }, [session?.user?.id, loadWorkspace]);
+
+  const today = localDate(new Date().toISOString());
+  const openTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
+  const dueToday = openTasks.filter(task => task.dueAt && localDate(task.dueAt) === today);
+  const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
+  const completed = tasks.filter(task => task.status === "done");
+  const visibleTasks = useMemo(() => tasks
+    .filter(task => (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
+      (a.dueAt || "9999").localeCompare(b.dueAt || "9999")),
+  [tasks, query]);
+
+  async function handleAuth(event: FormEvent) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const result = authMode === "signup"
+        ? await authClient.signUp.email({ name: authName.trim(), email: authEmail.trim(), password: authPassword })
+        : await authClient.signIn.email({ email: authEmail.trim(), password: authPassword });
+      if (result.error) throw new Error(result.error.message || "Authentication failed.");
+      await refetch();
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : "Couldn't authenticate.");
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
-  const navItems: { name: Section; icon: typeof LayoutDashboard }[] = [
-    { name: "Overview", icon: LayoutDashboard },
-    { name: "Tasks", icon: ListTodo },
-    { name: "Calendar", icon: CalendarDays },
-    { name: "Insights", icon: Activity }
-  ];
+  async function createTask(event: FormEvent) {
+    event.preventDefault();
+    if (!taskTitle.trim()) return;
+    try {
+      const dueAt = taskDue ? new Date(taskDue + "T12:00:00").toISOString() : null;
+      const result = await apiRequest<ApiList<ApiTask>>("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || null,
+          dueAt,
+          priority: taskPriority,
+          lifeAreaId: taskArea || null,
+          projectId: taskProject || null,
+          status: "todo"
+        })
+      });
+      setTasks(current => [result.data, ...current]);
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDue("");
+      setTaskProject("");
+      setTaskOpen(false);
+      setNotice("Task created.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create the task.");
+    }
+  }
+
+  async function toggleTask(task: ApiTask) {
+    const status = task.status === "done" ? "todo" : "done";
+    try {
+      const result = await apiRequest<ApiList<ApiTask>>(`/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status })
+      });
+      setTasks(current => current.map(item => item.id === task.id ? result.data : item));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't update the task.");
+    }
+  }
+
+  async function deleteTask(id: string) {
+    try {
+      await apiRequest(`/tasks/${id}`, { method: "DELETE" });
+      setTasks(current => current.filter(task => task.id !== id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't delete the task.");
+    }
+  }
+
+  async function quickCapture(event: FormEvent) {
+    event.preventDefault();
+    if (!capture.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiInboxItem>>("/inbox", {
+        method: "POST",
+        body: JSON.stringify({ title: capture.trim(), type: "task" })
+      });
+      setInbox(current => [result.data, ...current]);
+      setCapture("");
+      setNotice("Saved to your inbox.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't save that item.");
+    }
+  }
+
+  async function convertInboxItem(item: ApiInboxItem) {
+    try {
+      const result = await apiRequest<ApiList<{ inboxItem: ApiInboxItem; task: ApiTask }>>(
+        `/inbox/${item.id}/convert-to-task`, { method: "POST" }
+      );
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+      setTasks(current => [result.data.task, ...current]);
+      setNotice("Inbox item converted into a task.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't convert the inbox item.");
+    }
+  }
+
+  async function archiveInboxItem(item: ApiInboxItem) {
+    try {
+      await apiRequest(`/inbox/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "archived" })
+      });
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't archive the item.");
+    }
+  }
+
+  async function createProject(event: FormEvent) {
+    event.preventDefault();
+    if (!projectName.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiProject>>("/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: projectName.trim() })
+      });
+      setProjects(current => [...current, result.data].sort((a, b) => a.name.localeCompare(b.name)));
+      setProjectName("");
+      setProjectOpen(false);
+      setNotice("Project created.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create the project.");
+    }
+  }
+
+  if (sessionPending) return <main className="auth-screen"><div className="brand-lockup"><span className="brand-mark"><span /></span><span>sonder</span></div><p>Opening your space…</p></main>;
+
+  if (!session?.user) return (
+    <main className="auth-screen">
+      <div className="auth-card">
+        <div className="brand-lockup"><span className="brand-mark"><span /></span><span>sonder</span></div>
+        <div className="eyebrow">YOUR LIFE, IN PERSPECTIVE</div>
+        <h1>{authMode === "signup" ? "Make space for what matters." : "Welcome back."}</h1>
+        <p className="subheading">A calm place for everything you're carrying.</p>
+        <form onSubmit={handleAuth} className="auth-form">
+          {authMode === "signup" && <label className="form-label">Your name<input required autoComplete="name" value={authName} onChange={event => setAuthName(event.target.value)} placeholder="How should we call you?" /></label>}
+          <label className="form-label">Email<input required type="email" autoComplete="email" value={authEmail} onChange={event => setAuthEmail(event.target.value)} placeholder="you@example.com" /></label>
+          <label className="form-label">Password<input required type="password" minLength={8} autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={authPassword} onChange={event => setAuthPassword(event.target.value)} placeholder="At least 8 characters" /></label>
+          {authError && <p className="inline-error">{authError}</p>}
+          <button className="primary-button auth-submit" disabled={authBusy}>{authBusy ? "Please wait…" : authMode === "signup" ? "Create free account" : "Sign in"}<ArrowRight size={16} /></button>
+        </form>
+        <p className="auth-switch">{authMode === "signup" ? "Already have an account?" : "New to Sonder?"} <button onClick={() => { setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError(""); }}>{authMode === "signup" ? "Sign in" : "Create an account"}</button></p>
+        <p className="auth-footnote">Free to use. Your data belongs to you.</p>
+      </div>
+    </main>
+  );
 
   return (
     <main className="app-shell">
-      <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
-        <a className="brand" href="#" onClick={() => { setSection("Overview"); setMobileNav(false); }}>
-          <span className="brand-mark"><span /></span>
-          <span className="brand-name">sonder</span>
-        </a>
+      <aside className="sidebar">
+        <a className="brand" href="#"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="main-nav">
-          {navItems.map(item => {
-            const Icon = item.icon;
-            return <button key={item.name} className={`nav-item ${section === item.name ? "active" : ""}`} onClick={() => { setSection(item.name); setMobileNav(false); }}>
-              <Icon size={17} strokeWidth={1.8} /><span>{item.name}</span>
-              {item.name === "Tasks" && <span className="nav-count">{openTasks.length}</span>}
-            </button>;
-          })}
+          {([
+            ["Today", LayoutDashboard],
+            ["Inbox", Inbox],
+            ["Tasks", ListTodo],
+            ["Projects", Command]
+          ] as const).map(([name, Icon]) =>
+            <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
+              <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
+              {name === "Inbox" && <span className="nav-count">{inbox.length}</span>}
+              {name === "Tasks" && <span className="nav-count">{openTasks.length}</span>}
+            </button>
+          )}
         </nav>
         <div className="workspace-label areas-label">YOUR LIFE</div>
         <div className="area-nav">
-          {areas.map(area => {
-            const Icon = areaIcons[area];
-            const count = openTasks.filter(t => t.area === area).length;
-            return <button key={area} className={`area-item ${filterArea === area ? "area-selected" : ""}`} onClick={() => { setFilterArea(filterArea === area ? "All" : area); setSection("Tasks"); setMobileNav(false); }}>
-              <span className={`area-dot dot-${area.toLowerCase()}`}><Icon size={14} /></span><span>{area}</span><span className="area-count">{count || ""}</span>
-            </button>;
-          })}
+          {areas.map(area => <button key={area.id} className="area-item" onClick={() => { setTaskArea(area.id); setView("Tasks"); }}>
+            <span className="area-dot" style={{ color: area.color, background: area.color + "20" }}><span>•</span></span><span>{area.name}</span>
+          </button>)}
         </div>
         <div className="sidebar-bottom">
           <div className="sidebar-quote">“You don't have to do it all. Just the next thing.”</div>
-          <button className="nav-item settings-link" onClick={() => setSection("Settings")}><Settings2 size={17} /><span>Settings</span></button>
-          <div className="profile-row">
-            <div className="avatar">S</div><div className="profile-copy"><strong>Your space</strong><span>Personal workspace</span></div><MoreHorizontal size={18} className="muted-icon" />
-          </div>
+          <button className="nav-item settings-link" onClick={() => void authClient.signOut()}><LogOut size={17} /><span>Sign out</span></button>
+          <div className="profile-row"><div className="avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div><div className="profile-copy"><strong>{session.user.name}</strong><span>{session.user.email}</span></div></div>
         </div>
       </aside>
 
-      {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
       <section className="main-area">
         <header className="topbar">
-          <button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={19} /></button>
-          <div className="breadcrumbs"><span>Workspace</span><ChevronRight size={14} /><strong>{section}</strong></div>
-          <div className="topbar-actions">
-            <div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
-            <button className="icon-button notification-button" aria-label="Notifications"><Bell size={17} /><i /></button>
-            <div className="avatar top-avatar">S</div>
-          </div>
+          <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
+          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
         </header>
-
         <div className="page-content">
-          {section === "Overview" && <>
-            <div className="welcome-row">
-              <div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}.</h1><p className="subheading">A little clarity goes a long way. Here's your day at a glance.</p></div>
-              <button className="primary-button" onClick={openNewTask}><Plus size={17} />New task</button>
-            </div>
-
+          {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
+          {view === "Today" && <>
+            <div className="welcome-row"><div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1><p className="subheading">A little clarity goes a long way. Here's your day at a glance.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div>
             <div className="stat-grid">
-              <div className="stat-card"><div className="stat-top"><span>Open tasks</span><span className="stat-icon lavender"><ListTodo size={16} /></span></div><div className="stat-value">{openTasks.length}<span className="stat-caption">in your space</span></div><div className="stat-foot"><span className="tiny-dot purple-dot" />Across all life areas</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Due today</span><span className="stat-icon amber"><Target size={16} /></span></div><div className="stat-value">{dueToday.length}<span className="stat-caption">to focus on</span></div><div className="stat-foot">{overdue.length ? <><span className="tiny-dot red-dot" />{overdue.length} overdue</> : <><span className="tiny-dot green-dot" />You're up to date</>}</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Completed</span><span className="stat-icon green"><CheckCheck size={16} /></span></div><div className="stat-value">{completedToday}<span className="stat-caption">marked done</span></div><div className="stat-foot"><span className="tiny-dot green-dot" />Nice progress, keep it gentle</div></div>
+              <div className="stat-card"><div className="stat-top"><span>Open tasks</span><ListTodo size={16} /></div><div className="stat-value">{openTasks.length}</div><div className="stat-foot">Across your life areas</div></div>
+              <div className="stat-card"><div className="stat-top"><span>Due today</span><Target size={16} /></div><div className="stat-value">{dueToday.length}</div><div className="stat-foot">{overdue.length} overdue</div></div>
+              <div className="stat-card"><div className="stat-top"><span>Completed</span><CheckCheck size={16} /></div><div className="stat-value">{completed.length}</div><div className="stat-foot">A little progress counts</div></div>
             </div>
-
             <div className="content-grid">
-              <section className="panel tasks-panel">
-                <div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today's priorities</h2></div><button className="text-button" onClick={() => { setSection("Tasks"); setShowAll(true); }}>View all <ArrowUpRight size={15} /></button></div>
-                <div className="task-list">
-                  {visibleTasks.filter(t => !t.completed).slice(0, 5).map(task => <TaskRow key={task.id} task={task} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask} />)}
-                  {openTasks.length === 0 && <div className="empty-state"><span className="empty-icon"><Check size={20} /></span><strong>All clear for now</strong><span>Enjoy the breathing room. You've earned it.</span></div>}
-                </div>
-                <button className="add-task-row" onClick={openNewTask}><Plus size={16} />Add a task</button>
+              <section className="panel tasks-panel"><div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today's priorities</h2></div><button className="text-button" onClick={() => setView("Tasks")}>View all <ArrowRight size={14} /></button></div>
+                {loading ? <div className="empty-state">Loading your tasks…</div> : dueToday.length || openTasks.length ? (dueToday.length ? dueToday : openTasks).slice(0, 7).map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><Check size={20} /><strong>All clear for now</strong><span>Enjoy the breathing room. You've earned it.</span></div>}
+                <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15} />Add a task</button>
               </section>
-
               <div className="right-column">
-                <section className="panel ai-panel">
-                  <div className="ai-heading"><span className="ai-spark"><Sparkles size={16} /></span><span>SONDER AI</span><span className="coming-pill">PREVIEW</span></div>
-                  <h2>A clearer next step.</h2>
-                  <p>Your day has {dueToday.length} task{dueToday.length === 1 ? "" : "s"} due today{overdue.length ? ` and ${overdue.length} overdue` : ""}. Start with one meaningful thing, then reassess.</p>
-                  <button className="ai-button" onClick={() => setSection("Insights")}>Explore your insights <ArrowUpRight size={15} /></button>
-                </section>
-                <section className="panel areas-panel">
-                  <div className="panel-heading compact-heading"><div><div className="section-kicker">THE BIG PICTURE</div><h2>Your life areas</h2></div><button className="icon-button subtle" onClick={() => { setFilterArea("All"); setSection("Tasks"); }} aria-label="View all areas"><ArrowUpRight size={16} /></button></div>
-                  <div className="area-progress-list">
-                    {areas.map(area => {
-                      const all = tasks.filter(t => t.area === area);
-                      const done = all.filter(t => t.completed).length;
-                      const Icon = areaIcons[area];
-                      return <button className="area-progress" key={area} onClick={() => { setFilterArea(area); setSection("Tasks"); }}>
-                        <span className={`area-mini-icon dot-${area.toLowerCase()}`}><Icon size={14} /></span><span className="progress-name">{area}</span><span className="progress-track"><i style={{ width: all.length ? `${done / all.length * 100}%` : "0%" }} /></span><span className="progress-number">{done}/{all.length}</span>
-                      </button>;
-                    })}
-                  </div>
-                </section>
+                <section className="panel ai-panel"><div className="ai-heading"><span className="ai-spark"><Sparkles size={16} /></span><span>SONDER AI</span><span className="coming-pill">LOCAL FIRST · LATER</span></div><h2>A clearer next step.</h2><p>Your day has {dueToday.length} task{dueToday.length === 1 ? "" : "s"} due today{overdue.length ? ` and ${overdue.length} overdue` : ""}. Start with one meaningful thing, then reassess.</p><p className="muted-note">AI will be optional and run locally where possible — no paid AI API required.</p></section>
+                <section className="panel areas-panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">THE BIG PICTURE</div><h2>Your life areas</h2></div></div><div className="area-progress-list">{areas.map(area => { const related = tasks.filter(task => task.lifeAreaId === area.id); const done = related.filter(task => task.status === "done").length; return <div className="area-progress" key={area.id}><span className="area-mini-icon" style={{ color: area.color }}>●</span><span className="progress-name">{area.name}</span><span className="progress-track"><i style={{ width: related.length ? `${done / related.length * 100}%` : "0%" }} /></span><span className="progress-number">{done}/{related.length}</span></div>; })}</div></section>
               </div>
             </div>
-            <section className="panel bottom-panel">
-              <div className="bottom-message"><div className="bottom-orb"><Compass size={20} /></div><div><strong>Make room for what matters.</strong><span>Sonder is here to help you see the whole picture, not fill every minute.</span></div></div>
-              <div className="bottom-metric"><span>YOUR PACE</span><strong>One day at a time</strong></div>
-            </section>
           </>}
-
-          {section === "Tasks" && <div className="section-page">
-            <div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you're carrying, in one place.</p></div><button className="primary-button" onClick={openNewTask}><Plus size={17} />New task</button></div>
-            <div className="task-toolbar">
-              <div className="search-field"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tasks..." /></div>
-              <select value={filterArea} onChange={e => setFilterArea(e.target.value as "All" | Area)} aria-label="Filter by life area"><option value="All">All areas</option>{areas.map(a => <option key={a}>{a}</option>)}</select>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as typeof filterStatus)} aria-label="Filter by status"><option value="All">All tasks</option><option value="Open">Open</option><option value="Completed">Completed</option></select>
-            </div>
-            <div className="task-summary-line"><span>{visibleTasks.length} task{visibleTasks.length === 1 ? "" : "s"}</span><span>{visibleTasks.filter(t => t.completed).length} completed</span></div>
-            <section className="panel full-task-panel">
-              {visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask} />) : <div className="empty-state"><span className="empty-icon"><ListTodo size={20} /></span><strong>Nothing here just yet</strong><span>Try another filter or add a new task.</span><button className="text-button" onClick={openNewTask}>Create a task <Plus size={14} /></button></div>}
-            </section>
-          </div>}
-
-          {section === "Calendar" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">LOOK AHEAD</div><h1>Your calendar.</h1><p className="subheading">A simple view of what's coming up.</p></div><button className="primary-button" onClick={openNewTask}><Plus size={17} />Add task</button></div><section className="panel calendar-panel"><div className="panel-heading"><div><div className="section-kicker">UPCOMING</div><h2>Next 14 days</h2></div><CalendarDays size={19} className="muted-icon" /></div>{Array.from({ length: 14 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() + i); const key = localDate(date); const dayTasks = tasks.filter(t => t.dueDate === key); return <div className="calendar-day" key={key}><div className="calendar-date"><strong>{date.toLocaleDateString(undefined, { weekday: "short" })}</strong><span>{date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div><div className="calendar-events">{dayTasks.length ? dayTasks.map(t => <button key={t.id} className={`calendar-event ${t.completed ? "event-done" : ""}`} onClick={() => openEditTask(t)}><i className={`event-dot dot-${t.area.toLowerCase()}`} />{t.title}</button>) : <span className="no-events">Nothing planned</span>}</div></div>; })}</section></div>}
-
-          {section === "Insights" && <div className="section-page"><div className="eyebrow">A MOMENT TO REFLECT</div><h1>Your perspective.</h1><p className="subheading">A little context, without the pressure to optimize everything.</p><div className="insight-grid"><div className="panel insight-card"><span className="stat-icon lavender"><TrendingUp size={18} /></span><span className="section-kicker">TASK COMPLETION</span><strong>{tasks.length ? Math.round(completedToday / tasks.length * 100) : 0}%</strong><p>of your current tasks are complete.</p></div><div className="panel insight-card"><span className="stat-icon amber"><Target size={18} /></span><span className="section-kicker">NEEDS ATTENTION</span><strong>{overdue.length + dueToday.length}</strong><p>tasks are overdue or due today.</p></div></div><section className="panel reflection-panel"><Sparkles size={18} /><div><strong>A gentle reminder</strong><p>These numbers are information, not a score. Your life is bigger than a checklist. Rest is part of the plan, too.</p></div></section></div>}
-
-          {section === "Settings" && <div className="section-page"><div className="eyebrow">MAKE IT YOURS</div><h1>Your settings.</h1><p className="subheading">Sonder is currently running as a local prototype.</p><section className="panel settings-panel"><div><strong>Data storage</strong><span>Tasks are saved in this browser on this device.</span></div><span className="settings-status">LOCAL ONLY</span></section><section className="panel settings-panel"><div><strong>Cloud sync</strong><span>Account sign-in and cross-device sync will be added in a later milestone.</span></div><span className="settings-status muted-status">COMING NEXT</span></section><section className="panel settings-panel"><div><strong>Reset sample data</strong><span>Restore the starter tasks on this browser.</span></div><button className="secondary-button" onClick={() => { if (confirm("Restore the starter tasks? This replaces your current tasks on this device.")) setTasks(readTasks().length ? (awaitInitialTasks()) : []); }}>Restore starter tasks</button></section></div>}
+          {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don't want to forget.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you're carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU'RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <article className="panel project-card" key={project.id}><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks</span></article>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
         </div>
       </section>
 
-      {modalOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-        <form className="task-modal" onSubmit={saveTask}>
-          <div className="modal-heading"><div><div className="section-kicker">{editing ? "MAKE A CHANGE" : "GET IT OUT OF YOUR HEAD"}</div><h2>{editing ? "Edit task" : "New task"}</h2></div><button type="button" className="icon-button" onClick={() => setModalOpen(false)} aria-label="Close"><X size={18} /></button></div>
-          <label className="form-label">Task name<input autoFocus required maxLength={120} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="What needs your attention?" /></label>
-          <label className="form-label">Notes <span className="optional-label">OPTIONAL</span><textarea rows={3} maxLength={500} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="Add a little context..." /></label>
-          <div className="form-grid"><label className="form-label">Life area<select value={draft.area} onChange={e => setDraft({ ...draft, area: e.target.value as Area })}>{areas.map(a => <option key={a}>{a}</option>)}</select></label><label className="form-label">Priority<select value={draft.priority} onChange={e => setDraft({ ...draft, priority: e.target.value as Priority })}>{priorities.map(p => <option key={p}>{p}</option>)}</select></label><label className="form-label">Due date<input type="date" value={draft.dueDate} onChange={e => setDraft({ ...draft, dueDate: e.target.value })} /></label><label className="form-label">Repeat<select value={draft.repeat} onChange={e => setDraft({ ...draft, repeat: e.target.value as Repeat })}>{repeats.map(r => <option key={r}>{r}</option>)}</select></label></div>
-          <div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setModalOpen(false)}>Cancel</button><button className="primary-button" type="submit">{editing ? "Save changes" : "Create task"}<ArrowUpRight size={15} /></button></div>
-        </form>
-      </div>}
+      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>New task</h2></div><button type="button" className="icon-button" onClick={() => setTaskOpen(false)}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => setTaskProject(event.target.value)}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setTaskOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create task <ArrowRight size={14} /></button></div></form></div>}
+      {projectOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createProject}><div className="modal-heading"><div><div className="section-kicker">START SOMETHING</div><h2>New project</h2></div><button type="button" className="icon-button" onClick={() => setProjectOpen(false)}><X size={18} /></button></div><label className="form-label">Project name<input required autoFocus value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="What are you working on?" /></label><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setProjectOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create project</button></div></form></div>}
     </main>
   );
 }
 
-function awaitInitialTasks(): Task[] {
-  return [
-    { id: "sample-1", title: "Finish economics assignment", notes: "Review the final section and prepare the slides.", area: "School", priority: "High", dueDate: localDate(new Date()), repeat: "Never", completed: false, createdAt: new Date().toISOString() },
-    { id: "sample-2", title: "Review C++ subprograms", notes: "A focused 30-minute revision session.", area: "School", priority: "Medium", dueDate: localDate(new Date()), repeat: "Never", completed: false, createdAt: new Date().toISOString() },
-    { id: "sample-3", title: "Check Sunday service setup", notes: "Confirm the media and audio checklist.", area: "Church", priority: "Medium", dueDate: localDate(new Date()), repeat: "Weekly", completed: false, createdAt: new Date().toISOString() },
-    { id: "sample-4", title: "Go for a workout", notes: "Keep it simple. Showing up is enough.", area: "Health", priority: "Low", dueDate: "", repeat: "Never", completed: false, createdAt: new Date().toISOString() }
-  ];
-}
-
-function TaskRow({ task, onToggle, onEdit, onDelete }: { task: Task; onToggle: (id: string) => void; onEdit: (task: Task) => void; onDelete: (id: string) => void }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return <div className={`task-row ${task.completed ? "task-completed" : ""}`}>
-    <button className={`task-check ${task.completed ? "checked" : ""}`} onClick={() => onToggle(task.id)} aria-label={task.completed ? "Mark as open" : "Mark as complete"}>{task.completed && <Check size={13} />}</button>
-    <div className="task-copy"><button className="task-title" onClick={() => onEdit(task)}>{task.title}</button>{task.notes && <span className="task-notes">{task.notes}</span>}<div className="task-meta"><span className={`area-tag tag-${task.area.toLowerCase()}`}>{task.area}</span><span className={`priority-tag priority-${task.priority.toLowerCase()}`}><i />{task.priority}</span><span className={`due-tag ${task.dueDate && task.dueDate < localDate(new Date()) && !task.completed ? "overdue-tag" : ""}`}><CalendarDays size={12} />{formatDueDate(task.dueDate)}</span>{task.repeat !== "Never" && <span className="repeat-tag"><Activity size={11} />{task.repeat}</span>}</div></div>
-    <div className="task-actions"><button className="icon-button task-more" onClick={() => setMenuOpen(!menuOpen)} aria-label="Task options"><MoreHorizontal size={17} /></button>{menuOpen && <div className="task-menu"><button onClick={() => { onEdit(task); setMenuOpen(false); }}><SquarePen size={14} />Edit</button><button className="delete-action" onClick={() => { onDelete(task.id); setMenuOpen(false); }}><Trash2 size={14} />Delete</button></div>}</div>
+function TaskRow({ task, areas, onToggle, onDelete }: {
+  task: ApiTask;
+  areas: ApiLifeArea[];
+  onToggle: (task: ApiTask) => void;
+  onDelete: (id: string) => void;
+}) {
+  const area = areas.find(item => item.id === task.lifeAreaId);
+  const due = task.dueAt ? localDate(task.dueAt) : "";
+  const today = localDate(new Date().toISOString());
+  return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
+    <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
+    <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarDays size={12} />{due === today ? "Today" : new Date(task.dueAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div></div>
+    <button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
   </div>;
 }
