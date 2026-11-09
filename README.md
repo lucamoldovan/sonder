@@ -68,13 +68,15 @@ Local environment:
 3. Keep `BETTER_AUTH_URL` and `WEB_APP_URL` set to `http://localhost:3000`.
 4. Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` there too. Use Supabase's session pooler if your local network does not support IPv6.
 
-Generate and apply the initial database migrations:
+Apply the committed initial database migration:
 
 ```bash
 cd apps/api
-bun run db:generate
 bun run db:migrate
+cd ../..
 ```
+
+For future schema changes, run `bun run db:generate` from `apps/api`, review and commit the generated SQL/snapshot, then run `bun run db:migrate` to apply it.
 
 Run the web app:
 
@@ -131,6 +133,6 @@ Do not put database passwords in build variables or source control. Production d
 - Universal Inbox supports capture, archive, and convert-to-task on web and mobile.
 - API CRUD exists for life areas, projects, tasks, and inbox items with validation and per-user ownership checks.
 - Cloudflare/OpenNext build succeeds in Workers Builds; production deployment and live database/auth smoke tests still need to be confirmed.
-- The initial Drizzle migration must be generated and applied to the Supabase database before sign-up can work.
+- The initial Drizzle migration and Bun lockfile are committed; the migration still needs to be applied to Supabase before sign-up can work.
 
 Real credentials must never be committed. Never enable a paid plan or usage-based billing for this project.
