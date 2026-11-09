@@ -112,4 +112,4 @@ See `.env.example` and `apps/api/.dev.vars.example`. Real credentials must never
 - Initial product schema covers users, life areas, projects, and tasks.
 - Expo native app shell is scaffolded.
 - Shared task validation contracts are in place.
-- Cloud sync, production auth, complete task CRUD API, and cross-device synchronization are not yet finished.
+- Initial task and life-area API CRUD endpoints include validation and per-user ownership checks. The existing web dashboard is not yet connected to these endpoints; cloud sync and cross-device synchronization remain unfinished.
