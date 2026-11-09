@@ -31,5 +31,8 @@ jobs:
       - name: Build web application
         run: bun run build
 
+      - name: Build Cloudflare Worker
+        run: bun run build:cloudflare
+
       - name: Typecheck API workspace
         run: bun --cwd apps/api run typecheck

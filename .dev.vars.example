@@ -1,0 +1,9 @@
+# Copy this file to .dev.vars for local Wrangler testing.
+# Never commit .dev.vars or share the database password.
+BETTER_AUTH_SECRET=replace-with-a-long-random-secret
+BETTER_AUTH_URL=http://localhost:3000
+WEB_APP_URL=http://localhost:3000
+ENVIRONMENT=development
+
+# Local direct Supabase connection; production uses Hyperdrive.
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.teywrurexkgmbznkundo.supabase.co:5432/postgres?sslmode=require

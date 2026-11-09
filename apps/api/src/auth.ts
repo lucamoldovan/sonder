@@ -2,11 +2,10 @@ import { expo } from "@better-auth/expo";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth";
 import type { Bindings } from "./env";
-import { createDatabase } from "./db";
+import type { Database } from "./db";
 import * as schema from "./db/schema";
 
-export function createAuth(env: Bindings) {
-  const db = createDatabase(env.DATABASE_URL);
+export function createAuth(env: Bindings, db: Database) {
   const isDevelopment = env.ENVIRONMENT === "development";
 
   return betterAuth({

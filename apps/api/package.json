@@ -10,16 +10,17 @@
   },
   "dependencies": {
     "@better-auth/expo": "^1.6.0",
-    "@neondatabase/serverless": "^1.0.2",
     "@sonder/contracts": "workspace:*",
     "better-auth": "^1.6.0",
     "drizzle-orm": "^0.45.0",
     "hono": "^4.10.0",
-    "zod": "^4.1.0"
+    "zod": "^4.1.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
     "typescript": "^5.8.3",
-    "@types/node": "^22.15.0"
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.5"
   }
 }

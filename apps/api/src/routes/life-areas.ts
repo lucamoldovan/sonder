@@ -1,12 +1,12 @@
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateLifeAreaSchema, UpdateLifeAreaSchema, UuidSchema } from "@sonder/contracts";
-import { createDatabase } from "../db";
+import type { Database } from "../db";
 import { lifeAreas } from "../db/schema";
-import type { Bindings } from "../env";
+import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
-export const lifeAreaRoutes = new Hono<{ Bindings: Bindings }>();
+export const lifeAreaRoutes = new Hono<AppEnv>();
 
 lifeAreaRoutes.get("/", async (context) => {
   const user = await getSessionUser(context);
@@ -14,7 +14,7 @@ lifeAreaRoutes.get("/", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const rows = await db
     .select()
     .from(lifeAreas)
@@ -45,7 +45,7 @@ lifeAreaRoutes.post("/", async (context) => {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || `area-${crypto.randomUUID().slice(0, 8)}`;
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [created] = await db.insert(lifeAreas).values({
     userId: user.id,
     name: parsed.data.name,
@@ -80,7 +80,7 @@ lifeAreaRoutes.patch("/:id", async (context) => {
     return context.json({ error: { code: "VALIDATION_ERROR", message: "Provide valid changes." } }, 400);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const updates: Partial<typeof lifeAreas.$inferInsert> = {
     ...parsed.data,
     updatedAt: new Date()
@@ -117,7 +117,7 @@ lifeAreaRoutes.delete("/:id", async (context) => {
     return context.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   }
 
-  const db = createDatabase(context.env.DATABASE_URL);
+  const db = context.get("db");
   const [deleted] = await db.delete(lifeAreas)
     .where(and(eq(lifeAreas.id, context.req.param("id")), eq(lifeAreas.userId, user.id)))
     .returning({ id: lifeAreas.id });

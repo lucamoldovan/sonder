@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sonder",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-09",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "d3e217583f344a92935bd3d33be26ddb"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "sonder"
+    }
+  ]
+}

@@ -12,12 +12,17 @@
     "dev:mobile": "bun --cwd apps/mobile run start",
     "dev:all": "concurrently -k -n web,mobile \"bun run dev:web\" \"bun run dev:mobile\"",
     "build": "next build",
+    "build:cloudflare": "opennextjs-cloudflare build",
     "build:all": "bun run build && bun run typecheck:all",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:all": "bun run typecheck && turbo run typecheck",
-    "test": "bun test"
+    "test": "bun test",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -36,7 +41,9 @@
     "eslint-config-next": "^15.5.0",
     "turbo": "^2.5.6",
     "typescript": "^5.8.3",
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "@opennextjs/cloudflare": "^1.20.16",
+    "wrangler": "^4.147.0"
   },
   "packageManager": "bun@1.2.15"
 }
