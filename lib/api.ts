@@ -1,5 +1,3 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
-
 type ApiError = {
   error?: {
     code?: string;
@@ -24,7 +22,7 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
+  const response = await fetch(`/api/v1${path}`, {
     ...options,
     credentials: "include",
     headers: {
