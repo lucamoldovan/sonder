@@ -57,6 +57,7 @@ describe("shared request contracts", () => {
   test("validates goals and preserves PATCH omission semantics", () => {
     expect(CreateGoalSchema.parse({ title: "Finish school year" })).toMatchObject({ title: "Finish school year", status: "active" });
     expect(UpdateGoalSchema.parse({ status: "completed" })).toEqual({ status: "completed" });
+    expect(UpdateGoalSchema.parse({ title: "Renamed goal" })).toEqual({ title: "Renamed goal" });
     expect(CreateGoalSchema.safeParse({ title: "Invalid date", targetDate: "2026-02-30" }).success).toBe(false);
   });
 
