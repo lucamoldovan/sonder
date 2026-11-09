@@ -1,4 +1,9 @@
 node_modules
+
+# Keep all environment secrets out of Git; explicitly allow safe templates.
+.env*
+!.env.example
+!.env.*.example
 .next
 out
 build
