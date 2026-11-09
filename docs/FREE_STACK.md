@@ -31,6 +31,18 @@ Do not add Cloudflare Workers, R2, hosted vector databases, paid analytics, paid
 
 The Hono API is mounted inside Next.js at `/api/*` and runs in the Node.js runtime. Web requests are same-origin, so auth cookies do not depend on third-party cookie behavior. The mobile app calls the same Vercel deployment URL.
 
+## Vercel deployment environment
+
+Create a Vercel Hobby project from the public GitHub repository. Set these environment variables for Production:
+
+- `DATABASE_URL`: Neon pooled PostgreSQL connection string.
+- `BETTER_AUTH_SECRET`: generated high-entropy secret.
+- `BETTER_AUTH_URL`: the assigned `https://<project>.vercel.app` origin.
+- `WEB_APP_URL`: the same Vercel origin.
+- `ENVIRONMENT=production`.
+
+Do not add a custom domain or enable a paid Vercel plan. The app and API deploy together, so no API proxy URL is required.
+
 ## Avoiding surprise charges
 
 - Never add a credit card or enable pay-as-you-go billing just to unlock a free tier.
