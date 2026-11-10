@@ -115,7 +115,8 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 }, (table) => [
   index("projects_user_id_idx").on(table.userId),
-  index("projects_life_area_id_idx").on(table.lifeAreaId)
+  index("projects_life_area_id_idx").on(table.lifeAreaId),
+  index("projects_goal_id_idx").on(table.goalId)
 ]).enableRLS();
 
 export const tasks = pgTable("tasks", {
@@ -168,6 +169,7 @@ export const habits = pgTable("habits", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  goalId: uuid("goal_id"),
   goalId: uuid("goal_id"),
   name: text("name").notNull(),
   description: text("description"),
