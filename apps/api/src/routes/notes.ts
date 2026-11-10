@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, isNull, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, isNull, isNotNull, sql, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateNoteSchema, UpdateNoteSchema, UuidSchema } from "@sonder/contracts";
 import { lifeAreas, notes, projects } from "../db/schema";
@@ -11,9 +11,21 @@ export const noteRoutes = new Hono<AppEnv>();
 async function validateRelations(db: Database, userId: string, data: { parentId?: string | null; lifeAreaId?: string | null; projectId?: string | null }, noteId?: string) {
   if (data.parentId) {
     if (data.parentId === noteId) return "A page cannot be its own parent.";
-    const [parent] = await db.select({ id: notes.id }).from(notes)
+    const [parent] = await db.select({ id: notes.id, parentId: notes.parentId }).from(notes)
       .where(and(eq(notes.id, data.parentId), eq(notes.userId, userId), isNull(notes.archivedAt))).limit(1);
     if (!parent) return "The parent page does not exist.";
+    if (noteId) {
+      let ancestorId: string | null = parent.id;
+      const visited = new Set<string>();
+      while (ancestorId) {
+        if (ancestorId === noteId) return "A page cannot be moved inside one of its own subpages.";
+        if (visited.has(ancestorId)) return "This page hierarchy contains a cycle.";
+        visited.add(ancestorId);
+        const [ancestor] = await db.select({ parentId: notes.parentId }).from(notes)
+          .where(and(eq(notes.id, ancestorId), eq(notes.userId, userId))).limit(1);
+        ancestorId = ancestor?.parentId ?? null;
+      }
+    }
   }
   if (data.lifeAreaId) {
     const [area] = await db.select({ id: lifeAreas.id }).from(lifeAreas)
@@ -83,8 +95,28 @@ noteRoutes.patch("/:id", async (c) => {
   if (data.tags !== undefined) updates.tags = data.tags;
   if (data.favorite !== undefined) updates.favorite = data.favorite;
   if (data.archived !== undefined) updates.archivedAt = data.archived ? new Date() : null;
-  const [updated] = await db.update(notes).set(updates)
-    .where(and(eq(notes.id, id.data), eq(notes.userId, user.id))).returning();
+  const updated = await db.transaction(async (tx) => {
+    if (data.archived !== undefined) {
+      const allNotes = await tx.select({ id: notes.id, parentId: notes.parentId }).from(notes)
+        .where(eq(notes.userId, user.id));
+      const affected = new Set<string>([id.data]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const note of allNotes) {
+          if (note.parentId && affected.has(note.parentId) && !affected.has(note.id)) {
+            affected.add(note.id);
+            changed = true;
+          }
+        }
+      }
+      await tx.update(notes).set({ archivedAt: data.archived ? new Date() : null, updatedAt: new Date() })
+        .where(and(eq(notes.userId, user.id), inArray(notes.id, [...affected])));
+    }
+    const [row] = await tx.update(notes).set(updates)
+      .where(and(eq(notes.id, id.data), eq(notes.userId, user.id))).returning();
+    return row;
+  });
   if (!updated) return c.json({ error: { code: "NOT_FOUND", message: "Page not found." } }, 404);
   return c.json({ data: updated });
 });
