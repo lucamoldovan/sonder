@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Archive, Check, ChevronDown, ChevronRight, Code2, FilePlus2, Heart, List, ListOrdered, LoaderCircle, MoreHorizontal, Plus, Quote, Search, Trash2, Type, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -60,6 +60,7 @@ export default function NotesPage() {
   const [dirty, setDirty] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileSidebar, setMobileSidebar] = useState(false);
+  const draftVersion = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,7 +87,41 @@ export default function NotesPage() {
 
   const selected = notes.find(note => note.id === selectedId) || null;
 
-  const openNote = (note: ApiNote) => {
+  const saveDraft = async () => {
+    if (!dirty || !selectedId) return true;
+    const noteId = selectedId;
+    const version = draftVersion.current;
+    setSaveState("saving");
+    try {
+      const result = await apiRequest<ApiList<ApiNote>>("/notes/" + noteId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: title.trim() || "Untitled",
+          icon,
+          content: blocks,
+          tags: tagsText.split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 20),
+          lifeAreaId: lifeAreaId || null,
+          projectId: projectId || null,
+          parentId
+        })
+      });
+      setNotes(current => current.map(note => note.id === noteId ? result.data : note));
+      if (draftVersion.current === version) {
+        setDirty(false);
+        setSaveState("saved");
+        setError("");
+      }
+      return true;
+    } catch (cause) {
+      setSaveState("error");
+      setError(cause instanceof Error ? cause.message : "Couldn't save this page.");
+      return false;
+    }
+  };
+
+  const openNote = async (note: ApiNote) => {
+    if (note.id !== selectedId && !(await saveDraft())) return;
+    draftVersion.current += 1;
     setSelectedId(note.id);
     setTitle(note.title);
     setIcon(note.icon || "📝");
@@ -102,6 +137,7 @@ export default function NotesPage() {
   };
 
   const createNote = async (parent: string | null = null) => {
+    if (!(await saveDraft())) return;
     try {
       const result = await apiRequest<ApiList<ApiNote>>("/notes", {
         method: "POST",
@@ -118,6 +154,7 @@ export default function NotesPage() {
   };
 
   const markDirty = () => {
+    draftVersion.current += 1;
     setDirty(true);
     setSaveState("unsaved");
   };
@@ -137,31 +174,40 @@ export default function NotesPage() {
     markDirty();
   };
 
-  useEffect(() => {
-    if (!dirty || !selectedId) return;
-    const timer = window.setTimeout(async () => {
-      setSaveState("saving");
-      try {
-        const result = await apiRequest<ApiList<ApiNote>>("/notes/" + selectedId, {
-          method: "PATCH",
-          body: JSON.stringify({
-            title: title.trim() || "Untitled",
-            icon,
-            content: blocks,
-            tags: tagsText.split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 20),
-            lifeAreaId: lifeAreaId || null,
-            projectId: projectId || null,
-            parentId
-          })
-        });
-        setNotes(current => current.map(note => note.id === selectedId ? result.data : note));
+  const saveDraftForVersion = async (noteId: string, version: number) => {
+    try {
+      const result = await apiRequest<ApiList<ApiNote>>("/notes/" + noteId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: title.trim() || "Untitled",
+          icon,
+          content: blocks,
+          tags: tagsText.split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 20),
+          lifeAreaId: lifeAreaId || null,
+          projectId: projectId || null,
+          parentId
+        })
+      });
+      setNotes(current => current.map(note => note.id === noteId ? result.data : note));
+      if (draftVersion.current === version) {
         setDirty(false);
         setSaveState("saved");
         setError("");
-      } catch (cause) {
+      }
+    } catch (cause) {
+      if (draftVersion.current === version) {
         setSaveState("error");
         setError(cause instanceof Error ? cause.message : "Couldn't save this page.");
       }
+    }
+  };
+
+  useEffect(() => {
+    if (!dirty || !selectedId) return;
+    const noteId = selectedId;
+    const version = draftVersion.current;
+    const timer = window.setTimeout(async () => {
+      await saveDraftForVersion(noteId, version);
     }, 700);
     return () => window.clearTimeout(timer);
   }, [dirty, selectedId, title, icon, blocks, tagsText, lifeAreaId, projectId, parentId]);
@@ -176,7 +222,7 @@ export default function NotesPage() {
   };
 
   const archiveNote = async () => {
-    if (!selected) return;
+    if (!selected || !(await saveDraft())) return;
     try {
       const affected = new Set<string>([selected.id]);
       let changed = true;
@@ -192,6 +238,8 @@ export default function NotesPage() {
   };
 
   const switchArchiveView = async (archived: boolean) => {
+    if (!(await saveDraft())) return;
+    draftVersion.current += 1;
     setShowArchived(archived);
     setShowFavorites(false);
     setSelectedId(null);
@@ -203,7 +251,8 @@ export default function NotesPage() {
   };
 
   const deleteNote = async () => {
-    if (!selected || !window.confirm("Delete this page and all of its subpages? This cannot be undone.")) return;
+    if (!selected || !window.confirm("Delete this page and all of its subpages? This cannot be undone.") || !(await saveDraft())) return;
+    draftVersion.current += 1;
     try {
       await apiRequest("/notes/" + selected.id, { method: "DELETE" });
       const removeIds = new Set<string>([selected.id]);
@@ -217,10 +266,22 @@ export default function NotesPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't delete the page."); }
   };
 
-  const filtered = useMemo(() => notes.filter(note =>
-    (!showFavorites || note.favorite) &&
-    (!search || (note.title + " " + note.content.map(block => block.text).join(" ")).toLowerCase().includes(search.toLowerCase()))
-  ), [notes, search, showFavorites]);
+  const filtered = useMemo(() => {
+    const matching = notes.filter(note =>
+      (!showFavorites || note.favorite) &&
+      (!search || (note.title + " " + note.content.map(block => block.text).join(" ")).toLowerCase().includes(search.toLowerCase()))
+    );
+    const visibleIds = new Set(matching.map(note => note.id));
+    const byId = new Map(notes.map(note => [note.id, note]));
+    for (const note of matching) {
+      let parent = note.parentId ? byId.get(note.parentId) : undefined;
+      while (parent && !visibleIds.has(parent.id)) {
+        visibleIds.add(parent.id);
+        parent = parent.parentId ? byId.get(parent.parentId) : undefined;
+      }
+    }
+    return notes.filter(note => visibleIds.has(note.id));
+  }, [notes, search, showFavorites]);
 
   const renderTree = (parent: string | null, depth = 0): React.ReactNode => filtered
     .filter(note => note.parentId === parent)
@@ -230,7 +291,7 @@ export default function NotesPage() {
       return <div key={note.id}>
         <div className={`note-tree-row ${selectedId === note.id ? "selected" : ""}`} style={{ paddingLeft: 10 + depth * 14 }}>
           <button className="note-tree-toggle" aria-label={isExpanded ? "Collapse page" : "Expand page"} onClick={() => setExpanded(current => isExpanded ? current.filter(id => id !== note.id) : [...current, note.id])}>{children ? (isExpanded ? <ChevronDown size={13}/> : <ChevronRight size={13}/>) : <span className="tree-spacer"/>}</button>
-          <button className="note-tree-open" onClick={() => openNote(note)}><span>{note.icon || "📝"}</span><span>{note.title || "Untitled"}</span></button>
+          <button className="note-tree-open" onClick={() => void openNote(note)}><span>{note.icon || "📝"}</span><span>{note.title || "Untitled"}</span></button>
           <button className="note-tree-action" title="Add subpage" onClick={() => void createNote(note.id)}><Plus size={13}/></button>
         </div>
         {children && isExpanded && renderTree(note.id, depth + 1)}
