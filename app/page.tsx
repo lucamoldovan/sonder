@@ -274,7 +274,8 @@ export default function Home() {
     if (habit.frequency === "daily") return true;
     if (habit.frequency === "weekdays") return new Date().getDay() !== 0 && new Date().getDay() !== 6;
     const completedThisWeek = habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= currentWeekStart).length;
-    return completedThisWeek < habit.targetPerWeek;
+    const checkedInToday = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === today);
+    return checkedInToday || completedThisWeek < habit.targetPerWeek;
   });
   const nextActionTasks = [...openTasks]
     .filter(task => task.status === "in_progress" || (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
