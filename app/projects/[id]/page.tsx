@@ -50,8 +50,10 @@ export default function ProjectWorkspacePage() {
   }, [params.id]);
 
   useEffect(() => {
+    if (isPending) return;
     if (session?.user) void load();
-  }, [session?.user, load]);
+    else setLoading(false);
+  }, [isPending, session?.user?.id, load]);
 
   async function toggleTask(task: Workspace["tasks"][number]) {
     try {
