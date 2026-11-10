@@ -270,6 +270,7 @@ export default function Home() {
   async function createTask(event: FormEvent) {
     event.preventDefault();
     if (!taskTitle.trim()) return;
+    if (taskRepeat !== "none" && !taskDue) { setError("Choose a due date for a recurring task."); return; }
     try {
       const dueAt = taskDue ? new Date(taskDue + "T12:00:00").toISOString() : null;
       const result = await apiRequest<ApiList<ApiTask>>("/tasks", {
