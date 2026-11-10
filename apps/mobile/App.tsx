@@ -72,6 +72,10 @@ export default function App() {
   const [goalEditArea, setGoalEditArea] = useState("");
   const [habitDraftName, setHabitDraftName] = useState("");
   const [habitDraftFrequency, setHabitDraftFrequency] = useState<"daily" | "weekdays" | "weekly">("daily");
+  const [lifeAreaDraft, setLifeAreaDraft] = useState("");
+  const [lifeAreaEditId, setLifeAreaEditId] = useState<string | null>(null);
+  const [lifeAreaEditName, setLifeAreaEditName] = useState("");
+  const [lifeAreaEditColor, setLifeAreaEditColor] = useState("#A78BFA");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -336,6 +340,36 @@ export default function App() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't archive the item.");
     }
+  }
+
+  async function createLifeArea() {
+    if (!lifeAreaDraft.trim()) return;
+    try {
+      const result = await apiRequest<{data:LifeAreaRecord}>("/life-areas", {
+        method:"POST",
+        body:JSON.stringify({name:lifeAreaDraft.trim(),color:"#A78BFA",position:lifeAreas.length})
+      });
+      setLifeAreas(current=>[...current,result.data]);
+      setLifeAreaDraft("");
+    } catch(cause) { setError(cause instanceof Error?cause.message:"Couldn't create the life area."); }
+  }
+
+  function openLifeAreaEditor(area: LifeAreaRecord) {
+    setLifeAreaEditId(area.id);
+    setLifeAreaEditName(area.name);
+    setLifeAreaEditColor(area.color);
+  }
+
+  async function saveLifeArea() {
+    if (!lifeAreaEditId || !lifeAreaEditName.trim()) return;
+    try {
+      const result = await apiRequest<{data:LifeAreaRecord}>(`/life-areas/${lifeAreaEditId}`, {
+        method:"PATCH",
+        body:JSON.stringify({name:lifeAreaEditName.trim(),color:lifeAreaEditColor})
+      });
+      setLifeAreas(current=>current.map(area=>area.id===lifeAreaEditId?result.data:area));
+      setLifeAreaEditId(null);
+    } catch(cause) { setError(cause instanceof Error?cause.message:"Couldn't update the life area."); }
   }
 
   async function createHabit() {
@@ -692,7 +726,7 @@ export default function App() {
           })() : <><View style={styles.mobileTodaySectionHeader}><Text style={styles.sectionTitle}>Your projects</Text></View><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={projectDraft} onChangeText={setProjectDraft} placeholder="Start a new project…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createProject()}/><TouchableOpacity onPress={() => void createProject()} disabled={!projectDraft.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{projects.length ? projects.map(project=><TouchableOpacity key={project.id} style={styles.mobileOrganizeRow} onPress={() => setSelectedProjectId(project.id)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status.replace("_"," ")} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>) : <Text style={styles.muted}>Create a project when something needs more than one step.</Text>}</>}
         </>}
         {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder={noteEditingId?"Edit note title":"Note title"} placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>{noteEditingId?"Update note":"Save note"}</Text></TouchableOpacity>{noteEditingId&&<TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>{setNoteEditingId(null);setNoteTitle("");setNoteBody("");}}><Text style={styles.link}>Cancel editing</Text></TouchableOpacity>}<TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>void saveNoteTemplate()}><Text style={styles.link}>Save current draft as template</Text></TouchableOpacity></View>{noteTemplates.map(template=><TouchableOpacity key={template.id} style={styles.mobileTemplateChip} onPress={()=>{setNoteTitle(template.name);setNoteBody(template.content.map(block=>block.text).join("\n"));}}><Text style={styles.link}>Use {template.name}</Text></TouchableOpacity>)}{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><TouchableOpacity style={styles.taskCopy} onPress={()=>openNoteEditor(note)}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text>{(noteBacklinks[note.id]||[]).map(backlink=><Text key={backlink.id} style={styles.taskMeta}>Linked from: {backlink.title}</Text>)}</TouchableOpacity><TouchableOpacity onPress={()=>void loadNoteBacklinks(note.id)}><Text style={styles.link}>Backlinks</Text></TouchableOpacity></View>)}</>}
-        {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
+        {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={lifeAreaDraft} onChangeText={setLifeAreaDraft} placeholder="Add a life area…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createLifeArea()}/><TouchableOpacity onPress={() => void createLifeArea()} disabled={!lifeAreaDraft.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View><TouchableOpacity onPress={()=>openLifeAreaEditor(area)}><Text style={styles.link}>Edit</Text></TouchableOpacity></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
       <View style={styles.mobileBottomNav}>
@@ -701,6 +735,16 @@ export default function App() {
           <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
         </TouchableOpacity>)}
       </View>
+      <Modal visible={lifeAreaEditId !== null} transparent animationType="fade" onRequestClose={() => setLifeAreaEditId(null)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>LIFE AREA</Text><Text style={styles.mobileCaptureTitle}>Edit area</Text></View><TouchableOpacity onPress={() => setLifeAreaEditId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <TextInput style={styles.mobileCaptureInput} value={lifeAreaEditName} onChangeText={setLifeAreaEditName} placeholder="Area name" placeholderTextColor={colors.muted}/>
+            <View style={styles.mobileTaskPriorityRow}>{(["#A78BFA","#79B7D7","#76B99A","#D6A66A","#D58CA8","#8D98AA"] as const).map(color=><TouchableOpacity key={color} style={[styles.mobileAreaColor,{backgroundColor:color},lifeAreaEditColor===color&&styles.mobileAreaColorSelected]} onPress={()=>setLifeAreaEditColor(color)}/>)}</View>
+            <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void saveLifeArea()} disabled={!lifeAreaEditName.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <Modal visible={searchOpen} transparent animationType="fade" onRequestClose={() => setSearchOpen(false)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -790,6 +834,8 @@ const styles = StyleSheet.create({
   mobileCaptureTitle: { color: colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.5 },
   mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
   mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
+  mobileAreaColor: { width: 27, height: 27, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
+  mobileAreaColorSelected: { borderColor: colors.text, transform: [{scale:1.08}] },
   mobileAreaPicker: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   mobileCalendarHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileCalendarDate: { color: colors.text, fontSize: 16, fontWeight: "600", textAlign: "center" },
