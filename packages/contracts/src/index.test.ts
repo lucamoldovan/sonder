@@ -31,6 +31,20 @@ describe("shared request contracts", () => {
     expect(CreateTaskSchema.safeParse({ title: "   " }).success).toBe(false);
   });
 
+  test("preserves explicit time intent for scheduled dates and deadlines", () => {
+    expect(CreateTaskSchema.parse({
+      title: "Meet at noon",
+      scheduledAt: "2026-11-12T12:00:00.000Z",
+      scheduledHasTime: true,
+      dueAt: "2026-11-12T12:00:00.000Z",
+      dueHasTime: false
+    })).toMatchObject({ scheduledHasTime: true, dueHasTime: false });
+    expect(UpdateTaskSchema.parse({ scheduledHasTime: true, dueHasTime: false })).toEqual({
+      scheduledHasTime: true,
+      dueHasTime: false
+    });
+  });
+
   test("allows explicitly clearing nullable task relationships", () => {
     expect(UpdateTaskSchema.parse({ projectId: null, lifeAreaId: null })).toEqual({
       projectId: null,
@@ -53,6 +67,8 @@ describe("shared request contracts", () => {
       goalId,
       parentTaskId,
       reminderAt: "2026-11-12T08:00:00.000Z",
+      dueAt: "2026-11-12T12:00:00.000Z",
+      dueHasTime: false,
       recurrenceFrequency: "weekly",
       recurrenceInterval: 2,
       recurrenceUntil: "2026-12-31"
@@ -65,6 +81,8 @@ describe("shared request contracts", () => {
     });
     expect(CreateTaskSchema.safeParse({ title: "Bad recurrence", recurrenceFrequency: "yearly" }).success).toBe(false);
     expect(CreateTaskSchema.safeParse({ title: "Bad interval", recurrenceInterval: 0 }).success).toBe(false);
+    expect(CreateTaskSchema.safeParse({ title: "Missing recurrence date", recurrenceFrequency: "weekly" }).success).toBe(false);
+    expect(CreateTaskSchema.safeParse({ title: "Time without date", scheduledHasTime: true }).success).toBe(false);
     expect(CreateProjectSchema.safeParse({ name: "Goal project", goalId }).success).toBe(true);
     expect(CreateHabitSchema.safeParse({ name: "Read", goalId }).success).toBe(true);
   });
