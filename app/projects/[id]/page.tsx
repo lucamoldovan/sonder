@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, CheckCircle2, Circle, FileText, FolderKanban, LoaderCircle, Target } from "lucide-react";
@@ -58,7 +58,7 @@ export default function ProjectWorkspacePage() {
     }
   }
 
-  async function addDependency(event: React.FormEvent) {
+  async function addDependency(event: FormEvent) {
     event.preventDefault();
     if (!dependencyTaskId || !dependsOnTaskId) return;
     try {
@@ -95,6 +95,7 @@ export default function ProjectWorkspacePage() {
             <div><strong>{task.title}</strong><span>{task.priority}{task.dueAt ? " · Due " + new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span></div>
           </div>) : <p className="project-workspace-empty">No tasks linked to this project yet.</p>}
         </section>
+          {tasks.length > 1 && <form className="dependency-form" onSubmit={addDependency}><span>LINK TASK DEPENDENCIES</span><div><select required value={dependencyTaskId} onChange={event=>setDependencyTaskId(event.target.value)}><option value="">Task that is waiting</option>{tasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select><select required value={dependsOnTaskId} onChange={event=>setDependsOnTaskId(event.target.value)}><option value="">Blocked by task</option>{tasks.filter(task=>task.id!==dependencyTaskId).map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select><button disabled={!dependencyTaskId||!dependsOnTaskId}>Add dependency</button></div></form>}
         <section className="project-workspace-panel">
           <div className="project-workspace-panel-heading"><div><span>KEEP THE CONTEXT</span><h2>Notes <small>{notes.length}</small></h2></div><Link href="/notes">Open notes <ArrowLeft size={13}/></Link></div>
           {notes.length ? notes.map(note => <Link className="project-resource-row" href="/notes" key={note.id}><FileText size={16}/><span>{note.icon || "📝"} {note.title}</span><small>{new Date(note.updatedAt).toLocaleDateString()}</small></Link>) : <p className="project-workspace-empty">No notes connected yet. Link a note to this project from Notes.</p>}
