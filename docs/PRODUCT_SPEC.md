@@ -1,245 +1,113 @@
 # Sonder — Product Specification
 
-## 1. Vision
+This document is the concise implementation-facing summary. The complete product rationale and experience rules live in PRODUCT_BLUEPRINT.md.
 
-Sonder is a personal life operating system that helps people understand, organize, and improve how they use their time and attention. It connects responsibilities, projects, calendar events, habits, goals, notes, and personal knowledge in one coherent workspace.
+## Vision
 
-**Product promise:** Everything important has a place, everything relevant is connected, and planning feels lighter—not like another job.
+Sonder is a personal life system that helps people understand what matters, organize what needs doing, and make room for the life they are building.
 
-## 2. Product principles
+**Product promise:** Everything important has a place, relevant things are connected, and planning feels lighter—not like another job.
 
-1. **Clarity over density.** Show what matters now; keep secondary information discoverable.
-2. **Connected by design.** A task can belong to a project, goal, life area, and calendar block.
-3. **Human-paced productivity.** Make realistic plans, account for capacity, and avoid shame-based streak mechanics.
-4. **AI with context and consent.** AI can recommend and prepare changes; it must explain consequential actions and ask before applying them.
-5. **User ownership.** Provide export, deletion, transparent sync, and privacy controls.
-6. **Responsive by default.** Desktop and mobile are first-class, with layouts adapted for each device.
-7. **Progressive complexity.** Start simple; reveal advanced controls only when useful.
+## Product principles
 
-## 3. Information architecture
+1. Clarity before completeness.
+2. One life, connected records.
+3. Action over reporting.
+4. Human pace; no shame mechanics.
+5. Progressive disclosure.
+6. User agency and explicit consent.
+7. Evidence before interpretation.
+8. Privacy by default.
+9. Quiet visual craft.
+10. Desktop and mobile are first-class.
 
-### Primary navigation
-- Home
-- Inbox
-- Tasks
-- Calendar
-- Projects
-- Goals
-- Habits
-- Notes
-- Insights
-- Sonder AI
+## Information architecture
 
-### Supporting areas
-- Life Areas
-- Focus
-- Routines
-- Files & Attachments
-- Search
-- Templates
-- Automations
-- Settings
+### Primary destinations
+- **Today:** daily briefing, agenda, next actions, quick capture, optional habits, relevant context.
+- **Calendar:** events, deadlines, and scheduled work.
+- **Organize:** Inbox, Tasks, Projects, Goals, Habits, and Life Areas.
+- **Notes:** personal knowledge, pages, links, and references.
 
-### Life areas
-Users can create and customize areas such as School, Church, Projects, Personal, and Health. These are organizational contexts, not separate silos.
+Global capabilities: search / command palette, quick capture, actionable notifications, profile and settings.
 
-## 4. Feature catalogue
+This is a navigation simplification, not removal of existing modules. Advanced areas remain discoverable inside Organize.
 
-### A. Home / Today
-- Today's agenda and time blocks
-- Top priorities and due-soon tasks
-- Quick capture
-- Upcoming events and deadlines
-- Habit/routine check-in
-- Focus session launcher
-- Contextual AI suggestions
-- Workload and available-time overview
-- Customizable, reorderable widgets
-- Daily wrap-up
+## Feature requirements
 
-### B. Universal Inbox
-- Capture a task, idea, note, link, event, or reminder in seconds
-- Quick-add from keyboard and mobile
-- Process later: convert, categorize, schedule, link, archive
-- Inbox triage and bulk actions
-- Optional voice capture in a later phase
+### Today
+- Personal greeting and date.
+- Quick capture without mandatory categorization.
+- Factual day context: scheduled commitments, tasks due today, overdue items when relevant.
+- Chronological agenda of events and time blocks.
+- Short next-action list based on overdue, due-today, and urgent/high-priority tasks.
+- Optional habits that are due today.
+- Small upcoming-events and active-goals previews.
+- Useful empty states; never fabricate work or insights.
 
-### C. Tasks
-- Tasks, subtasks, descriptions, checklists
-- Status, priority, due date, start date, estimate
-- Life area, project, goal, tags, and relationships
-- Recurrence and reminders
-- List, board, and agenda views
-- Filters, sorting, saved views
-- Dependencies and waiting-on status (advanced)
-- Completion history and archive
+### Inbox
+- Fast capture of tasks, ideas, notes, links, and reminders.
+- Convert to canonical records without losing content.
+- Archive and process later.
 
-### D. Projects
-- Project overview, status, dates
-- Linked tasks, notes, files, goals, and events
-- Milestones and progress
-- Project templates
-- Activity history
-- Archive and restore
+### Tasks
+- Title, description, status, priority, due date, recurrence, reminder.
+- Optional relationships to project, goal, life area, parent task, and time block.
+- Search, filters, and useful list/agenda views.
+- No mandatory metadata.
 
-### E. Calendar & Time
-- Day, week, and month views
-- Events and task time blocks
-- Deadlines and reminders
-- Drag-to-reschedule
-- Availability and conflict detection
-- Time estimates and actual focus time
-- External calendar sync (Google Calendar first; other providers later)
-- Time-zone-aware events
+### Projects
+- Status, dates, life area, optional goal.
+- Linked tasks, notes, events, milestones, and activity.
+- Explainable progress; archive and restore.
 
-### F. Goals & Milestones
-- Long-term and short-term goals
-- Milestones and measurable outcomes
-- Linked projects, tasks, and habits
-- Progress history
-- Review cadence and target dates
-- Goal templates
+### Calendar
+- Month, week, and day views.
+- Date-range loading for the visible period.
+- Events, deadlines, and time blocks visually distinguished.
+- Time-zone-safe event creation and editing.
+- Never infer free capacity from incomplete data.
 
-### G. Habits, Routines & Health
-- Flexible habit schedules
-- Morning/evening and custom routines
-- Check-ins and history
-- Consistency heatmap (not streak pressure)
-- Optional sleep, workout, water, and activity tracking
-- Health platform integrations only with explicit consent
+### Goals
+- Long-term direction, target dates, milestones, and linked work.
+- Progress must be explainable and must not double-count.
 
-### H. Notes & Personal Knowledge
-- Quick notes and structured pages
-- Rich text / Markdown
-- Folders, tags, backlinks, and relations
-- Notes linked to tasks, projects, goals, and events
-- Search and attachments
-- Reusable templates
-- Decision journal and daily reflections
+### Habits
+- Flexible schedules, optional links to goals and life areas.
+- Reversible check-ins and neutral history.
+- No punitive streaks or failure states.
 
-### I. Focus
-- Focus timer and distraction-free task view
-- Session linked to a task or project
-- Breaks and configurable session lengths
-- Manual and automatic time tracking
-- Session history and focus trends
+### Life Areas
+- User-defined organizational contexts.
+- Optional metadata, never mandatory folders.
+- Task counts are not a measure of life balance.
 
-### J. Sonder AI
-- Natural-language capture and search
-- Ask questions across the user's permitted Sonder data
-- Daily planning and schedule proposals
-- Break large goals into steps
-- Detect overload, conflicts, and neglected priorities
-- Summarize projects and prepare weekly reviews
-- Explain recommendations and show source context
-- Confirm before creating, editing, moving, or deleting user data
-- User controls for AI access, history, and data retention
+### Notes
+- Quick capture, pages, hierarchy, tags, favorites, templates, backlinks, search, and links to other records.
+- Notes remain useful without relationships.
 
-### K. Insights & Reviews
-- Daily and weekly review
-- Completed work and carried-over work
-- Time distribution and focus trends
-- Goal and habit progress
-- Workload patterns and capacity
-- Actionable, non-judgmental recommendations
-- User-selectable reporting periods
+### Well-being and insights
+Deferred until core data is reliable. Any future well-being experience is optional, non-medical, user-controlled, and explicit about self-reported versus imported data. Insights must show period, evidence, uncertainty, and useful context. No wellness score, diagnosis, AI therapist, or unsupported causal claim.
 
-### L. Platform capabilities
-- Global search
-- Command palette (Cmd/Ctrl+K)
-- Keyboard shortcuts
-- Notifications and reminders
-- Import/export and account deletion
-- Offline-friendly capture and sync conflict handling
-- Accessibility, reduced motion, and responsive layouts
-- Customizable dashboard and themes
-- Templates and automation rules
-- Secure file attachments
+## Design system
 
-### M. Later expansions
-- Lightweight income/expense and budget tracking
-- Subscription tracking
-- Reading and learning tracker
-- Travel planning
-- People and follow-up manager
-- Personal document vault
-- Life timeline / memories archive
-- Optional sharing and accountability
+- Obsidian #0B0B0F, lavender #A78BFA, warm neutral text.
+- Existing DM Sans / Manrope typography.
+- Restrained surfaces, quiet dividers, whitespace-led hierarchy.
+- Avoid excessive cards, decorative charts, gamification, noisy gradients, and cramped dashboards.
+- Purposeful motion; respect reduced-motion preferences.
+- Accessible names, visible focus, readable contrast, usable touch targets.
 
-## 5. Core entities and relationships
+## Technical constraints
 
-Initial domain model:
-- User
-- LifeArea
-- InboxItem
-- Task
-- ChecklistItem
-- Project
-- Goal
-- Milestone
-- Habit
-- HabitEntry
-- Routine
-- RoutineStep
-- CalendarEvent
-- TimeBlock
-- Note
-- Tag
-- Attachment
-- FocusSession
-- Reminder
-- ActivityEvent
-- AIProposal
-- IntegrationConnection
+- Preserve existing user data and current working modules.
+- No new tables without a complete workflow and migration rationale.
+- Enforce ownership on every read and mutation.
+- Separate user-entered data from derived observations.
+- Use date-only values for dates and timezone-aware instants for moments.
+- Loading, empty, error, and retry states are required.
+- No AI feature in this milestone.
 
-Core relationships:
-- A user owns life areas and all personal records.
-- Tasks may link to a project, goal, life area, event/time block, note, and tags.
-- Projects contain tasks and may link to goals, notes, files, and events.
-- Goals contain milestones and may link to projects, tasks, and habits.
-- Notes can link to any supported record.
-- Focus sessions can link to tasks/projects.
-- Inbox items are converted into canonical records or archived.
-- AI proposals reference the records they intend to change and require user approval before applying changes.
+## Definition of done
 
-## 6. AI behavior and safety
-
-- AI access is scoped to the user's data and enabled integrations.
-- Distinguish observed facts from estimates and suggestions.
-- Never silently reschedule, delete, or materially alter records.
-- Present a preview/diff for multi-record changes.
-- Require confirmation for consequential changes.
-- Keep an auditable history of AI-applied changes.
-- Allow users to disable AI access to specific areas or integrations.
-- Make data retention and provider processing transparent.
-
-## 7. MVP definition
-
-MVP must deliver one coherent end-to-end workflow:
-1. Create an account and persist user data.
-2. Create and process Inbox items.
-3. Create tasks with status, priority, due date, and life area.
-4. Group tasks into projects.
-5. See tasks and events in a usable Today/calendar view.
-6. Use a responsive dashboard on desktop and mobile.
-7. Search and filter core records.
-8. Provide reliable sync, loading, empty, error, and offline states.
-
-Do not ship finance, social networking, advanced automations, or broad health tracking in the first release.
-
-## 8. Initial design system
-
-- Background: Obsidian `#0B0B0F`
-- Accent: Lavender `#A78BFA`
-- Text: warm ivory / high-contrast neutral
-- Surfaces: charcoal, subtle translucency, quiet borders
-- Typography: Inter
-- Shape language: restrained 14–20px radii
-- Motion: subtle, purposeful, reduced-motion aware
-- Avoid: excessive cards, noisy gradients, gamification, decorative charts, cramped dashboards
-
-## 9. Technical architecture
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the chosen web/mobile monorepo, API, authentication, database, storage, security, and deployment decisions.
-
-The selected stack is Next.js, Expo, Hono in the Next.js Node.js runtime, Neon Free PostgreSQL, Drizzle, Better Auth, and shared TypeScript/Zod contracts.
+A feature needs a documented purpose, clear interaction, coherent relationships, validation, ownership checks, responsive behavior, accessible states, tests, and a review against PRODUCT_BLUEPRINT.md. Rendering successfully is not enough.
