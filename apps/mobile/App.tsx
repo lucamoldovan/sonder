@@ -53,6 +53,7 @@ export default function App() {
   const [organizeSection, setOrganizeSection] = useState<OrganizeSection>("home");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectTaskDraft, setProjectTaskDraft] = useState("");
+  const [projectDraft, setProjectDraft] = useState("");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -272,6 +273,21 @@ export default function App() {
     }
   }
 
+  async function createProject() {
+    if (!projectDraft.trim()) return;
+    try {
+      const result = await apiRequest<{ data: Project }>("/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: projectDraft.trim(), status: "active" })
+      });
+      setProjects(current => [...current, result.data].sort((a,b) => a.name.localeCompare(b.name)));
+      setProjectDraft("");
+      setSelectedProjectId(result.data.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create the project.");
+    }
+  }
+
   async function createProjectTask() {
     const project = projects.find(item => item.id === selectedProjectId);
     if (!project || !projectTaskDraft.trim() || project.status === "archived" || project.status === "completed") return;
@@ -461,7 +477,7 @@ export default function App() {
               {linkedTasks.length ? linkedTasks.map(renderTask) : <Text style={styles.muted}>Add one small action to give this project momentum.</Text>}
               {project.status!=="archived"&&project.status!=="completed"&&<View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={projectTaskDraft} onChangeText={setProjectTaskDraft} placeholder="Add the next step…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createProjectTask()}/><TouchableOpacity onPress={() => void createProjectTask()} disabled={!projectTaskDraft.trim()}><Text style={styles.link}>Add</Text></TouchableOpacity></View>}
             </View>;
-          })() : <><Text style={styles.sectionTitle}>Your projects</Text>{projects.map(project=><TouchableOpacity key={project.id} style={styles.mobileOrganizeRow} onPress={() => setSelectedProjectId(project.id)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status.replace("_"," ")} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>)}</>}
+          })() : <><View style={styles.mobileTodaySectionHeader}><Text style={styles.sectionTitle}>Your projects</Text></View><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={projectDraft} onChangeText={setProjectDraft} placeholder="Start a new project…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createProject()}/><TouchableOpacity onPress={() => void createProject()} disabled={!projectDraft.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{projects.length ? projects.map(project=><TouchableOpacity key={project.id} style={styles.mobileOrganizeRow} onPress={() => setSelectedProjectId(project.id)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status.replace("_"," ")} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>) : <Text style={styles.muted}>Create a project when something needs more than one step.</Text>}</>}
         </>}
         {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity><TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>void saveNoteTemplate()}><Text style={styles.link}>Save current draft as template</Text></TouchableOpacity></View>{noteTemplates.map(template=><TouchableOpacity key={template.id} style={styles.mobileTemplateChip} onPress={()=>{setNoteTitle(template.name);setNoteBody(template.content.map(block=>block.text).join("\n"));}}><Text style={styles.link}>Use {template.name}</Text></TouchableOpacity>)}{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text>{(noteBacklinks[note.id]||[]).map(backlink=><Text key={backlink.id} style={styles.taskMeta}>Linked from: {backlink.title}</Text>)}</View><TouchableOpacity onPress={()=>void loadNoteBacklinks(note.id)}><Text style={styles.link}>Backlinks</Text></TouchableOpacity></View>)}</>}
         {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
