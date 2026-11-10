@@ -36,13 +36,6 @@
       "when": 1794320000000,
       "tag": "0004_calendar_notes_habits_goals",
       "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1794325000000,
-      "tag": "0005_wellbeing_focus",
-      "breakpoints": true
     }
   ]
 }

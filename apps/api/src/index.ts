@@ -66,7 +66,7 @@ app.get("/api/health", (context) =>
 // Better Auth schema are available, without exposing database details.
 app.get("/api/health/database", databaseMiddleware, async (context) => {
   const result = await context.get("db").execute(
-    sql`SELECT count(*) = 21 AS schema_ready
+    sql`SELECT count(*) = 16 AS schema_ready
       FROM pg_class
       WHERE relkind = 'r'
         AND relrowsecurity = true
@@ -86,12 +86,7 @@ app.get("/api/health/database", databaseMiddleware, async (context) => {
           to_regclass('public.notes'),
           to_regclass('public.task_dependencies'),
           to_regclass('public.activity_log'),
-          to_regclass('public.notifications'),
-          to_regclass('public.time_blocks'),
-          to_regclass('public.note_templates'),
-          to_regclass('public.goal_milestones'),
-          to_regclass('public.mood_entries'),
-          to_regclass('public.focus_sessions')
+          to_regclass('public.notifications')
         )`
   );
   const row = result.rows[0] as { schema_ready?: boolean } | undefined;
