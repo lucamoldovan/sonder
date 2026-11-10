@@ -199,11 +199,27 @@ export default function App() {
   function openSearchResult(result: {id:string;type:string}) {
     setSearchOpen(false);
     if (result.type === "project") { setSelectedProjectId(result.id); openOrganizeSection("projects"); }
-    else if (result.type === "task") { setTaskFilter("all"); openOrganizeSection("tasks"); }
-    else if (result.type === "goal") openOrganizeSection("goals");
+    else if (result.type === "task") {
+      setTaskFilter("all"); openOrganizeSection("tasks");
+      const task = tasks.find(item => item.id === result.id);
+      if (task) openTaskEditor(task);
+    }
+    else if (result.type === "goal") {
+      openOrganizeSection("goals");
+      const goal = goals.find(item => item.id === result.id);
+      if (goal) openGoalEditor(goal);
+    }
     else if (result.type === "habit") openOrganizeSection("habits");
-    else if (result.type === "event") setTab("calendar");
-    else if (result.type === "note") setTab("notes");
+    else if (result.type === "event") {
+      const event = events.find(item => item.id === result.id);
+      if (event) setScheduleDate(localDateKey(event.startsAt));
+      setTab("calendar");
+    }
+    else if (result.type === "note") {
+      const note = notes.find(item => item.id === result.id);
+      setTab("notes");
+      if (note) openNoteEditor(note);
+    }
   }
 
   async function addCapture() {
