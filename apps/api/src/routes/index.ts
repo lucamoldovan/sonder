@@ -13,6 +13,7 @@ import { timeBlockRoutes } from "./time-blocks";
 import { milestoneRoutes } from "./milestones";
 import { noteTemplateRoutes } from "./note-templates";
 import { noteLinkRoutes } from "./note-links";
+import { personalRoutes } from "./personal";
 
 export const v1Routes = new Hono<AppEnv>();
 
@@ -29,3 +30,4 @@ v1Routes.route("/note-templates", noteTemplateRoutes);
 v1Routes.route("/time-blocks", timeBlockRoutes);
 v1Routes.route("/", milestoneRoutes);
 v1Routes.route("/workspace", workspaceRoutes);
+v1Routes.route("/", personalRoutes);

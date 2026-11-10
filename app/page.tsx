@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
+  Activity, ArrowRight, BarChart3, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, LayoutGrid, Plug, Timer,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -642,6 +642,12 @@ export default function Home() {
             </button>
           )}
           <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
+          <div className="workspace-label areas-label">PERSONAL</div>
+          <Link className="nav-item" href="/tasks"><LayoutGrid size={17}/><span>Task workspace</span></Link>
+          <Link className="nav-item" href="/focus"><Timer size={17}/><span>Focus</span></Link>
+          <Link className="nav-item" href="/wellbeing"><Activity size={17}/><span>Wellbeing</span></Link>
+          <Link className="nav-item" href="/insights"><BarChart3 size={17}/><span>Insights</span></Link>
+          <Link className="nav-item" href="/integrations"><Plug size={17}/><span>Integrations</span></Link>
         </nav>
         <div className="workspace-label areas-label">YOUR LIFE</div>
         <div className="area-nav">
