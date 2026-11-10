@@ -382,3 +382,5 @@
 
 .notes-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 24px;padding:10px 12px;border:1px solid rgba(131,201,161,.22);border-radius:7px;background:rgba(131,201,161,.06);color:#a5d5b5;font-size:10px}
 .notes-notice button{border:0;background:transparent;color:inherit;display:grid;place-items:center}
+
+.time-block-month-event{background:rgba(167,139,250,.12)!important;color:#cbbaff!important;border-left:2px solid #a78bfa!important}
