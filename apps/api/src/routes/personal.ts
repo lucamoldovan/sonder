@@ -195,12 +195,10 @@ personalRoutes.post("/import/calendar.ics", async (c) => {
   if (!body?.content || typeof body.content !== "string" || body.content.length > 1_000_000) {
     return c.json({ error: { code: "INVALID_IMPORT", message: "Upload an iCalendar file smaller than 1 MB." } }, 400);
   }
-  const unfolded = body.content.replace(/\r?
-[ \t]/g, "");
+  const unfolded = body.content.replace(/\r?\n[ \t]/g, "");
   const events: Record<string, string>[][] = [];
   let current: Record<string, string> | null = null;
-  for (const line of unfolded.split(/\r?
-/)) {
+  for (const line of unfolded.split(/\r?\n/)) {
     if (line === "BEGIN:VEVENT") { current = {}; continue; }
     if (line === "END:VEVENT") { if (current) events.push([current]); current = null; continue; }
     if (!current) continue;
