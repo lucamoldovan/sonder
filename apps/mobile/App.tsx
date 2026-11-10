@@ -370,6 +370,7 @@ const styles = StyleSheet.create({
   taskCircleDone: { backgroundColor: colors.lavender, borderColor: colors.lavender },
   taskDone: { color: colors.muted, textDecorationLine: "line-through" },
   eventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#79B7D7" },
+  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.lavender },
   areaDot: { width: 9, height: 9, borderRadius: 5 },
   noteComposer: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, gap: 8, marginBottom: 14 },
   noteTitleInput: { color: colors.text, fontSize: 14, fontWeight: "600", paddingVertical: 8 },
