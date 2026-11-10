@@ -768,7 +768,7 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-brand">
-            <a className="brand" href="/" aria-label="Sonder home"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></a>
+            <Link className="brand" href="/" aria-label="Sonder home"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></Link>
             <nav className="workspace-nav" aria-label="Main navigation">
               <button className={`workspace-nav-item ${view === "Today" ? "active" : ""}`} onClick={() => setView("Today")}><LayoutDashboard size={16} strokeWidth={1.8}/><span>Today</span></button>
               <button className={`workspace-nav-item ${view === "Calendar" ? "active" : ""}`} onClick={() => setView("Calendar")}><CalendarRange size={16} strokeWidth={1.8}/><span>Calendar</span></button>
