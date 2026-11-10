@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Clock3, Pause, Play, Square } from "lucide-react";
+import { ArrowLeft, Check, Clock3, Play, Square } from "lucide-react";
 import { apiRequest, type ApiList, type ApiTask } from "@/lib/api";
 
 type FocusSession = { id:string; taskId:string|null; plannedMinutes:number; actualMinutes:number|null; status:"active"|"completed"|"abandoned"; startedAt:string; endedAt:string|null; note:string|null };
@@ -12,7 +12,7 @@ export default function FocusPage() {
   const [active,setActive]=useState<FocusSession|null>(null);
   const [taskId,setTaskId]=useState("");
   const [minutes,setMinutes]=useState(25);
-  const [seconds,setSeconds]=useState(0);
+  const [seconds,setSeconds]=useState(Date.now());
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   useEffect(()=>{void Promise.all([apiRequest<ApiList<FocusSession[]>>("/focus"),apiRequest<ApiList<ApiTask[]>>("/tasks")]).then(([a,b])=>{setSessions(a.data);setActive(a.data.find(s=>s.status==="active")??null);setTasks(b.data.filter(t=>!["done","cancelled"].includes(t.status)));}).catch(e=>setError(e instanceof Error?e.message:"Couldn't load focus data."));},[]);
