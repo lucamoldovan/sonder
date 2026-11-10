@@ -705,7 +705,7 @@ export default function Home() {
           <form className="capture-modal" onSubmit={quickCapture}>
             <div className="capture-modal-heading"><div><div className="section-kicker">QUICK CAPTURE</div><h2>Get it out of your head.</h2></div><button type="button" className="icon-button" onClick={() => setCaptureOpen(false)} aria-label="Close"><X size={16}/></button></div>
             <input autoFocus value={capture} onChange={event => setCapture(event.target.value)} placeholder="A task, thought, idea, or reminder…" aria-label="Capture item"/>
-            <div className="capture-modal-actions"><span>Saved to your inbox. Sort it whenever you're ready.</span><button className="primary-button" disabled={!capture.trim()}>Capture</button></div>
+            <div className="capture-modal-actions"><span>Saved to your inbox. Sort it whenever you&apos;re ready.</span><button className="primary-button" disabled={!capture.trim()}>Capture</button></div>
           </form>
         </div>}
         {notificationsOpen && <div className="notification-popover"><div className="notification-popover-heading"><strong>Notifications</strong><button onClick={()=>setNotificationsOpen(false)}><X size={14}/></button></div>{notifications.length?notifications.map(item=><button className={"notification-row "+(!item.readAt?"unread":"")} key={item.id} onClick={()=>void markNotificationRead(item)}><span/><div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.createdAt).toLocaleString()}</small></div></button>):<p className="notification-empty">You&apos;re all caught up.</p>}</div>}
