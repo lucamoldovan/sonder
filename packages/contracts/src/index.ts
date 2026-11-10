@@ -33,8 +33,21 @@ export const CreateTaskSchema = z.object({
   recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.default("todo"),
   priority: TaskPrioritySchema.default("medium"),
+  scheduledAt: z.string().datetime().nullable().optional(),
+  scheduledHasTime: z.boolean().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  dueHasTime: z.boolean().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
+}).superRefine((data, context) => {
+  if (data.recurrenceFrequency && !data.dueAt) {
+    context.addIssue({ code: "custom", path: ["dueAt"], message: "Recurring tasks need a due date." });
+  }
+  if (data.scheduledHasTime && !data.scheduledAt) {
+    context.addIssue({ code: "custom", path: ["scheduledAt"], message: "A scheduled time needs a scheduled date." });
+  }
+  if (data.dueHasTime && !data.dueAt) {
+    context.addIssue({ code: "custom", path: ["dueAt"], message: "A due time needs a due date." });
+  }
 });
 
 // PATCH schemas must not inherit create-time defaults: omitted fields must stay omitted.
@@ -51,7 +64,10 @@ export const UpdateTaskSchema = z.object({
   recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
+  scheduledHasTime: z.boolean().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  dueHasTime: z.boolean().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
 
@@ -153,7 +169,10 @@ export type TaskRecord = {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  scheduledAt: string | null;
+  scheduledHasTime: boolean;
   dueAt: string | null;
+  dueHasTime: boolean;
   lifeAreaId: string | null;
   projectId: string | null;
   goalId?: string | null;
