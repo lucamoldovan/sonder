@@ -765,38 +765,25 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></a>
-        <div className="workspace-label">WORKSPACE</div>
-        <nav className="main-nav">
-          {([
-            ["Today", LayoutDashboard],
-            ["Calendar", CalendarRange],
-            ["Organize", Layers]
-          ] as const).map(([name, Icon]) =>
-            <button key={name} className={`nav-item ${view === name || (name === "Organize" && isOrganizeView) ? "active" : ""}`} onClick={() => setView(name)}>
-              <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
-            </button>
-          )}
-          <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
-        </nav>
-        <div className="workspace-label areas-label">YOUR LIFE</div>
-        <div className="area-nav">
-          {areas.map(area => <button key={area.id} className="area-item" onClick={() => { setTaskArea(area.id); setFilterArea(area.id); setView("Tasks"); }}>
-            <span className="area-dot" style={{ color: area.color, background: area.color + "20" }}><span>•</span></span><span>{area.name}</span>
-          </button>)}
-        </div>
-        <div className="sidebar-bottom">
-          <div className="sidebar-quote">“You don&apos;t have to do it all. Just the next thing.”</div>
-          <button className="nav-item settings-link" onClick={() => void authClient.signOut()}><LogOut size={17} /><span>Sign out</span></button>
-          <div className="profile-row"><div className="avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div><div className="profile-copy"><strong>{session.user.name}</strong><span>{session.user.email}</span></div></div>
-        </div>
-      </aside>
-
       <section className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={16}/></button><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-brand">
+            <a className="brand" href="/" aria-label="Sonder home"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></a>
+            <nav className="workspace-nav" aria-label="Main navigation">
+              <button className={`workspace-nav-item ${view === "Today" ? "active" : ""}`} onClick={() => setView("Today")}><LayoutDashboard size={16} strokeWidth={1.8}/><span>Today</span></button>
+              <button className={`workspace-nav-item ${view === "Calendar" ? "active" : ""}`} onClick={() => setView("Calendar")}><CalendarRange size={16} strokeWidth={1.8}/><span>Calendar</span></button>
+              <button className={`workspace-nav-item ${isOrganizeView ? "active" : ""}`} onClick={() => setView("Organize")}><Layers size={16} strokeWidth={1.8}/><span>Organize</span></button>
+              <Link className="workspace-nav-item" href="/notes"><NotebookPen size={16} strokeWidth={1.8}/><span>Notes</span></Link>
+            </nav>
+          </div>
+          <div className="topbar-actions">
+            <button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={17}/></button>
+            <button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={16}/></button>
+            <button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={16}/>{notifications.some(item=>!item.readAt)&&<i/>}</button>
+            <span className="topbar-divider"/>
+            <div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
+            <button className="profile-button" onClick={() => void authClient.signOut()} aria-label="Sign out" title={session.user.name + " · Sign out"}><span className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</span><LogOut size={13}/></button>
+          </div>
         </header>
         {captureOpen && <div className="capture-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setCaptureOpen(false); }}>
           <form className="capture-modal" onSubmit={quickCapture}>
