@@ -203,11 +203,14 @@ personalRoutes.post("/import/calendar.ics", async (c) => {
     if (!current) continue;
     const colon = line.indexOf(":");
     if (colon < 1) continue;
-    const property = line.slice(0, colon).split(";")[0].toUpperCase();
+    const header = line.slice(0, colon);
+    const property = header.split(";")[0].toUpperCase();
+    if (/;TZID=/i.test(header)) current["TZID_" + property] = header;
     current[property] = unescapeIcs(line.slice(colon + 1));
   }
   const parsed = events.slice(0, 200).flatMap(group => {
     const item = group[0];
+    if (item.TZID_DTSTART) return [];
     const start = item.DTSTART ? parseIcsDate(item.DTSTART) : null;
     if (!start || !item.SUMMARY?.trim()) return [];
     const end = item.DTEND ? parseIcsDate(item.DTEND) : null;
