@@ -98,6 +98,7 @@ export default function Home() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [filterArea, setFilterArea] = useState("all");
   const [capture, setCapture] = useState("");
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
@@ -192,7 +193,7 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); }
-      if (event.key === "Escape") setCommandOpen(false);
+      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -402,6 +403,7 @@ export default function Home() {
       });
       setInbox(current => [result.data, ...current]);
       setCapture("");
+      setCaptureOpen(false);
       setNotice("Saved to your inbox.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save that item.");
@@ -697,8 +699,15 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-actions"><button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={16}/></button><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
         </header>
+        {captureOpen && <div className="capture-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setCaptureOpen(false); }}>
+          <form className="capture-modal" onSubmit={quickCapture}>
+            <div className="capture-modal-heading"><div><div className="section-kicker">QUICK CAPTURE</div><h2>Get it out of your head.</h2></div><button type="button" className="icon-button" onClick={() => setCaptureOpen(false)} aria-label="Close"><X size={16}/></button></div>
+            <input autoFocus value={capture} onChange={event => setCapture(event.target.value)} placeholder="A task, thought, idea, or reminder…" aria-label="Capture item"/>
+            <div className="capture-modal-actions"><span>Saved to your inbox. Sort it whenever you're ready.</span><button className="primary-button" disabled={!capture.trim()}>Capture</button></div>
+          </form>
+        </div>}
         {notificationsOpen && <div className="notification-popover"><div className="notification-popover-heading"><strong>Notifications</strong><button onClick={()=>setNotificationsOpen(false)}><X size={14}/></button></div>{notifications.length?notifications.map(item=><button className={"notification-row "+(!item.readAt?"unread":"")} key={item.id} onClick={()=>void markNotificationRead(item)}><span/><div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.createdAt).toLocaleString()}</small></div></button>):<p className="notification-empty">You&apos;re all caught up.</p>}</div>}
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
