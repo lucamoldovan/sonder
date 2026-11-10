@@ -75,7 +75,7 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{id:string;title:string;subtitle:string|null;type:string;href:string}[]>([]);
+  const [searchResults, setSearchResults] = useState<{id:string;title:string;subtitle:string|string[]|null;type:string;href:string}[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -182,7 +182,7 @@ export default function App() {
     if (searchQuery.trim().length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
-      const result = await apiRequest<List<{id:string;title:string;subtitle:string|null;type:string;href:string}[]>>("/workspace/search?q=" + encodeURIComponent(searchQuery.trim()));
+      const result = await apiRequest<List<{id:string;title:string;subtitle:string|string[]|null;type:string;href:string}[]>>("/workspace/search?q=" + encodeURIComponent(searchQuery.trim()));
       setSearchResults(result.data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't search Sonder.");
@@ -698,7 +698,7 @@ export default function App() {
             <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>SEARCH YOUR LIFE</Text><Text style={styles.mobileCaptureTitle}>Find anything.</Text></View><TouchableOpacity onPress={() => setSearchOpen(false)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
             <View style={styles.mobileSearchInputRow}><TextInput autoFocus style={[styles.mobileCaptureInput,{flex:1}]} value={searchQuery} onChangeText={setSearchQuery} placeholder="Search tasks, projects, goals, notes…" placeholderTextColor={colors.muted} onSubmitEditing={() => void runMobileSearch()}/><TouchableOpacity onPress={() => void runMobileSearch()}><Text style={styles.link}>Go</Text></TouchableOpacity></View>
             {searchLoading&&<ActivityIndicator color={colors.lavender}/>}
-            {searchResults.map(result=><TouchableOpacity key={result.type+":"+result.id} style={styles.mobileSearchResult} onPress={() => openSearchResult(result)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{result.title}</Text><Text style={styles.taskMeta}>{result.type}{result.subtitle?" · "+result.subtitle:""}</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>)}
+            {searchResults.map(result=><TouchableOpacity key={result.type+":"+result.id} style={styles.mobileSearchResult} onPress={() => openSearchResult(result)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{result.title}</Text><Text style={styles.taskMeta}>{result.type}{result.subtitle?" · "+(Array.isArray(result.subtitle)?result.subtitle.join(" · "):result.subtitle):""}</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>)}
             {!searchLoading&&searchQuery.trim().length>=2&&searchResults.length===0&&<Text style={styles.muted}>No matches. Try a different phrase.</Text>}
             {searchQuery.trim().length<2&&<Text style={styles.taskMeta}>Enter at least two characters to search across your workspace.</Text>}
           </View>
