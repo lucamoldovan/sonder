@@ -63,7 +63,9 @@ timeBlockRoutes.patch("/:id", async c => {
     ...(parsed.data.note !== undefined ? { note: parsed.data.note } : {}),
     updatedAt: new Date()
   }).where(and(eq(timeBlocks.id, id.data), eq(timeBlocks.userId, user.id))).returning();
-  return c.json({ data: updated });
+  const conflicts = await db.select({ id: timeBlocks.id, startsAt: timeBlocks.startsAt, endsAt: timeBlocks.endsAt }).from(timeBlocks)
+    .where(and(eq(timeBlocks.userId, user.id), lt(timeBlocks.startsAt, updated.endsAt), gt(timeBlocks.endsAt, updated.startsAt)));
+  return c.json({ data: updated, conflicts: conflicts.filter(row => row.id !== updated.id) });
 });
 
 timeBlockRoutes.delete("/:id", async c => {
