@@ -174,8 +174,13 @@ taskRoutes.patch("/:id", async (c) => {
   if (!existing) return c.json({ error: { code: "NOT_FOUND", message: "Task not found." } }, 404);
   const data = parsed.data;
   const effectiveRecurrence = data.recurrenceFrequency === undefined ? existing.recurrenceFrequency : data.recurrenceFrequency;
+  const effectiveScheduledAt = data.scheduledAt === undefined ? existing.scheduledAt : data.scheduledAt ? new Date(data.scheduledAt) : null;
   const effectiveDueAt = data.dueAt === undefined ? existing.dueAt : data.dueAt ? new Date(data.dueAt) : null;
+  const effectiveScheduledHasTime = data.scheduledHasTime ?? (data.scheduledAt === undefined ? existing.scheduledHasTime : false);
+  const effectiveDueHasTime = data.dueHasTime ?? (data.dueAt === undefined ? existing.dueHasTime : false);
   if (effectiveRecurrence && !effectiveDueAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "Recurring tasks need a due date." } }, 400);
+  if (effectiveScheduledHasTime && !effectiveScheduledAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "A scheduled time needs a scheduled date." } }, 400);
+  if (effectiveDueHasTime && !effectiveDueAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "A due time needs a due date." } }, 400);
   const updates: Partial<typeof tasks.$inferInsert> = { updatedAt: new Date() };
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
