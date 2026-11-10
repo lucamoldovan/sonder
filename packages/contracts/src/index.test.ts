@@ -101,4 +101,18 @@ describe("shared request contracts", () => {
       startDate: "2026-02-30"
     }).success).toBe(false);
   });
+
+  test("validates note pages and block content", () => {
+    const note = CreateNoteSchema.parse({
+      title: "  Project research  ",
+      content: [{ id: "block-1", type: "heading1", text: "Research" }],
+      tags: ["work", "ideas"]
+    });
+    expect(note.title).toBe("Project research");
+    expect(note.content?.[0]?.type).toBe("heading1");
+    expect(UpdateNoteSchema.parse({ favorite: true })).toEqual({ favorite: true });
+    expect(UpdateNoteSchema.parse({ archived: false })).toEqual({ archived: false });
+    expect(CreateNoteSchema.safeParse({ title: "Invalid block", content: [{ id: "x", type: "unsupported", text: "Nope" }] }).success).toBe(false);
+  });
+
 });
