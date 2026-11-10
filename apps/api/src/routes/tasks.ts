@@ -100,6 +100,7 @@ taskRoutes.post("/", async (c) => {
     estimateMinutes: data.estimateMinutes ?? null
   }).returning();
   await db.insert(activityLog).values({ userId: user.id, entityType: "task", entityId: created.id, action: "created", summary: `Created task “${created.title}”.` });
+  if (created.projectId) await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: created.projectId, action: "task_created", summary: `Added task “${created.title}”.` });
   return c.json({ data: created }, 201);
 });
 
@@ -211,6 +212,7 @@ taskRoutes.patch("/:id", async (c) => {
     }
   }
   await db.insert(activityLog).values({ userId: user.id, entityType: "task", entityId: updated.id, action: data.status === "done" ? "completed" : "updated", summary: data.status === "done" ? `Completed “${updated.title}”.` : `Updated “${updated.title}”.` });
+  if (updated.projectId) await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: updated.projectId, action: "task_updated", summary: data.status === "done" ? `Completed task “${updated.title}”.` : `Updated task “${updated.title}”.` });
   return c.json({ data: updated, nextOccurrence: nextTask });
 });
 
@@ -220,9 +222,10 @@ taskRoutes.delete("/:id", async (c) => {
   const user = await getSessionUser(c);
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const db = c.get("db");
-  const [existing] = await db.select({ title: tasks.title }).from(tasks).where(and(eq(tasks.id, id.data), eq(tasks.userId, user.id))).limit(1);
+  const [existing] = await db.select({ title: tasks.title, projectId: tasks.projectId }).from(tasks).where(and(eq(tasks.id, id.data), eq(tasks.userId, user.id))).limit(1);
   if (!existing) return c.json({ error: { code: "NOT_FOUND", message: "Task not found." } }, 404);
   await db.delete(tasks).where(and(eq(tasks.id, id.data), eq(tasks.userId, user.id)));
   await db.insert(activityLog).values({ userId: user.id, entityType: "task", entityId: id.data, action: "deleted", summary: `Deleted “${existing.title}”.` });
+  if (existing.projectId) await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: existing.projectId, action: "task_deleted", summary: `Removed task “${existing.title}”.` });
   return c.body(null, 204);
 });
