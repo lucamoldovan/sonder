@@ -1,7 +1,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateHabitSchema, UpdateHabitSchema, UuidSchema } from "@sonder/contracts";
-import { habitEntries, habits, lifeAreas } from "../db/schema";
+import { activityLog, goals, habitEntries, habits, lifeAreas } from "../db/schema";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
@@ -26,7 +26,13 @@ habitRoutes.post("/", async (c) => {
     const [area] = await db.select({ id: lifeAreas.id }).from(lifeAreas).where(and(eq(lifeAreas.id, parsed.data.lifeAreaId), eq(lifeAreas.userId, user.id))).limit(1);
     if (!area) return c.json({ error: { code: "INVALID_RELATION", message: "The selected life area does not exist." } }, 400);
   }
+  if (parsed.data.goalId) {
+    const [goal] = await db.select({ id: goals.id }).from(goals)
+      .where(and(eq(goals.id, parsed.data.goalId), eq(goals.userId, user.id))).limit(1);
+    if (!goal) return c.json({ error: { code: "INVALID_RELATION", message: "The selected goal does not exist." } }, 400);
+  }
   const [created] = await db.insert(habits).values({ userId: user.id, ...parsed.data }).returning();
+  await db.insert(activityLog).values({ userId: user.id, entityType: "habit", entityId: created.id, action: "created", summary: `Created habit “${created.name}”.` });
   return c.json({ data: created }, 201);
 });
 
@@ -41,6 +47,11 @@ habitRoutes.patch("/:id", async (c) => {
   if (parsed.data.lifeAreaId) {
     const [area] = await db.select({ id: lifeAreas.id }).from(lifeAreas).where(and(eq(lifeAreas.id, parsed.data.lifeAreaId), eq(lifeAreas.userId, user.id))).limit(1);
     if (!area) return c.json({ error: { code: "INVALID_RELATION", message: "The selected life area does not exist." } }, 400);
+  }
+  if (parsed.data.goalId) {
+    const [goal] = await db.select({ id: goals.id }).from(goals)
+      .where(and(eq(goals.id, parsed.data.goalId), eq(goals.userId, user.id))).limit(1);
+    if (!goal) return c.json({ error: { code: "INVALID_RELATION", message: "The selected goal does not exist." } }, 400);
   }
   const { archived, ...data } = parsed.data;
   const [updated] = await db.update(habits).set({ ...data, archivedAt: archived === undefined ? undefined : archived ? new Date() : null, updatedAt: new Date() }).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).returning();
@@ -61,7 +72,10 @@ habitRoutes.post("/:id/check-in", async (c) => {
   const [habit] = await db.select({ id: habits.id }).from(habits).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).limit(1);
   if (!habit) return c.json({ error: { code: "NOT_FOUND", message: "Habit not found." } }, 404);
   const [entry] = await db.insert(habitEntries).values({ userId: user.id, habitId: id.data, entryDate: date, note: body.note ?? null }).onConflictDoNothing().returning();
-  if (entry) return c.json({ data: entry }, 201);
+  if (entry) {
+    await db.insert(activityLog).values({ userId: user.id, entityType: "habit", entityId: id.data, action: "checked_in", summary: `Checked in “${(await db.select({ name: habits.name }).from(habits).where(eq(habits.id, id.data)).limit(1))[0]?.name ?? "habit"}”.` });
+    return c.json({ data: entry }, 201);
+  }
   const [existing] = await db.select().from(habitEntries).where(and(eq(habitEntries.habitId, id.data), eq(habitEntries.entryDate, date), eq(habitEntries.userId, user.id))).limit(1);
   return c.json({ data: existing });
 });
