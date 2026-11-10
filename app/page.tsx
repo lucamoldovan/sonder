@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers, Pencil,
+  ArrowRight, Bell, CalendarCheck, CalendarClock, CalendarDays, CalendarRange, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Clock, Command, Flag, Folder, Heart, Inbox, Layers, Pencil,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -60,6 +60,120 @@ function greeting() {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
+function taskDateInputValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const day = calendarDateKey(date);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  if (hours === 12 && minutes === 0) return day;
+  return day + "T" + String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+}
+
+function taskDateInputToIso(value: string) {
+  if (!value) return null;
+  const date = new Date(value.length === 10 ? value + "T12:00:00" : value + ":00");
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function formatTaskDateInput(value: string) {
+  if (!value) return "Not set";
+  const [day, time] = value.split("T");
+  const date = new Date(day + "T12:00:00");
+  const formatted = date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return time ? formatted + " · " + time : formatted;
+}
+
+function TaskDatePicker({ label, value, onChange }: {
+  label: "Schedule" | "Due date";
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(() => {
+    const selected = value ? new Date(value.slice(0, 10) + "T12:00:00") : new Date();
+    return new Date(selected.getFullYear(), selected.getMonth(), 1, 12);
+  });
+  const selectedDay = value ? value.slice(0, 10) : "";
+  const selectedTime = value.includes("T") ? value.slice(11, 16) : "";
+  const hasTime = Boolean(selectedTime);
+  const days = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1, 12);
+    const offset = (first.getDay() + 6) % 7;
+    return Array.from({ length: 42 }, (_, index) =>
+      new Date(first.getFullYear(), first.getMonth(), 1 - offset + index, 12)
+    );
+  }, [month]);
+
+  function chooseDate(date: Date) {
+    const day = calendarDateKey(date);
+    onChange(hasTime ? day + "T" + (selectedTime || "09:00") : day);
+    setMonth(new Date(date.getFullYear(), date.getMonth(), 1, 12));
+  }
+
+  function chooseRelative(offset: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    chooseDate(date);
+  }
+
+  function toggleTime(enabled: boolean) {
+    if (!selectedDay) return;
+    onChange(enabled ? selectedDay + "T" + (selectedTime || "09:00") : selectedDay);
+  }
+
+  const DateIcon = label === "Schedule" ? CalendarClock : CalendarCheck;
+
+  return (
+    <div className="task-date-field">
+      <button type="button" className={"task-date-trigger " + (open ? "is-open" : "")} onClick={() => {
+        if (!open) {
+          const selected = selectedDay ? new Date(selectedDay + "T12:00:00") : new Date();
+          setMonth(new Date(selected.getFullYear(), selected.getMonth(), 1, 12));
+        }
+        setOpen(current => !current);
+      }} aria-expanded={open}>
+        <span className="task-date-symbol"><DateIcon size={16}/></span>
+        <span className="task-date-copy"><strong>{label}</strong><small>{formatTaskDateInput(value)}</small></span>
+        <ChevronDown size={15} className={open ? "task-date-chevron is-open" : "task-date-chevron"}/>
+      </button>
+      {open && <div className="task-date-panel">
+        <div className="task-date-quick-actions">
+          <button type="button" onClick={() => chooseRelative(0)}>Today</button>
+          <button type="button" onClick={() => chooseRelative(1)}>Tomorrow</button>
+          <button type="button" onClick={() => chooseRelative(7)}>Next week</button>
+          {value && <button type="button" className="task-date-clear" onClick={() => onChange("")}>Clear</button>}
+        </div>
+        <div className="task-date-calendar-heading">
+          <strong>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</strong>
+          <span>
+            <button type="button" onClick={() => setMonth(current => new Date(current.getFullYear(), current.getMonth() - 1, 1, 12))} aria-label="Previous month"><ChevronLeft size={16}/></button>
+            <button type="button" onClick={() => setMonth(current => new Date(current.getFullYear(), current.getMonth() + 1, 1, 12))} aria-label="Next month"><ChevronRight size={16}/></button>
+          </span>
+        </div>
+        <div className="task-date-weekdays">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <span key={day + index}>{day}</span>)}</div>
+        <div className="task-date-grid">
+          {days.map(date => {
+            const day = calendarDateKey(date);
+            const isSelected = day === selectedDay;
+            const isToday = day === calendarDateKey(new Date());
+            const isCurrentMonth = date.getMonth() === month.getMonth();
+            return <button key={day} type="button" className={[
+              isSelected ? "selected" : "",
+              isToday ? "today" : "",
+              !isCurrentMonth ? "outside-month" : ""
+            ].filter(Boolean).join(" ")} onClick={() => chooseDate(date)}>{date.getDate()}</button>;
+          })}
+        </div>
+        <div className="task-date-time-row">
+          <label><input type="checkbox" checked={hasTime} disabled={!selectedDay} onChange={event => toggleTime(event.target.checked)}/> Add a time</label>
+          {hasTime && <input aria-label={label + " time"} type="time" value={selectedTime} onChange={event => onChange(selectedDay + "T" + event.target.value)}/>}
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 export default function Home() {
   const { data: session, isPending: sessionPending, refetch } = authClient.useSession();
   const [view, setView] = useState<View>("Today");
@@ -112,7 +226,10 @@ export default function Home() {
   const [authError, setAuthError] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
+  const [taskScheduled, setTaskScheduled] = useState("");
   const [taskDue, setTaskDue] = useState("");
+  const [taskExpanded, setTaskExpanded] = useState(false);
+  const [taskBusy, setTaskBusy] = useState(false);
   const [taskPriority, setTaskPriority] = useState<Priority>("medium");
   const [taskArea, setTaskArea] = useState("");
   const [taskProject, setTaskProject] = useState("");
@@ -200,7 +317,7 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); }
-      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); }
+      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); setTaskOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -266,10 +383,12 @@ export default function Home() {
   const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
   const todayEvents = events.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
   const todayBlocks = timeBlocks.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
-  const todayCommitmentCount = todayEvents.length + todayBlocks.length;
+  const todayScheduledTasks = openTasks.filter(task => task.scheduledAt && localDate(task.scheduledAt) === today);
+  const todayCommitmentCount = todayEvents.length + todayBlocks.length + todayScheduledTasks.length;
   const todayAgendaItems = [
     ...todayEvents.map(item => ({ id: item.id, kind: "event" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: item.title, subtitle: item.location, allDay: item.allDay, event: item })),
-    ...todayBlocks.map(item => ({ id: item.id, kind: "block" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: tasks.find(task => task.id === item.taskId)?.title || "Scheduled work", subtitle: null, allDay: false, block: item }))
+    ...todayBlocks.map(item => ({ id: item.id, kind: "block" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: tasks.find(task => task.id === item.taskId)?.title || "Scheduled work", subtitle: null, allDay: false, block: item })),
+    ...todayScheduledTasks.map(item => ({ id: item.id, kind: "task" as const, startsAt: item.scheduledAt!, endsAt: null, title: item.title, subtitle: null, allDay: true, task: item }))
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const currentWeekStart = calendarDateKey(mondayOfWeek(new Date()));
   const habitsDueToday = habits.filter(habit => {
@@ -281,7 +400,7 @@ export default function Home() {
     return checkedInToday || completedThisWeek < habit.targetPerWeek;
   });
   const nextActionTasks = [...openTasks]
-    .filter(task => task.status === "in_progress" || (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
+    .filter(task => task.status === "in_progress" || (task.dueAt && localDate(task.dueAt) <= today) || (task.scheduledAt && localDate(task.scheduledAt) <= today) || task.priority === "urgent" || task.priority === "high")
     .sort((a,b) => {
       const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
       const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
@@ -351,7 +470,9 @@ export default function Home() {
     setTaskDescription("");
     setTaskArea("");
     setTaskPriority("medium");
+    setTaskScheduled("");
     setTaskDue("");
+    setTaskExpanded(false);
     setTaskProject("");
     setTaskGoal("");
     setTaskParent("");
@@ -368,7 +489,9 @@ export default function Home() {
     setTaskDescription(task.description || "");
     setTaskArea(task.lifeAreaId || "");
     setTaskPriority(task.priority);
-    setTaskDue(task.dueAt ? localDate(task.dueAt) : "");
+    setTaskScheduled(task.scheduledAt ? taskDateInputValue(task.scheduledAt) : "");
+    setTaskDue(task.dueAt ? taskDateInputValue(task.dueAt) : "");
+    setTaskExpanded(true);
     setTaskProject(task.projectId || "");
     setTaskGoal(task.goalId || "");
     setTaskParent(task.parentTaskId || "");
@@ -384,13 +507,16 @@ export default function Home() {
 
   async function createTask(event: FormEvent) {
     event.preventDefault();
-    if (!taskTitle.trim()) return;
+    if (!taskTitle.trim() || taskBusy) return;
     if (taskRepeat !== "none" && !taskDue) { setError("Choose a due date for a recurring task."); return; }
+    setTaskBusy(true);
     try {
-      const dueAt = taskDue ? new Date(taskDue + "T12:00:00").toISOString() : null;
+      const scheduledAt = taskDateInputToIso(taskScheduled);
+      const dueAt = taskDateInputToIso(taskDue);
       const payload = {
         title: taskTitle.trim(),
         description: taskDescription.trim() || null,
+        scheduledAt,
         dueAt,
         priority: taskPriority,
         lifeAreaId: taskArea || null,
@@ -411,6 +537,7 @@ export default function Home() {
         : [result.data, ...current]);
       setTaskTitle("");
       setTaskDescription("");
+      setTaskScheduled("");
       setTaskDue("");
       setTaskProject("");
       setTaskGoal("");
@@ -420,13 +547,15 @@ export default function Home() {
       setTaskRepeatUntil("");
       setTaskReminder("");
       setTaskOpen(false);
+      setTaskExpanded(false);
       setNotice(taskEditingId ? "Task updated." : "Task created.");
       setTaskEditingId(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create the task.");
+    } finally {
+      setTaskBusy(false);
     }
   }
-
   async function toggleTask(task: ApiTask) {
     const status = task.status === "done" ? "todo" : "done";
     try {
@@ -830,11 +959,13 @@ export default function Home() {
                     : <div className="today-agenda-list">
                       {todayAgendaItems.map(item => <div className="today-agenda-row" key={item.kind + ":" + item.id}>
                         <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
-                        <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : "block-marker")}/>
-                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
+                        <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : item.kind === "task" ? "task-marker" : "block-marker")}/>
+                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.kind === "task" ? "Planned task" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
                         {item.kind === "event"
                           ? <button className="text-button" onClick={() => openEditEvent(item.event)}>Edit</button>
-                          : <button className="text-button" onClick={() => setView("Calendar")}>View</button>}
+                          : item.kind === "task"
+                            ? <button className="text-button" onClick={() => openEditTask(item.task)}>Edit</button>
+                            : <button className="text-button" onClick={() => setView("Calendar")}>View</button>}
                       </div>)}
                     </div>}
                 </section>
@@ -847,7 +978,7 @@ export default function Home() {
                   {nextActionTasks.length > 0
                     ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask}/>)}</div>
                     : <div className="today-quiet-state"><Check size={18}/><div><strong>No urgent tasks asking for attention.</strong><span>You can choose something meaningful to work on, or enjoy the breathing room.</span></div></div>}
-                  <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15}/>Add a task</button>
+                  <button className="add-task-row" onClick={openNewTask}><Plus size={15}/>Add a task</button>
                 </section>
 
                 {habitsDueToday.length > 0 && <section className="today-section">
@@ -910,7 +1041,7 @@ export default function Home() {
             </div>
           </div>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-list-filters" role="group" aria-label="Task status">{([["open","Open"],["completed","Completed"],["all","All"]] as const).map(([value,label])=><button key={value} className={taskFilter===value?"selected":""} aria-pressed={taskFilter===value} onClick={()=>setTaskFilter(value)}>{label}<span>{value==="all"?tasks.length:value==="completed"?tasks.filter(task=>task.status==="done").length:openTasks.length}</span></button>)}</div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>{taskFilter==="open"?"Nothing open right now":taskFilter==="completed"?"No completed tasks yet":"No tasks found"}</strong><span>{taskFilter==="open"?"You have room to choose what matters next.":taskFilter==="completed"?"Completed work will collect here.":"Try changing your search or filters."}</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={openNewTask}><Plus size={17} />New task</button></div><div className="task-list-filters" role="group" aria-label="Task status">{([["open","Open"],["completed","Completed"],["all","All"]] as const).map(([value,label])=><button key={value} className={taskFilter===value?"selected":""} aria-pressed={taskFilter===value} onClick={()=>setTaskFilter(value)}>{label}<span>{value==="all"?tasks.length:value==="completed"?tasks.filter(task=>task.status==="done").length:openTasks.length}</span></button>)}</div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>{taskFilter==="open"?"Nothing open right now":taskFilter==="completed"?"No completed tasks yet":"No tasks found"}</strong><span>{taskFilter==="open"?"You have room to choose what matters next.":taskFilter==="completed"?"Completed work will collect here.":"Try changing your search or filters."}</span></div>}</section></div>}
           {view === "Calendar" && (() => {
             const todayKey = calendarDateKey(new Date());
             const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
@@ -934,6 +1065,7 @@ export default function Home() {
             });
             const eventsFor = (date: Date) => calendarRangeEvents.filter(item => localDate(item.startsAt) === calendarDateKey(date));
             const tasksFor = (date: Date) => openTasks.filter(item => item.dueAt && localDate(item.dueAt) === calendarDateKey(date));
+            const scheduledTasksFor = (date: Date) => openTasks.filter(item => item.scheduledAt && localDate(item.scheduledAt) === calendarDateKey(date));
             const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
             return <div className="section-page calendar-workspace">
               <div className="calendar-heading">
@@ -958,15 +1090,20 @@ export default function Home() {
                     const key = calendarDateKey(date);
                     const dayEvents = eventsFor(date);
                     const dayTasks = tasksFor(date);
+                    const dayScheduledTasks = scheduledTasksFor(date);
+                    const dayTaskEntries = [
+                      ...dayScheduledTasks.map(item => ({ ...item, calendarKind: "scheduled" as const })),
+                      ...dayTasks.map(item => ({ ...item, calendarKind: "deadline" as const }))
+                    ];
                     const dayBlocks = timeBlocks.filter(block => localDate(block.startsAt) === key);
                     const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
                         {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
-                        {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
-                        {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTasks.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
-                        {dayEvents.length + dayTasks.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length + dayBlocks.length - 3} more</span>}
+                        {dayTaskEntries.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className={"month-event " + (item.calendarKind === "scheduled" ? "task-calendar-scheduled" : "task-calendar-event")}>{item.title}</span>)}
+                        {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTaskEntries.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
+                        {dayEvents.length + dayTaskEntries.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTaskEntries.length + dayBlocks.length - 3} more</span>}
                       </span>
                     </button>;
                   })}</div>
@@ -983,7 +1120,8 @@ export default function Home() {
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
                         return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
-                      {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarDays size={11}/>{item.title} · deadline</div>)}
+                      {scheduledTasksFor(date).map(item => <div key={item.id} className="agenda-task-scheduled"><CalendarClock size={11}/>{item.title} · planned</div>)}
+                      {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarCheck size={11}/>{item.title} · deadline</div>)}
                       {timeBlocks.filter(block => localDate(block.startsAt) === calendarDateKey(date)).map(block => {
                         const task = tasks.find(item => item.id === block.taskId);
                         const start = new Date(block.startsAt), end = new Date(block.endsAt);
@@ -994,7 +1132,7 @@ export default function Home() {
                     </div>)}</div>
                   </div>
                 </div>}
-                <div className="calendar-legend"><span><i className="legend-event"/>Events</span><span><i className="legend-task"/>Task deadlines</span><span>Work blocks</span><span className="calendar-hint">Select a day or event to see more</span></div>
+                <div className="calendar-legend"><span><i className="legend-event"/>Events</span><span><i className="legend-scheduled"/>Scheduled tasks</span><span><i className="legend-task"/>Deadlines</span><span>Work blocks</span><span className="calendar-hint">Select a day or event to see more</span></div>
               </section>
             </div>;
           })()}
@@ -1006,9 +1144,45 @@ export default function Home() {
         </div>
       </section>
 
+      <button className="quick-task-fab" type="button" onClick={openNewTask} aria-label="Create task" title="New task"><Plus size={24} strokeWidth={2}/></button>
+
       {reviewOpen && <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setReviewOpen(false);}}><section className="task-modal weekly-review-modal"><div className="modal-heading"><div><div className="section-kicker">PAUSE AND TAKE STOCK</div><h2>Your weekly review.</h2></div><button className="icon-button" onClick={()=>setReviewOpen(false)} aria-label="Close review"><X size={18}/></button></div><div className="weekly-review-metrics"><div><strong>{completedThisWeek}</strong><span>Tasks completed</span></div><div><strong>{checkinsThisWeek}</strong><span>Habit check-ins</span></div><div><strong>{overdue.length}</strong><span>Still overdue</span></div><div><strong>{dueToday.length}</strong><span>Due today</span></div></div><div className="weekly-review-detail"><h3>Things to bring forward</h3>{overdue.slice(0,5).map(task=><p key={task.id}>{task.title}<small>Overdue</small></p>)}{overdue.length===0&&<p className="muted-note">No overdue tasks. Nice.</p>}</div><div className="weekly-review-detail"><h3>Coming up</h3>{events.filter(item=>new Date(item.startsAt)>=new Date()).slice(0,5).map(item=><p key={item.id}>{item.title}<small>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</small></p>)}{events.filter(item=>new Date(item.startsAt)>=new Date()).length===0&&<p className="muted-note">Nothing scheduled yet.</p>}</div><div className="modal-footer"><button className="primary-button" onClick={()=>setReviewOpen(false)}>Done</button></div></section></div>}
       {commandOpen && <div className="command-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setCommandOpen(false);}}><section className="command-palette"><div className="command-search-row"><Search size={18}/><input autoFocus value={commandQuery} onChange={event=>setCommandQuery(event.target.value)} placeholder="Search tasks, projects, notes, goals…"/><kbd>ESC</kbd></div><div className="command-results">{commandLoading?<p>Searching…</p>:commandQuery.trim().length<2?<p>Type at least two characters to search across Sonder.</p>:commandResults.length?commandResults.map(result=><button key={result.type+result.id} onClick={()=>{setCommandOpen(false);if(result.type==="project"){window.location.href="/projects/"+result.id;return;}if(result.type==="note"){window.location.href="/notes";return;}setView(result.type==="task"?"Tasks":result.type==="goal"?"Goals":result.type==="habit"?"Habits":"Calendar");setQuery(result.title);}}><span className="command-result-type">{result.type}</span><strong>{result.title}</strong><small>{result.subtitle||" "}</small></button>):<p>No matching items found.</p>}</div><div className="command-footer"><span>Search everything in your workspace</span><span>CTRL K</span></div></section></div>}
-      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>{taskEditingId ? "Edit task" : "New task"}</h2></div><button type="button" className="icon-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => {setTaskProject(event.target.value);setTaskGoal(projects.find(project=>project.id===event.target.value)?.goalId||"");}}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-label">Goal<select value={taskGoal} onChange={event=>setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label className="form-label">Parent task<select value={taskParent} onChange={event=>setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task=>!task.parentTaskId&&task.status!=="done").map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><label className="form-label">Repeat<select value={taskRepeat} onChange={event=>setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>{taskRepeat!=="none"&&<><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event=>setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event=>setTaskRepeatUntil(event.target.value)}/></label></>}<label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event=>setTaskReminder(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}>Cancel</button><button className="primary-button" type="submit">{taskEditingId ? "Save changes" : "Create task"} <ArrowRight size={14} /></button></div></form></div>}
+      {taskOpen && <div className="quick-task-overlay" onMouseDown={event => { if (event.target === event.currentTarget && !taskBusy) { setTaskOpen(false); setTaskEditingId(null); } }}>
+        <form className={"quick-task-popover " + (taskExpanded ? "is-expanded" : "")} onSubmit={createTask}>
+          <div className="quick-task-heading">
+            <div><div className="section-kicker">{taskEditingId ? "TASK DETAILS" : "QUICK ADD"}</div><h2>{taskEditingId ? "Edit task" : "New task"}</h2></div>
+            <button type="button" className="icon-button" onClick={() => { if (!taskBusy) { setTaskOpen(false); setTaskEditingId(null); } }} aria-label="Close task editor"><X size={17}/></button>
+          </div>
+          <input className="quick-task-title-input" required autoFocus maxLength={160} value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs to get done?"/>
+          <div className="quick-task-date-stack">
+            <TaskDatePicker label="Schedule" value={taskScheduled} onChange={setTaskScheduled}/>
+            <TaskDatePicker label="Due date" value={taskDue} onChange={setTaskDue}/>
+          </div>
+          <div className="quick-task-meta-row">
+            <label className="quick-task-choice"><Folder size={15}/><span>Project</span><select value={taskProject} onChange={event => { setTaskProject(event.target.value); setTaskGoal(projects.find(project => project.id === event.target.value)?.goalId || ""); }}><option value="">No project</option>{projects.filter(project => ["active", "on_hold"].includes(project.status)).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+            <label className="quick-task-choice"><Flag size={15}/><span>Priority</span><select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
+          </div>
+          {taskExpanded && <div className="quick-task-advanced">
+            <label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…"/></label>
+            <div className="form-grid">
+              <label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label>
+              <label className="form-label">Goal<select value={taskGoal} onChange={event => setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal => goal.status === "active").map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label>
+              <label className="form-label">Parent task<select value={taskParent} onChange={event => setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task => !task.parentTaskId && task.status !== "done").map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+              <label className="form-label">Repeat<select value={taskRepeat} onChange={event => setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+              {taskRepeat !== "none" && <><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event => setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event => setTaskRepeatUntil(event.target.value)}/></label></>}
+              <label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event => setTaskReminder(event.target.value)}/></label>
+            </div>
+          </div>}
+          <div className="quick-task-footer">
+            <button type="button" className="quick-task-more" onClick={() => setTaskExpanded(current => !current)}>{taskExpanded ? "Fewer options" : "More options"}<ChevronDown size={14} className={taskExpanded ? "is-rotated" : ""}/></button>
+            <div className="quick-task-actions">
+              <button type="button" className="secondary-button" disabled={taskBusy} onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}>Cancel</button>
+              <button className="primary-button" type="submit" disabled={!taskTitle.trim() || taskBusy}>{taskBusy ? "Saving…" : taskEditingId ? "Save changes" : "Create task"}{!taskBusy && <ArrowRight size={14}/>}</button>
+            </div>
+          </div>
+        </form>
+      </div>}
       {goalOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createGoal}><div className="modal-heading"><div><div className="section-kicker">THINK LONG TERM</div><h2>{goalEditingId?"Edit goal":"New goal"}</h2></div><button type="button" className="icon-button" onClick={()=>{setGoalOpen(false);setGoalEditingId(null);}}><X size={18}/></button></div><label className="form-label">Goal<input required autoFocus value={goalTitle} onChange={event=>setGoalTitle(event.target.value)} placeholder="What do you want to work towards?"/></label><label className="form-label">Description<textarea rows={3} value={goalDescription} onChange={event=>setGoalDescription(event.target.value)} placeholder="Why does this matter to you?"/></label><div className="form-grid"><label className="form-label">Life area<select value={goalArea} onChange={event=>setGoalArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Target date<input type="date" value={goalDate} onChange={event=>setGoalDate(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>{setGoalOpen(false);setGoalEditingId(null);}}>Cancel</button><button className="primary-button" type="submit">{goalEditingId?"Save changes":"Create goal"}</button></div></form></div>}
       {habitOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createHabit}><div className="modal-heading"><div><div className="section-kicker">BUILD A PRACTICE</div><h2>New habit</h2></div><button type="button" className="icon-button" onClick={()=>setHabitOpen(false)}><X size={18}/></button></div><label className="form-label">Habit name<input required autoFocus value={habitName} onChange={event=>setHabitName(event.target.value)} placeholder="e.g. Read for 15 minutes"/></label><div className="form-grid"><label className="form-label">Life area<select value={habitArea} onChange={event=>setHabitArea(event.target.value)}><option value="">Personal</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Frequency<select value={habitFrequency} onChange={event=>setHabitFrequency(event.target.value as typeof habitFrequency)}><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option></select></label><label className="form-label">Supports goal<select value={habitGoal} onChange={event=>setHabitGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setHabitOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create habit</button></div></form></div>}
       {eventOpen && <div className="modal-backdrop"><form className="task-modal calendar-event-modal" onSubmit={createEvent}>
@@ -1034,6 +1208,17 @@ function TaskRow({ task, areas, onToggle, onDelete, onEdit }: {
   onToggle: (task: ApiTask) => void;
   onDelete: (id: string) => void;
   onEdit: (task: ApiTask) => void;
+}) {
+  const area = areas.find(item => item.id === task.lifeAreaId);
+  const scheduled = task.scheduledAt ? localDate(task.scheduledAt) : "";
+  const due = task.dueAt ? localDate(task.dueAt) : "";
+  const today = localDate(new Date().toISOString());
+  const formatDate = (value: string) => value === today ? "Today" : new Date(value + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
+    <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
+    <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{scheduled && <span className="scheduled-tag"><CalendarClock size={12}/>{formatDate(scheduled)}</span>}{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarCheck size={12}/>{formatDate(due)}</span>}</div></div>
+    <button className="icon-button task-more" onClick={() => onEdit(task)} aria-label="Edit task"><Pencil size={14}/></button><button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
+  </div>;
 }) {
   const area = areas.find(item => item.id === task.lifeAreaId);
   const due = task.dueAt ? localDate(task.dueAt) : "";
