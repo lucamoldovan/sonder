@@ -276,7 +276,7 @@ export default function App() {
   async function createProject() {
     if (!projectDraft.trim()) return;
     try {
-      const result = await apiRequest<{ data: Project }>("/projects", {
+      const result = await apiRequest<{ data: ProjectRecord }>("/projects", {
         method: "POST",
         body: JSON.stringify({ name: projectDraft.trim(), status: "active" })
       });
