@@ -54,9 +54,12 @@ CREATE TABLE "notifications" (
   "title" text NOT NULL,
   "body" text,
   "href" text,
+  "source_key" text,
   "read_at" timestamptz,
   "created_at" timestamptz DEFAULT now() NOT NULL
 );
 ALTER TABLE "notifications" ENABLE ROW LEVEL SECURITY;
 CREATE INDEX "notifications_user_created_idx" ON "notifications" ("user_id", "created_at");
 CREATE INDEX "notifications_user_unread_idx" ON "notifications" ("user_id", "read_at");
+
+CREATE UNIQUE INDEX "notifications_user_source_unique" ON "notifications" ("user_id", "source_key");
