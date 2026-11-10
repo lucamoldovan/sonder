@@ -82,7 +82,7 @@ export default function App() {
   const [lifeAreaDraft, setLifeAreaDraft] = useState("");
   const [lifeAreaEditId, setLifeAreaEditId] = useState<string | null>(null);
   const [lifeAreaEditName, setLifeAreaEditName] = useState("");
-  const [lifeAreaEditColor, setLifeAreaEditColor] = useState("#A78BFA");
+  const [lifeAreaEditColor, setLifeAreaEditColor] = useState("#B4A4FF");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -372,7 +372,7 @@ export default function App() {
     try {
       const result = await apiRequest<{data:LifeAreaRecord}>("/life-areas", {
         method:"POST",
-        body:JSON.stringify({name:lifeAreaDraft.trim(),color:"#A78BFA",position:lifeAreas.length})
+        body:JSON.stringify({name:lifeAreaDraft.trim(),color:"#B4A4FF",position:lifeAreas.length})
       });
       setLifeAreas(current=>[...current,result.data]);
       setLifeAreaDraft("");
@@ -805,7 +805,7 @@ export default function App() {
           <View style={styles.mobileCaptureCard}>
             <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>LIFE AREA</Text><Text style={styles.mobileCaptureTitle}>Edit area</Text></View><TouchableOpacity onPress={() => setLifeAreaEditId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
             <TextInput style={styles.mobileCaptureInput} value={lifeAreaEditName} onChangeText={setLifeAreaEditName} placeholder="Area name" placeholderTextColor={colors.muted}/>
-            <View style={styles.mobileTaskPriorityRow}>{(["#A78BFA","#79B7D7","#76B99A","#D6A66A","#D58CA8","#8D98AA"] as const).map(color=><TouchableOpacity key={color} style={[styles.mobileAreaColor,{backgroundColor:color},lifeAreaEditColor===color&&styles.mobileAreaColorSelected]} onPress={()=>setLifeAreaEditColor(color)}/>)}</View>
+            <View style={styles.mobileTaskPriorityRow}>{(["#B4A4FF","#79B7D7","#76B99A","#D6A66A","#D58CA8","#8D98AA"] as const).map(color=><TouchableOpacity key={color} style={[styles.mobileAreaColor,{backgroundColor:color},lifeAreaEditColor===color&&styles.mobileAreaColorSelected]} onPress={()=>setLifeAreaEditColor(color)}/>)}</View>
             <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void saveLifeArea()} disabled={!lifeAreaEditName.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
