@@ -147,7 +147,8 @@ export default function App() {
   }
 
   async function checkInHabit(habit: HabitRecord) {
-    const date = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
     const existing = habitEntries.find(entry => entry.habitId === habit.id && entry.entryDate === date);
     try {
       if (existing) {
@@ -252,7 +253,8 @@ export default function App() {
 
   const activeTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
   const dueToday = activeTasks.filter(task => task.dueAt && new Date(task.dueAt).toDateString() === new Date().toDateString());
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date();
+  const todayKey = [todayDate.getFullYear(), String(todayDate.getMonth() + 1).padStart(2, "0"), String(todayDate.getDate()).padStart(2, "0")].join("-");
 
   const renderTask = (task: Task) => (
     <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => void toggleTask(task)}>
