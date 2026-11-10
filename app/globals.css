@@ -596,6 +596,6 @@ h1,h2,h3,.brand-name,.stat-value,.insight-card strong{font-family:inherit}
   .topbar-brand{gap:8px}
   .brand-name{font-size:18px}
   .workspace-nav-item{width:32px;padding:0}
-  .topbar-actions .icon-button:first-child{display:none}
+  .topbar-actions .icon-button:first-child{display:grid}
   .page-content{padding:25px 14px 42px}
 }
