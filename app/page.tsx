@@ -60,14 +60,12 @@ function greeting() {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-function taskDateInputValue(value?: string | null) {
+function taskDateInputValue(value?: string | null, hasTime = false) {
   if (!value) return "";
   const date = new Date(value);
   const day = calendarDateKey(date);
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  if (hours === 12 && minutes === 0) return day;
-  return day + "T" + String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+  if (!hasTime) return day;
+  return day + "T" + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
 }
 
 function taskDateInputToIso(value: string) {
@@ -84,9 +82,8 @@ function formatTaskDateInput(value: string) {
   return time ? formatted + " · " + time : formatted;
 }
 
-function taskHasExplicitTime(value: string) {
-  const date = new Date(value);
-  return date.getHours() !== 12 || date.getMinutes() !== 0;
+function taskHasExplicitTime(_value: string, hasTime = false) {
+  return hasTime;
 }
 
 function TaskDatePicker({ label, value, onChange }: {
@@ -142,7 +139,7 @@ function TaskDatePicker({ label, value, onChange }: {
         <span className="task-date-copy"><strong>{label}</strong><small>{formatTaskDateInput(value)}</small></span>
         <ChevronDown size={15} className={open ? "task-date-chevron is-open" : "task-date-chevron"}/>
       </button>
-      {open && <div className="task-date-panel">
+      {open && <div className="task-date-panel" role="dialog" aria-label={label + " date picker"}>
         <div className="task-date-quick-actions">
           <button type="button" onClick={() => chooseRelative(0)}>Today</button>
           <button type="button" onClick={() => chooseRelative(1)}>Tomorrow</button>
@@ -322,11 +319,11 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); }
-      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); setTaskOpen(false); }
+      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); if (!taskBusy) setTaskOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [taskBusy]);
 
   useEffect(() => {
     if (!commandOpen || commandQuery.trim().length < 2) { setCommandResults([]); return; }
@@ -393,7 +390,7 @@ export default function Home() {
   const todayAgendaItems = [
     ...todayEvents.map(item => ({ id: item.id, kind: "event" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: item.title, subtitle: item.location, allDay: item.allDay, event: item })),
     ...todayBlocks.map(item => ({ id: item.id, kind: "block" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: tasks.find(task => task.id === item.taskId)?.title || "Scheduled work", subtitle: null, allDay: false, block: item })),
-    ...todayScheduledTasks.map(item => ({ id: item.id, kind: "task" as const, startsAt: item.scheduledAt!, endsAt: null, title: item.title, subtitle: null, allDay: true, task: item }))
+    ...todayScheduledTasks.map(item => ({ id: item.id, kind: "task" as const, startsAt: item.scheduledAt!, endsAt: null, title: item.title, subtitle: null, allDay: !item.scheduledHasTime, task: item }))
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const currentWeekStart = calendarDateKey(mondayOfWeek(new Date()));
   const habitsDueToday = habits.filter(habit => {
@@ -409,7 +406,7 @@ export default function Home() {
     .sort((a,b) => {
       const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
       const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
-      const dueOrder = (a.dueAt || "9999").localeCompare(b.dueAt || "9999");
+      const dueOrder = (a.dueAt || a.scheduledAt || "9999").localeCompare(b.dueAt || b.scheduledAt || "9999");
       const priorityOrder = ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority);
       return aOverdue - bOverdue || dueOrder || priorityOrder;
     }).slice(0, 5);
@@ -470,6 +467,7 @@ export default function Home() {
   }
 
   function openNewTask() {
+    if (taskBusy) return;
     setTaskEditingId(null);
     setTaskTitle("");
     setTaskDescription("");
@@ -494,8 +492,8 @@ export default function Home() {
     setTaskDescription(task.description || "");
     setTaskArea(task.lifeAreaId || "");
     setTaskPriority(task.priority);
-    setTaskScheduled(task.scheduledAt ? taskDateInputValue(task.scheduledAt) : "");
-    setTaskDue(task.dueAt ? taskDateInputValue(task.dueAt) : "");
+    setTaskScheduled(task.scheduledAt ? taskDateInputValue(task.scheduledAt, task.scheduledHasTime) : "");
+    setTaskDue(task.dueAt ? taskDateInputValue(task.dueAt, task.dueHasTime) : "");
     setTaskExpanded(true);
     setTaskProject(task.projectId || "");
     setTaskGoal(task.goalId || "");
@@ -514,6 +512,7 @@ export default function Home() {
     event.preventDefault();
     if (!taskTitle.trim() || taskBusy) return;
     if (taskRepeat !== "none" && !taskDue) { setError("Choose a due date for a recurring task."); return; }
+    if (taskRepeat !== "none" && (!Number.isInteger(Number(taskRepeatInterval)) || Number(taskRepeatInterval) < 1 || Number(taskRepeatInterval) > 52)) { setError("Repeat interval must be between 1 and 52."); return; }
     setTaskBusy(true);
     try {
       const scheduledAt = taskDateInputToIso(taskScheduled);
@@ -522,7 +521,9 @@ export default function Home() {
         title: taskTitle.trim(),
         description: taskDescription.trim() || null,
         scheduledAt,
+        scheduledHasTime: Boolean(taskScheduled && taskScheduled.includes("T")),
         dueAt,
+        dueHasTime: Boolean(taskDue && taskDue.includes("T")),
         priority: taskPriority,
         lifeAreaId: taskArea || null,
         projectId: taskProject || null,
@@ -963,7 +964,7 @@ export default function Home() {
                     ? <div className="today-quiet-state"><CalendarDays size={18}/><div><strong>Nothing scheduled today.</strong><span>That’s room you can use—or leave free.</span></div></div>
                     : <div className="today-agenda-list">
                       {todayAgendaItems.map(item => <div className="today-agenda-row" key={item.kind + ":" + item.id}>
-                        <span className="today-agenda-time">{item.kind === "task" ? "Planned" : item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
+                        <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
                         <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : item.kind === "task" ? "task-marker" : "block-marker")}/>
                         <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.kind === "task" ? "Planned task" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
                         {item.kind === "event"
@@ -1075,7 +1076,7 @@ export default function Home() {
             return <div className="section-page calendar-workspace">
               <div className="calendar-heading">
                 <div><div className="eyebrow">YOUR TIME, IN ONE PLACE</div><h1>Calendar</h1><p className="subheading">A clear view of what’s ahead.</p></div>
-                <div className="calendar-heading-actions"><button className="secondary-button" onClick={() => { setScheduleDate(calendarDateKey(calendarDate)); setScheduleOpen(true); }}>Schedule task</button><button className="primary-button" onClick={() => openNewEvent()}><Plus size={16}/>Create event</button></div>
+                <div className="calendar-heading-actions"><button className="secondary-button" onClick={() => { setScheduleDate(calendarDateKey(calendarDate)); setScheduleOpen(true); }}>Plan work session</button><button className="primary-button" onClick={() => openNewEvent()}><Plus size={16}/>Create event</button></div>
               </div>
               <section className="panel calendar-main-panel">
                 <div className="calendar-toolbar">
@@ -1125,7 +1126,7 @@ export default function Home() {
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
                         return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
-                      {scheduledTasksFor(date).filter(item => !taskHasExplicitTime(item.scheduledAt!)).map(item => <div key={item.id} className="agenda-task-scheduled"><CalendarClock size={11}/>{item.title} · planned</div>)}
+                      {scheduledTasksFor(date).filter(item => !taskHasExplicitTime(item.scheduledAt!, item.scheduledHasTime)).map(item => <div key={item.id} className="agenda-task-scheduled"><CalendarClock size={11}/>{item.title} · planned</div>)}
                       {scheduledTasksFor(date).filter(item => taskHasExplicitTime(item.scheduledAt!)).map(item => {
                         const start = new Date(item.scheduledAt!);
                         const top = Math.max(0, (start.getHours() - 6) * 56 + start.getMinutes() / 60 * 56);
@@ -1154,14 +1155,14 @@ export default function Home() {
         </div>
       </section>
 
-      <button className="quick-task-fab" type="button" onClick={openNewTask} aria-label="Create task" title="New task"><Plus size={24} strokeWidth={2}/></button>
+      <button className="quick-task-fab" type="button" onClick={openNewTask} disabled={taskBusy || taskOpen} aria-label="Create task" title="New task"><Plus size={24} strokeWidth={2}/></button>
 
       {reviewOpen && <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setReviewOpen(false);}}><section className="task-modal weekly-review-modal"><div className="modal-heading"><div><div className="section-kicker">PAUSE AND TAKE STOCK</div><h2>Your weekly review.</h2></div><button className="icon-button" onClick={()=>setReviewOpen(false)} aria-label="Close review"><X size={18}/></button></div><div className="weekly-review-metrics"><div><strong>{completedThisWeek}</strong><span>Tasks completed</span></div><div><strong>{checkinsThisWeek}</strong><span>Habit check-ins</span></div><div><strong>{overdue.length}</strong><span>Still overdue</span></div><div><strong>{dueToday.length}</strong><span>Due today</span></div></div><div className="weekly-review-detail"><h3>Things to bring forward</h3>{overdue.slice(0,5).map(task=><p key={task.id}>{task.title}<small>Overdue</small></p>)}{overdue.length===0&&<p className="muted-note">No overdue tasks. Nice.</p>}</div><div className="weekly-review-detail"><h3>Coming up</h3>{events.filter(item=>new Date(item.startsAt)>=new Date()).slice(0,5).map(item=><p key={item.id}>{item.title}<small>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</small></p>)}{events.filter(item=>new Date(item.startsAt)>=new Date()).length===0&&<p className="muted-note">Nothing scheduled yet.</p>}</div><div className="modal-footer"><button className="primary-button" onClick={()=>setReviewOpen(false)}>Done</button></div></section></div>}
       {commandOpen && <div className="command-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setCommandOpen(false);}}><section className="command-palette"><div className="command-search-row"><Search size={18}/><input autoFocus value={commandQuery} onChange={event=>setCommandQuery(event.target.value)} placeholder="Search tasks, projects, notes, goals…"/><kbd>ESC</kbd></div><div className="command-results">{commandLoading?<p>Searching…</p>:commandQuery.trim().length<2?<p>Type at least two characters to search across Sonder.</p>:commandResults.length?commandResults.map(result=><button key={result.type+result.id} onClick={()=>{setCommandOpen(false);if(result.type==="project"){window.location.href="/projects/"+result.id;return;}if(result.type==="note"){window.location.href="/notes";return;}setView(result.type==="task"?"Tasks":result.type==="goal"?"Goals":result.type==="habit"?"Habits":"Calendar");setQuery(result.title);}}><span className="command-result-type">{result.type}</span><strong>{result.title}</strong><small>{result.subtitle||" "}</small></button>):<p>No matching items found.</p>}</div><div className="command-footer"><span>Search everything in your workspace</span><span>CTRL K</span></div></section></div>}
       {taskOpen && <div className="quick-task-overlay" onMouseDown={event => { if (event.target === event.currentTarget && !taskBusy) { setTaskOpen(false); setTaskEditingId(null); } }}>
-        <form className={"quick-task-popover " + (taskExpanded ? "is-expanded" : "")} onSubmit={createTask}>
+        <form role="dialog" aria-modal="true" aria-labelledby="quick-task-title" className={"quick-task-popover " + (taskExpanded ? "is-expanded" : "")} onSubmit={createTask}>
           <div className="quick-task-heading">
-            <div><div className="section-kicker">{taskEditingId ? "TASK DETAILS" : "QUICK ADD"}</div><h2>{taskEditingId ? "Edit task" : "New task"}</h2></div>
+            <div><div className="section-kicker">{taskEditingId ? "TASK DETAILS" : "QUICK ADD"}</div><h2 id="quick-task-title">{taskEditingId ? "Edit task" : "New task"}</h2></div>
             <button type="button" className="icon-button" onClick={() => { if (!taskBusy) { setTaskOpen(false); setTaskEditingId(null); } }} aria-label="Close task editor"><X size={17}/></button>
           </div>
           <input className="quick-task-title-input" required autoFocus maxLength={160} value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs to get done?"/>
@@ -1225,7 +1226,7 @@ function TaskRow({ task, areas, onToggle, onDelete, onEdit }: {
   const today = localDate(new Date().toISOString());
   const formatDate = (value: string, timestamp: string) => {
     const label = value === today ? "Today" : new Date(value + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    return label + (taskHasExplicitTime(timestamp) ? " · " + formatEventTime(timestamp) : "");
+    return label + (taskHasExplicitTime(timestamp, timestamp === task.scheduledAt ? task.scheduledHasTime : task.dueHasTime) ? " · " + formatEventTime(timestamp) : "");
   };
   return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
     <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
