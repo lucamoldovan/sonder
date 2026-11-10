@@ -37,8 +37,13 @@ habitRoutes.patch("/:id", async (c) => {
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const parsed = UpdateHabitSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success || Object.keys(parsed.data ?? {}).length === 0) return c.json({ error: { code: "VALIDATION_ERROR", message: "Provide valid habit changes." } }, 400);
+  const db = c.get("db");
+  if (parsed.data.lifeAreaId) {
+    const [area] = await db.select({ id: lifeAreas.id }).from(lifeAreas).where(and(eq(lifeAreas.id, parsed.data.lifeAreaId), eq(lifeAreas.userId, user.id))).limit(1);
+    if (!area) return c.json({ error: { code: "INVALID_RELATION", message: "The selected life area does not exist." } }, 400);
+  }
   const { archived, ...data } = parsed.data;
-  const [updated] = await c.get("db").update(habits).set({ ...data, archivedAt: archived === undefined ? undefined : archived ? new Date() : null, updatedAt: new Date() }).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).returning();
+  const [updated] = await db.update(habits).set({ ...data, archivedAt: archived === undefined ? undefined : archived ? new Date() : null, updatedAt: new Date() }).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).returning();
   if (!updated) return c.json({ error: { code: "NOT_FOUND", message: "Habit not found." } }, 404);
   return c.json({ data: updated });
 });
