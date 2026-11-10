@@ -343,3 +343,36 @@ export const goalMilestones = pgTable("goal_milestones", {
   index("goal_milestones_goal_position_idx").on(table.goalId, table.position),
   index("goal_milestones_user_idx").on(table.userId, table.goalId)
 ]).enableRLS();
+
+
+export const moodEntries = pgTable("mood_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  entryDate: date("entry_date").notNull(),
+  mood: integer("mood").notNull(),
+  energy: integer("energy").notNull(),
+  stress: integer("stress").notNull(),
+  sleepMinutes: integer("sleep_minutes"),
+  journal: text("journal"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  uniqueIndex("mood_entries_user_date_unique").on(table.userId, table.entryDate),
+  index("mood_entries_user_date_idx").on(table.userId, table.entryDate)
+]).enableRLS();
+
+export const focusSessions = pgTable("focus_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+  plannedMinutes: integer("planned_minutes").notNull(),
+  actualMinutes: integer("actual_minutes"),
+  status: text("status").notNull().default("active"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("focus_sessions_user_started_idx").on(table.userId, table.startedAt),
+  index("focus_sessions_task_idx").on(table.taskId)
+]).enableRLS();
