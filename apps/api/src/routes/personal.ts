@@ -171,6 +171,71 @@ function icsEscape(value: string) {
 function icsDate(value: Date) {
   return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
+function unescapeIcs(value: string) {
+  return value.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
+}
+function parseIcsDate(value: string) {
+  const raw = value.trim();
+  const dateOnly = /^(\d{4})(\d{2})(\d{2})$/.exec(raw);
+  if (dateOnly) return { date: new Date(Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))), allDay: true };
+  const timed = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/.exec(raw);
+  if (!timed) return null;
+  const parts = timed.slice(1, 7).map((part, index) => Number(part ?? (index === 5 ? "0" : "0")));
+  const date = timed[7]
+    ? new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5]))
+    : new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5]);
+  return Number.isNaN(date.getTime()) ? null : { date, allDay: false };
+}
+
+personalRoutes.post("/import/calendar.ics", async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
+  const body = await c.req.json().catch(() => null) as null | { content?: string };
+  if (!body?.content || typeof body.content !== "string" || body.content.length > 1_000_000) {
+    return c.json({ error: { code: "INVALID_IMPORT", message: "Upload an iCalendar file smaller than 1 MB." } }, 400);
+  }
+  const unfolded = body.content.replace(/\r?\n[ \t]/g, "");
+  const events: Record<string, string>[][] = [];
+  let current: Record<string, string> | null = null;
+  for (const line of unfolded.split(/\r?\n/)) {
+    if (line === "BEGIN:VEVENT") { current = {}; continue; }
+    if (line === "END:VEVENT") { if (current) events.push([current]); current = null; continue; }
+    if (!current) continue;
+    const colon = line.indexOf(":");
+    if (colon < 1) continue;
+    const property = line.slice(0, colon).split(";")[0].toUpperCase();
+    current[property] = unescapeIcs(line.slice(colon + 1));
+  }
+  const parsed = events.slice(0, 200).flatMap(group => {
+    const item = group[0];
+    const start = item.DTSTART ? parseIcsDate(item.DTSTART) : null;
+    if (!start || !item.SUMMARY?.trim()) return [];
+    const end = item.DTEND ? parseIcsDate(item.DTEND) : null;
+    if (end && end.date <= start.date) return [];
+    return [{
+      userId: user.id,
+      title: item.SUMMARY.trim().slice(0, 240),
+      description: item.DESCRIPTION?.slice(0, 4000) ?? null,
+      location: item.LOCATION?.slice(0, 500) ?? null,
+      startsAt: start.date,
+      endsAt: start.allDay ? null : end?.date ?? null,
+      allDay: start.allDay
+    }];
+  });
+  if (!parsed.length) return c.json({ error: { code: "NO_EVENTS", message: "No valid calendar events were found in that file." } }, 400);
+  const db = c.get("db");
+  const existing = await db.select({ title: calendarEvents.title, startsAt: calendarEvents.startsAt }).from(calendarEvents).where(eq(calendarEvents.userId, user.id));
+  const keys = new Set(existing.map(event => event.title + "|" + event.startsAt.getTime()));
+  const fresh = parsed.filter(event => {
+    const key = event.title + "|" + event.startsAt.getTime();
+    if (keys.has(key)) return false;
+    keys.add(key);
+    return true;
+  });
+  const created = fresh.length ? await db.insert(calendarEvents).values(fresh).returning() : [];
+  return c.json({ data: created, imported: created.length, skippedDuplicates: parsed.length - created.length }, 201);
+});
+
 personalRoutes.get("/export/calendar.ics", async (c) => {
   const user = await getSessionUser(c);
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
