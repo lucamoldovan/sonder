@@ -221,3 +221,46 @@ const CalendarEventFieldsSchema = z.object({
 export const CreateCalendarEventSchema = CalendarEventFieldsSchema.extend({ allDay: z.boolean().default(false) }).refine(value => !value.endsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
 export const UpdateCalendarEventSchema = CalendarEventFieldsSchema.partial().refine(value => !value.endsAt || !value.startsAt || new Date(value.endsAt) >= new Date(value.startsAt), { message: "End time must be after start time", path: ["endsAt"] });
 export type CalendarEventRecord = { id: string; title: string; description: string | null; lifeAreaId: string | null; projectId: string | null; startsAt: string; endsAt: string | null; allDay: boolean; location: string | null };
+
+
+export const NoteBlockTypeSchema = z.enum([
+  "paragraph", "heading1", "heading2", "bullet", "numbered", "todo", "quote", "code", "divider"
+]);
+export const NoteBlockSchema = z.object({
+  id: z.string().min(1).max(64),
+  type: NoteBlockTypeSchema,
+  text: z.string().max(20_000),
+  checked: z.boolean().optional()
+});
+export const NoteContentSchema = z.array(NoteBlockSchema).max(500);
+const NoteFieldsSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  content: NoteContentSchema.optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  lifeAreaId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
+  icon: z.string().max(16).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(20).optional()
+});
+export const CreateNoteSchema = NoteFieldsSchema;
+export const UpdateNoteSchema = NoteFieldsSchema.partial().extend({
+  favorite: z.boolean().optional(),
+  archived: z.boolean().optional()
+});
+export type NoteBlock = z.infer<typeof NoteBlockSchema>;
+export type CreateNoteInput = z.infer<typeof CreateNoteSchema>;
+export type UpdateNoteInput = z.infer<typeof UpdateNoteSchema>;
+export type NoteRecord = {
+  id: string;
+  title: string;
+  content: NoteBlock[];
+  parentId: string | null;
+  lifeAreaId: string | null;
+  projectId: string | null;
+  icon: string | null;
+  tags: string[];
+  favorite: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};

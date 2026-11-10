@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
+import Link from "next/link";
 import {
   ArrowRight, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
-  LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Target, Trash2, X
+  LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
@@ -479,6 +480,7 @@ export default function Home() {
               {name === "Goals" && <span className="nav-count">{goals.filter(goal => goal.status === "active").length}</span>}
             </button>
           )}
+          <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
         </nav>
         <div className="workspace-label areas-label">YOUR LIFE</div>
         <div className="area-nav">

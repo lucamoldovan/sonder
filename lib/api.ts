@@ -5,6 +5,7 @@ import type {
   HabitRecord,
   InboxItemRecord,
   LifeAreaRecord,
+  NoteRecord,
   ProjectRecord,
   TaskRecord
 } from "@sonder/contracts";
@@ -66,3 +67,5 @@ export type ApiHabit = HabitRecord;
 export type ApiHabitEntry = HabitEntryRecord;
 export type ApiCalendarEvent = CalendarEventRecord;
 export type ApiList<T> = { data: T };
+
+export type ApiNote = NoteRecord;
