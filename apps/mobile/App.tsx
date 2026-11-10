@@ -377,5 +377,5 @@ const styles = StyleSheet.create({
   noteComposer: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, gap: 8, marginBottom: 14 },
   noteTitleInput: { color: colors.text, fontSize: 14, fontWeight: "600", paddingVertical: 8 },
   noteBodyInput: { color: colors.text, fontSize: 12, minHeight: 68, textAlignVertical: "top" },
-  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.lavender }
+
 });
