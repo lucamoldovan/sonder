@@ -531,7 +531,7 @@ export default function Home() {
         parentTaskId: taskParent || null,
         reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
         recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
-        recurrenceInterval: Number(taskRepeatInterval),
+        recurrenceInterval: taskRepeat === "none" ? 1 : Number(taskRepeatInterval),
         recurrenceUntil: taskRepeatUntil || null
       };
       const result = await apiRequest<ApiList<ApiTask>>(taskEditingId ? "/tasks/" + taskEditingId : "/tasks", {
