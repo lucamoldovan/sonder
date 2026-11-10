@@ -84,6 +84,11 @@ function formatTaskDateInput(value: string) {
   return time ? formatted + " · " + time : formatted;
 }
 
+function taskHasExplicitTime(value: string) {
+  const date = new Date(value);
+  return date.getHours() !== 12 || date.getMinutes() !== 0;
+}
+
 function TaskDatePicker({ label, value, onChange }: {
   label: "Schedule" | "Due date";
   value: string;
@@ -958,7 +963,7 @@ export default function Home() {
                     ? <div className="today-quiet-state"><CalendarDays size={18}/><div><strong>Nothing scheduled today.</strong><span>That’s room you can use—or leave free.</span></div></div>
                     : <div className="today-agenda-list">
                       {todayAgendaItems.map(item => <div className="today-agenda-row" key={item.kind + ":" + item.id}>
-                        <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
+                        <span className="today-agenda-time">{item.kind === "task" ? "Planned" : item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
                         <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : item.kind === "task" ? "task-marker" : "block-marker")}/>
                         <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.kind === "task" ? "Planned task" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
                         {item.kind === "event"
@@ -1120,7 +1125,12 @@ export default function Home() {
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
                         return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
-                      {scheduledTasksFor(date).map(item => <div key={item.id} className="agenda-task-scheduled"><CalendarClock size={11}/>{item.title} · planned</div>)}
+                      {scheduledTasksFor(date).filter(item => !taskHasExplicitTime(item.scheduledAt!)).map(item => <div key={item.id} className="agenda-task-scheduled"><CalendarClock size={11}/>{item.title} · planned</div>)}
+                      {scheduledTasksFor(date).filter(item => taskHasExplicitTime(item.scheduledAt!)).map(item => {
+                        const start = new Date(item.scheduledAt!);
+                        const top = Math.max(0, (start.getHours() - 6) * 56 + start.getMinutes() / 60 * 56);
+                        return <button key={item.id} className="agenda-event timed-agenda-event agenda-task-scheduled-time" style={{ top, height: 34 }} onClick={() => openEditTask(item)}><strong>{item.title}</strong><span>{formatEventTime(item.scheduledAt!) + " · planned"}</span></button>;
+                      })}
                       {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarCheck size={11}/>{item.title} · deadline</div>)}
                       {timeBlocks.filter(block => localDate(block.startsAt) === calendarDateKey(date)).map(block => {
                         const task = tasks.find(item => item.id === block.taskId);
@@ -1160,7 +1170,7 @@ export default function Home() {
             <TaskDatePicker label="Due date" value={taskDue} onChange={setTaskDue}/>
           </div>
           <div className="quick-task-meta-row">
-            <label className="quick-task-choice"><Folder size={15}/><span>Project</span><select value={taskProject} onChange={event => { setTaskProject(event.target.value); setTaskGoal(projects.find(project => project.id === event.target.value)?.goalId || ""); }}><option value="">No project</option>{projects.filter(project => ["active", "on_hold"].includes(project.status)).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+            <label className="quick-task-choice"><Folder size={15}/><span>Project</span><select value={taskProject} onChange={event => { setTaskProject(event.target.value); setTaskGoal(projects.find(project => project.id === event.target.value)?.goalId || ""); }}><option value="">No project</option>{projects.filter(project => ["active", "on_hold"].includes(project.status) || project.id === taskProject).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
             <label className="quick-task-choice"><Flag size={15}/><span>Priority</span><select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           </div>
           {taskExpanded && <div className="quick-task-advanced">
@@ -1213,19 +1223,13 @@ function TaskRow({ task, areas, onToggle, onDelete, onEdit }: {
   const scheduled = task.scheduledAt ? localDate(task.scheduledAt) : "";
   const due = task.dueAt ? localDate(task.dueAt) : "";
   const today = localDate(new Date().toISOString());
-  const formatDate = (value: string) => value === today ? "Today" : new Date(value + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const formatDate = (value: string, timestamp: string) => {
+    const label = value === today ? "Today" : new Date(value + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return label + (taskHasExplicitTime(timestamp) ? " · " + formatEventTime(timestamp) : "");
+  };
   return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
     <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
-    <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{scheduled && <span className="scheduled-tag"><CalendarClock size={12}/>{formatDate(scheduled)}</span>}{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarCheck size={12}/>{formatDate(due)}</span>}</div></div>
-    <button className="icon-button task-more" onClick={() => onEdit(task)} aria-label="Edit task"><Pencil size={14}/></button><button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
-  </div>;
-}) {
-  const area = areas.find(item => item.id === task.lifeAreaId);
-  const due = task.dueAt ? localDate(task.dueAt) : "";
-  const today = localDate(new Date().toISOString());
-  return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
-    <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
-    <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarDays size={12} />{due === today ? "Today" : new Date(task.dueAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div></div>
+    <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{scheduled && <span className="scheduled-tag"><CalendarClock size={12}/>{formatDate(scheduled, task.scheduledAt!)}</span>}{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarCheck size={12}/>{formatDate(due, task.dueAt!)}</span>}</div></div>
     <button className="icon-button task-more" onClick={() => onEdit(task)} aria-label="Edit task"><Pencil size={14}/></button><button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
   </div>;
 }
