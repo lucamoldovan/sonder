@@ -50,6 +50,7 @@ export default function App() {
   const [scheduleStart, setScheduleStart] = useState("09:00");
   const [scheduleEnd, setScheduleEnd] = useState("10:00");
   const [noteTitle, setNoteTitle] = useState("");
+  const [noteEditingId, setNoteEditingId] = useState<string | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [tab, setTab] = useState<Tab>("today");
   const [taskFilter, setTaskFilter] = useState<"open" | "completed" | "all">("open");
@@ -299,21 +300,29 @@ export default function App() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't load backlinks."); }
   }
 
+  function openNoteEditor(note: NoteRecord) {
+    setNoteEditingId(note.id);
+    setNoteTitle(note.title);
+    setNoteBody(note.content.map(block => block.text).join("\n\n"));
+  }
+
   async function createNote() {
     if (!noteTitle.trim()) return;
     try {
-      const result = await apiRequest<List<NoteRecord>>("/notes", {
-        method: "POST",
-        body: JSON.stringify({
-          title: noteTitle.trim(),
-          content: noteBody.trim() ? [{ id: String(Date.now()), type: "paragraph", text: noteBody.trim() }] : []
-        })
+      const payload = {
+        title: noteTitle.trim(),
+        content: noteBody.trim() ? [{ id: String(Date.now()), type: "paragraph", text: noteBody.trim() }] : []
+      };
+      const result = await apiRequest<List<NoteRecord>>(noteEditingId ? "/notes/" + noteEditingId : "/notes", {
+        method: noteEditingId ? "PATCH" : "POST",
+        body: JSON.stringify(payload)
       });
-      setNotes(current => [result.data, ...current]);
+      setNotes(current => noteEditingId ? current.map(note => note.id === noteEditingId ? result.data : note) : [result.data, ...current]);
       setNoteTitle("");
       setNoteBody("");
+      setNoteEditingId(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Couldn't create note.");
+      setError(cause instanceof Error ? cause.message : "Couldn't save note.");
     }
   }
 
@@ -682,7 +691,7 @@ export default function App() {
             </View>;
           })() : <><View style={styles.mobileTodaySectionHeader}><Text style={styles.sectionTitle}>Your projects</Text></View><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={projectDraft} onChangeText={setProjectDraft} placeholder="Start a new project…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createProject()}/><TouchableOpacity onPress={() => void createProject()} disabled={!projectDraft.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{projects.length ? projects.map(project=><TouchableOpacity key={project.id} style={styles.mobileOrganizeRow} onPress={() => setSelectedProjectId(project.id)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status.replace("_"," ")} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>) : <Text style={styles.muted}>Create a project when something needs more than one step.</Text>}</>}
         </>}
-        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity><TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>void saveNoteTemplate()}><Text style={styles.link}>Save current draft as template</Text></TouchableOpacity></View>{noteTemplates.map(template=><TouchableOpacity key={template.id} style={styles.mobileTemplateChip} onPress={()=>{setNoteTitle(template.name);setNoteBody(template.content.map(block=>block.text).join("\n"));}}><Text style={styles.link}>Use {template.name}</Text></TouchableOpacity>)}{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text>{(noteBacklinks[note.id]||[]).map(backlink=><Text key={backlink.id} style={styles.taskMeta}>Linked from: {backlink.title}</Text>)}</View><TouchableOpacity onPress={()=>void loadNoteBacklinks(note.id)}><Text style={styles.link}>Backlinks</Text></TouchableOpacity></View>)}</>}
+        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder={noteEditingId?"Edit note title":"Note title"} placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>{noteEditingId?"Update note":"Save note"}</Text></TouchableOpacity>{noteEditingId&&<TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>{setNoteEditingId(null);setNoteTitle("");setNoteBody("");}}><Text style={styles.link}>Cancel editing</Text></TouchableOpacity>}<TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>void saveNoteTemplate()}><Text style={styles.link}>Save current draft as template</Text></TouchableOpacity></View>{noteTemplates.map(template=><TouchableOpacity key={template.id} style={styles.mobileTemplateChip} onPress={()=>{setNoteTitle(template.name);setNoteBody(template.content.map(block=>block.text).join("\n"));}}><Text style={styles.link}>Use {template.name}</Text></TouchableOpacity>)}{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><TouchableOpacity style={styles.taskCopy} onPress={()=>openNoteEditor(note)}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text>{(noteBacklinks[note.id]||[]).map(backlink=><Text key={backlink.id} style={styles.taskMeta}>Linked from: {backlink.title}</Text>)}</TouchableOpacity><TouchableOpacity onPress={()=>void loadNoteBacklinks(note.id)}><Text style={styles.link}>Backlinks</Text></TouchableOpacity></View>)}</>}
         {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
