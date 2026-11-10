@@ -256,6 +256,7 @@ export default function Home() {
   }, [view, session?.user?.id, calendarDate, calendarMode]);
 
   const today = localDate(new Date().toISOString());
+  const isOrganizeView = view === "Organize" || ["Inbox", "Tasks", "Projects", "Goals", "Habits", "Life Areas"].includes(view);
   const weekStart = mondayOfWeek(new Date());
   const weekStartKey = calendarDateKey(weekStart);
   const completedThisWeek = tasks.filter(task => task.status === "done" && task.completedAt && localDate(task.completedAt) >= weekStartKey).length;
@@ -773,7 +774,7 @@ export default function Home() {
             ["Calendar", CalendarRange],
             ["Organize", Layers]
           ] as const).map(([name, Icon]) =>
-            <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
+            <button key={name} className={`nav-item ${view === name || (name === "Organize" && isOrganizeView) ? "active" : ""}`} onClick={() => setView(name)}>
               <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
             </button>
           )}
