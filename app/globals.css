@@ -430,3 +430,13 @@
 .organize-item:hover{color:var(--text)}.organize-item-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--lav);background:var(--lav-dim);flex:none}
 .organize-item>span:nth-child(2){display:grid;gap:4px;flex:1}.organize-item strong{font-size:12px;font-weight:600;color:var(--text)}.organize-item small{font-size:10px;color:var(--muted)}.organize-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 @media(prefers-reduced-motion:reduce){.organize-item{transition:none}}
+
+/* Global quick capture */
+.capture-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:start center;padding:16vh 20px 30px;background:rgba(4,4,8,.72);backdrop-filter:blur(12px)}
+.capture-modal{width:min(560px,100%);padding:22px;border:1px solid var(--line-strong);border-radius:17px;background:#17151f;box-shadow:0 24px 90px rgba(0,0,0,.48)}
+.capture-modal-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px}
+.capture-modal-heading h2{font-family:Manrope,sans-serif;font-size:22px;letter-spacing:-.7px;font-weight:600;margin:7px 0 0}
+.capture-modal>input{width:100%;height:52px;border:1px solid var(--line-strong);border-radius:10px;padding:0 14px;background:#0e0d13;color:var(--text);font-size:13px}
+.capture-modal-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px}
+.capture-modal-actions>span{font-size:10px;color:var(--muted);line-height:1.5}
+@media(max-width:520px){.capture-overlay{padding:12vh 14px 20px}.capture-modal{padding:17px}.capture-modal-actions{align-items:flex-start;flex-direction:column}.capture-modal-actions .primary-button{width:100%}}
