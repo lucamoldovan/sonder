@@ -18,7 +18,7 @@ type List<T> = { data: T };
 
 const colors = {
   bg: "#101114", surface: "#181A1F", surface2: "#202228",
-  text: "#F5F5F7", muted: "#9699A2", lavender: "#B4A4FF",
+  text: "#F5F5F7", muted: "#9699A2", accent: "#F5F5F7",
   border: "rgba(255,255,255,0.075)", green: "#30D158"
 };
 
@@ -82,7 +82,7 @@ export default function App() {
   const [lifeAreaDraft, setLifeAreaDraft] = useState("");
   const [lifeAreaEditId, setLifeAreaEditId] = useState<string | null>(null);
   const [lifeAreaEditName, setLifeAreaEditName] = useState("");
-  const [lifeAreaEditColor, setLifeAreaEditColor] = useState("#B4A4FF");
+  const [lifeAreaEditColor, setLifeAreaEditColor] = useState("#F5F5F7");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -372,7 +372,7 @@ export default function App() {
     try {
       const result = await apiRequest<{data:LifeAreaRecord}>("/life-areas", {
         method:"POST",
-        body:JSON.stringify({name:lifeAreaDraft.trim(),color:"#B4A4FF",position:lifeAreas.length})
+        body:JSON.stringify({name:lifeAreaDraft.trim(),color:"#F5F5F7",position:lifeAreas.length})
       });
       setLifeAreas(current=>[...current,result.data]);
       setLifeAreaDraft("");
@@ -542,7 +542,7 @@ export default function App() {
   }
 
   if (isPending) {
-    return <SafeAreaView style={styles.center}><StatusBar barStyle="light-content" /><ActivityIndicator color={colors.lavender} /><Text style={styles.muted}>Opening Sonder…</Text></SafeAreaView>;
+    return <SafeAreaView style={styles.center}><StatusBar barStyle="light-content" /><ActivityIndicator color={colors.accent} /><Text style={styles.muted}>Opening Sonder…</Text></SafeAreaView>;
   }
 
   if (!session?.user) {
@@ -695,14 +695,14 @@ export default function App() {
               ? <View style={styles.mobileTodayEmpty}><Text style={styles.mobileTodayEmptyTitle}>Nothing scheduled today.</Text><Text style={styles.muted}>That’s room you can use—or leave free.</Text></View>
               : todayAgendaItems.map(item=><View key={item.kind+":"+item.id} style={styles.mobileTodayAgendaRow}>
                 <Text style={styles.mobileTodayTime}>{item.kind==="event"&&item.event.allDay?"All day":new Date(item.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text>
-                <View style={[styles.mobileTodayDot,{backgroundColor:item.kind==="event"?"#79B7D7":colors.lavender}]}/>
+                <View style={[styles.mobileTodayDot,{backgroundColor:item.kind==="event"?"#79B7D7":colors.accent}]}/>
                 <View style={styles.taskCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.kind==="block"?new Date(item.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})+" · Work block":item.event.location||"Calendar event"}</Text></View>
               </View>)}
           </View>
 
           <View style={styles.mobileTodaySection}>
             <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Next actions</Text><TouchableOpacity onPress={()=>openOrganizeSection("tasks")}><Text style={styles.link}>All tasks</Text></TouchableOpacity></View>
-            {loading ? <ActivityIndicator color={colors.lavender}/> : nextActionTasks.length ? nextActionTasks.map(renderTask) : <View style={styles.mobileTodayEmpty}><Text style={styles.mobileTodayEmptyTitle}>Nothing urgent asking for attention.</Text><Text style={styles.muted}>Choose something meaningful, or enjoy the breathing room.</Text></View>}
+            {loading ? <ActivityIndicator color={colors.accent}/> : nextActionTasks.length ? nextActionTasks.map(renderTask) : <View style={styles.mobileTodayEmpty}><Text style={styles.mobileTodayEmptyTitle}>Nothing urgent asking for attention.</Text><Text style={styles.muted}>Choose something meaningful, or enjoy the breathing room.</Text></View>}
           </View>
 
           {habitsDueToday.length>0&&<View style={styles.mobileTodaySection}>
@@ -714,7 +714,7 @@ export default function App() {
 
           {goals.filter(goal=>goal.status==="active").length>0&&<View style={styles.mobileTodaySection}>
             <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Goals in progress</Text><TouchableOpacity onPress={()=>openOrganizeSection("goals")}><Text style={styles.link}>All goals</Text></TouchableOpacity></View>
-            {goals.filter(goal=>goal.status==="active").slice(0,3).map(goal=><View key={goal.id} style={styles.mobileTodayAgendaRow}><View style={[styles.mobileTodayDot,{backgroundColor:colors.lavender}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"Active goal"}</Text></View></View>)}
+            {goals.filter(goal=>goal.status==="active").slice(0,3).map(goal=><View key={goal.id} style={styles.mobileTodayAgendaRow}><View style={[styles.mobileTodayDot,{backgroundColor:colors.accent}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"Active goal"}</Text></View></View>)}
           </View>}
 
           <View style={styles.mobileTodaySection}>
@@ -805,7 +805,7 @@ export default function App() {
           <View style={styles.mobileCaptureCard}>
             <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>LIFE AREA</Text><Text style={styles.mobileCaptureTitle}>Edit area</Text></View><TouchableOpacity onPress={() => setLifeAreaEditId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
             <TextInput style={styles.mobileCaptureInput} value={lifeAreaEditName} onChangeText={setLifeAreaEditName} placeholder="Area name" placeholderTextColor={colors.muted}/>
-            <View style={styles.mobileTaskPriorityRow}>{(["#B4A4FF","#79B7D7","#76B99A","#D6A66A","#D58CA8","#8D98AA"] as const).map(color=><TouchableOpacity key={color} style={[styles.mobileAreaColor,{backgroundColor:color},lifeAreaEditColor===color&&styles.mobileAreaColorSelected]} onPress={()=>setLifeAreaEditColor(color)}/>)}</View>
+            <View style={styles.mobileTaskPriorityRow}>{(["#F5F5F7","#79B7D7","#76B99A","#D6A66A","#D58CA8","#8D98AA"] as const).map(color=><TouchableOpacity key={color} style={[styles.mobileAreaColor,{backgroundColor:color},lifeAreaEditColor===color&&styles.mobileAreaColorSelected]} onPress={()=>setLifeAreaEditColor(color)}/>)}</View>
             <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void saveLifeArea()} disabled={!lifeAreaEditName.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -815,7 +815,7 @@ export default function App() {
           <View style={styles.mobileCaptureCard}>
             <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>SEARCH YOUR LIFE</Text><Text style={styles.mobileCaptureTitle}>Find anything.</Text></View><TouchableOpacity onPress={() => setSearchOpen(false)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
             <View style={styles.mobileSearchInputRow}><TextInput autoFocus style={[styles.mobileCaptureInput,{flex:1}]} value={searchQuery} onChangeText={value=>{setSearchQuery(value);setSearchResults([]);}} placeholder="Search tasks, projects, goals, notes…" placeholderTextColor={colors.muted} onSubmitEditing={() => void runMobileSearch()}/><TouchableOpacity onPress={() => void runMobileSearch()}><Text style={styles.link}>Go</Text></TouchableOpacity></View>
-            {searchLoading&&<ActivityIndicator color={colors.lavender}/>}
+            {searchLoading&&<ActivityIndicator color={colors.accent}/>}
             {searchResults.map(result=><TouchableOpacity key={result.type+":"+result.id} style={styles.mobileSearchResult} onPress={() => openSearchResult(result)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{result.title}</Text><Text style={styles.taskMeta}>{result.type}{result.subtitle?" · "+(Array.isArray(result.subtitle)?result.subtitle.join(" · "):result.subtitle):""}</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>)}
             {!searchLoading&&searchQuery.trim().length>=2&&searchResults.length===0&&<Text style={styles.muted}>No matches. Try a different phrase.</Text>}
             {searchQuery.trim().length<2&&<Text style={styles.taskMeta}>Enter at least two characters to search across your workspace.</Text>}
@@ -865,27 +865,27 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", gap: 12 },
   authWrap: { flex: 1, justifyContent: "center", paddingHorizontal: 26, paddingVertical: 28 },
-  logoMark: { width: 54, height: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.lavender, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 12 },
-  logoMarkText: { color: colors.lavender, fontSize: 28, fontWeight: "600" },
+  logoMark: { width: 54, height: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.accent, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 12 },
+  logoMarkText: { color: colors.accent, fontSize: 28, fontWeight: "600" },
   logo: { color: colors.text, fontSize: 32, fontWeight: "700", letterSpacing: -1, textAlign: "center" },
   tagline: { color: colors.muted, fontSize: 13, textAlign: "center", marginTop: 6, marginBottom: 34 },
   authCard: { padding: 22, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 18 },
-  kicker: { color: colors.lavender, fontSize: 10, letterSpacing: 1.6, fontWeight: "700", marginBottom: 9 },
+  kicker: { color: colors.accent, fontSize: 10, letterSpacing: 1.6, fontWeight: "700", marginBottom: 9 },
   heading: { color: colors.text, fontSize: 26, fontWeight: "600", letterSpacing: -0.8, marginBottom: 6 },
   muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   input: { height: 48, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, paddingHorizontal: 13, marginTop: 13, fontSize: 13 },
-  primaryButton: { height: 48, borderRadius: 10, backgroundColor: colors.lavender, alignItems: "center", justifyContent: "center", marginTop: 18 },
+  primaryButton: { height: 48, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginTop: 18 },
   primaryText: { color: colors.bg, fontWeight: "700", fontSize: 13 },
   disabled: { opacity: 0.6 },
   googleButton: { height: 46, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: "center", justifyContent: "center", marginTop: 10 },
   googleText: { color: colors.text, fontSize: 12, fontWeight: "600" },
-  switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
+  switchText: { color: colors.accent, fontSize: 12, textAlign: "center", marginTop: 20 },
   footnote: { color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 28 },
   apiHint: { color: "#514d5a", fontSize: 9, textAlign: "center", marginTop: 12 },
   mobileBottomNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", minHeight: 62, paddingTop: 7, paddingBottom: 5, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
   mobileBottomItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 4 },
   mobileBottomIndicator: { width: 18, height: 3, borderRadius: 2, backgroundColor: "transparent" },
-  mobileBottomIndicatorActive: { backgroundColor: colors.lavender },
+  mobileBottomIndicatorActive: { backgroundColor: colors.accent },
   mobileBottomLabel: { color: colors.muted, fontSize: 10, fontWeight: "500" },
   mobileBottomLabelActive: { color: "#D8CAFF", fontWeight: "700" },
   mobileHeaderActions: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   mobileCaptureModalHeading: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   mobileCaptureTitle: { color: colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.5 },
   mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
-  mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
+  mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.accent },
   mobileAreaColor: { width: 27, height: 27, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
   mobileAreaColorSelected: { borderColor: colors.text, transform: [{scale:1.08}] },
   mobileAreaPicker: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
   mobileProjectProgress: { paddingVertical: 16, marginTop: 15, marginBottom: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, gap: 10 },
   mobileProjectProgressText: { color: colors.muted, fontSize: 10 },
   mobileProjectProgressTrack: { height: 5, borderRadius: 3, backgroundColor: colors.surface2, overflow: "hidden" },
-  mobileProjectProgressFill: { height: 5, borderRadius: 3, backgroundColor: colors.lavender },
+  mobileProjectProgressFill: { height: 5, borderRadius: 3, backgroundColor: colors.accent },
   projectTaskComposer: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 15 },
   mobileOrganizeRow: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileOrganizeCount: { color: colors.muted, fontSize: 11, fontVariant: ["tabular-nums"] },
@@ -954,9 +954,9 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.text, fontSize: 15, fontWeight: "600", marginBottom: 12, marginTop: 22 },
   capture: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 6 },
   captureInput: { flex: 1, color: colors.text, paddingHorizontal: 10, height: 42, fontSize: 12 },
-  captureButton: { backgroundColor: colors.lavender, paddingHorizontal: 15, paddingVertical: 11, borderRadius: 8 },
+  captureButton: { backgroundColor: colors.accent, paddingHorizontal: 15, paddingVertical: 11, borderRadius: 8 },
   captureButtonText: { color: colors.bg, fontWeight: "700", fontSize: 11 },
-  link: { color: colors.lavender, fontSize: 11 },
+  link: { color: colors.accent, fontSize: 11 },
   taskRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
   taskCircle: { width: 19, height: 19, borderRadius: 7, borderWidth: 1, borderColor: colors.muted },
   taskCopy: { flex: 1 },
@@ -972,7 +972,7 @@ const styles = StyleSheet.create({
   mobileHabitRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileHeatmap: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 9, maxWidth: 220 },
   mobileHeatCell: { width: 9, height: 9, borderRadius: 3, backgroundColor: colors.surface2 },
-  mobileHeatCellDone: { backgroundColor: colors.lavender },
+  mobileHeatCellDone: { backgroundColor: colors.accent },
   mobileGoal: { marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileMilestone: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, paddingLeft: 30 },
   mobileMilestoneComposer: { flexDirection: "row", alignItems: "center", gap: 12, paddingLeft: 30 },
@@ -986,13 +986,13 @@ const styles = StyleSheet.create({
   tabs: { marginTop: 22, maxHeight: 42 },
   tabsContent: { flexDirection: "row", gap: 7, alignItems: "center" },
   tab: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9 },
-  tabActive: { backgroundColor: "#292137", borderColor: colors.lavender },
+  tabActive: { backgroundColor: "#292B30", borderColor: colors.accent },
   tabText: { color: colors.muted, fontSize: 10, fontWeight: "600" },
   tabTextActive: { color: "#D8CAFF" },
-  taskCircleDone: { backgroundColor: colors.lavender, borderColor: colors.lavender },
+  taskCircleDone: { backgroundColor: colors.accent, borderColor: colors.accent },
   taskDone: { color: colors.muted, textDecorationLine: "line-through" },
   eventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#79B7D7" },
-  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.lavender },
+  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.accent },
   areaDot: { width: 9, height: 9, borderRadius: 5 },
   noteComposer: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, gap: 8, marginBottom: 14 },
   noteTitleInput: { color: colors.text, fontSize: 14, fontWeight: "600", paddingVertical: 8 },
