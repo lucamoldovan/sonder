@@ -263,7 +263,5 @@ personalRoutes.get("/export/calendar.ics", async (c) => {
   lines.push("END:VCALENDAR");
   c.header("Content-Type", "text/calendar; charset=utf-8");
   c.header("Content-Disposition", 'attachment; filename="sonder-calendar.ics"');
-  return c.body(lines.join("\r
-") + "\r
-");
+  return c.body(lines.join("\r\n") + "\r\n");
 });
