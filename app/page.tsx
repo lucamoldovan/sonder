@@ -594,6 +594,7 @@ export default function Home() {
         { method: eventEditingId ? "PATCH" : "POST", body: JSON.stringify(payload) }
       );
       setEvents(current => [...current.filter(item => item.id !== result.data.id), result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      setCalendarRangeEvents(current => [...current.filter(item => item.id !== result.data.id), result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       setEventOpen(false);
       setEventEditingId(null);
       setNotice(eventEditingId ? "Event updated." : "Event added to your calendar.");
@@ -601,7 +602,7 @@ export default function Home() {
   }
 
   async function deleteEvent(id: string) {
-    try { await apiRequest("/calendar/" + id, { method: "DELETE" }); setEvents(current => current.filter(item => item.id !== id)); }
+    try { await apiRequest("/calendar/" + id, { method: "DELETE" }); setEvents(current => current.filter(item => item.id !== id)); setCalendarRangeEvents(current => current.filter(item => item.id !== id)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the event."); }
   }
 
