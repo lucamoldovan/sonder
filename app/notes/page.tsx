@@ -224,7 +224,7 @@ export default function NotesPage() {
   return <main className="notes-shell">
     <aside className={`notes-sidebar ${mobileSidebar ? "mobile-open" : ""}`}>
       <div className="notes-side-top">
-        <a className="notes-back" href="/"><ArrowLeft size={15}/> Back to Sonder</a>
+        <Link className="notes-back" href="/"><ArrowLeft size={15}/> Back to Sonder</Link>
         <div className="notes-brand"><span>✳</span><div><strong>Notes</strong><small>Your personal knowledge space</small></div></div>
         <button className="notes-new-button" onClick={() => void createNote()}><Plus size={15}/> New page</button>
         <label className="notes-search"><Search size={15}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search your pages..."/><kbd>⌘ K</kbd></label>
