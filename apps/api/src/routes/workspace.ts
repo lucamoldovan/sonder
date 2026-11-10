@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, lte } from "drizzle-orm";
 import { Hono } from "hono";
 import { activityLog, calendarEvents, goals, habitEntries, habits, inboxItems, lifeAreas, notes, notifications, projects, tasks } from "../db/schema";
 import type { AppEnv } from "../env";
@@ -25,6 +25,14 @@ workspaceRoutes.get("/dashboard", async (c) => {
     db.select().from(lifeAreas).where(eq(lifeAreas.userId, user.id)).orderBy(asc(lifeAreas.position)),
     db.select().from(tasks).where(and(eq(tasks.userId, user.id), gte(tasks.reminderAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))))
   ]);
+  const dueReminders = taskRows.filter(task => task.reminderAt && task.reminderAt <= now && !["done", "cancelled"].includes(task.status));
+  await Promise.all(dueReminders.map(task => db.insert(notifications).values({
+    userId: user.id,
+    title: "Task reminder",
+    body: task.title,
+    href: task.projectId ? "/projects/" + task.projectId : "/",
+    sourceKey: "task-reminder:" + task.id + ":" + task.reminderAt!.toISOString()
+  }).onConflictDoNothing()));
   const openTasks = taskRows.filter(task => task.status !== "done" && task.status !== "cancelled");
   const completedTasks = taskRows.filter(task => task.status === "done");
   const dueToday = openTasks.filter(task => task.dueAt?.toDateString() === now.toDateString());
