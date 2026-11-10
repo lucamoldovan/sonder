@@ -210,6 +210,10 @@ export default function Home() {
   }, [session?.user?.id, loadWorkspace]);
 
   const today = localDate(new Date().toISOString());
+  const weekStart = mondayOfWeek(new Date());
+  const weekStartKey = calendarDateKey(weekStart);
+  const completedThisWeek = tasks.filter(task => task.status === "done" && task.completedAt && localDate(task.completedAt) >= weekStartKey).length;
+  const checkinsThisWeek = habitEntries.filter(entry => entry.entryDate >= weekStartKey).length;
   const openTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
   const dueToday = openTasks.filter(task => task.dueAt && localDate(task.dueAt) === today);
   const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
