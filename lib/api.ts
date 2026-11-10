@@ -67,4 +67,5 @@ export type ApiHabit = HabitRecord;
 export type ApiHabitEntry = HabitEntryRecord;
 export type ApiCalendarEvent = CalendarEventRecord;
 export type ApiList<T> = { data: T };
-\nexport type ApiNote = NoteRecord;\n
+
+export type ApiNote = NoteRecord;
