@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import {
-  ArrowRight, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Command, Flag, Heart, Inbox,
-  LayoutDashboard, ListTodo, LogOut, MapPin, Plus, RefreshCw, Search, Target, Trash2, X
+  ArrowRight, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
+  LayoutDashboard, ListTodo, LogOut, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
@@ -539,7 +539,14 @@ export default function Home() {
               : calendarMode === "week"
                 ? `${visibleDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${visibleDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
                 : calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-            const moveCalendar = (direction: number) => setCalendarDate(current => shiftCalendarDate(current, direction * (calendarMode === "month" ? 30 : calendarMode === "week" ? 7 : 1)));
+            const moveCalendar = (direction: number) => setCalendarDate(current => {
+              if (calendarMode === "month") {
+                const next = new Date(current);
+                next.setMonth(next.getMonth() + direction);
+                return next;
+              }
+              return shiftCalendarDate(current, direction * (calendarMode === "week" ? 7 : 1));
+            });
             const eventsFor = (date: Date) => events.filter(item => localDate(item.startsAt) === calendarDateKey(date));
             const tasksFor = (date: Date) => openTasks.filter(item => item.dueAt && localDate(item.dueAt) === calendarDateKey(date));
             const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -570,7 +577,7 @@ export default function Home() {
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
-                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as React.CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
+                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
                         {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
                         {dayEvents.length + dayTasks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length - 3} more</span>}
                       </span>
