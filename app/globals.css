@@ -413,7 +413,7 @@
 .task-work-copy small,.task-board-card small{font-size:10px;color:#898393}
 .task-work-date{font-size:11px;color:#9c96a6}
 .life-empty{padding:28px 8px;text-align:center;color:#898393;font-size:12px}
-.task-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+.task-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
 .task-board-column{background:#101015;border:1px solid #24222c;border-radius:12px;padding:12px;min-height:200px}
 .task-board-heading{display:flex;justify-content:space-between;align-items:center;padding:4px 3px 12px;font-size:12px}
 .task-board-heading span{color:#928b9e;font-size:11px}
