@@ -71,6 +71,7 @@ export default function Home() {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [habitEntries, setHabitEntries] = useState<ApiHabitEntry[]>([]);
   const [events, setEvents] = useState<ApiCalendarEvent[]>([]);
+  const [calendarRangeEvents, setCalendarRangeEvents] = useState<ApiCalendarEvent[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<ApiTimeBlock[]>([]);
   const [milestones, setMilestones] = useState<Record<string, ApiMilestone[]>>({});
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -172,11 +173,7 @@ export default function Home() {
       setGoals(workspace.data.goals);
       setHabits(workspace.data.habits);
       setHabitEntries(workspace.data.habitEntries);
-      setEvents(current => {
-        const merged = new Map(current.map(item => [item.id, item]));
-        for (const item of workspace.data.events) merged.set(item.id, item);
-        return [...merged.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-      });
+      setEvents(workspace.data.events);
       setTimeBlocks(blockResult.data);
       const milestoneResults = await Promise.all(workspace.data.goals.map(goal =>
         apiRequest<ApiList<ApiMilestone[]>>("/goals/" + goal.id + "/milestones")
@@ -243,11 +240,7 @@ export default function Home() {
       "/calendar?from=" + encodeURIComponent(from.toISOString()) + "&to=" + encodeURIComponent(to.toISOString())
     ).then(result => {
       if (cancelled) return;
-      setEvents(current => {
-        const merged = new Map(current.map(item => [item.id, item]));
-        for (const item of result.data) merged.set(item.id, item);
-        return [...merged.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-      });
+      setCalendarRangeEvents(result.data);
     }).catch(cause => {
       if (!cancelled) setError(cause instanceof Error ? cause.message : "Couldn't load this calendar range.");
     });
@@ -841,7 +834,7 @@ export default function Home() {
               }
               return shiftCalendarDate(current, direction * (calendarMode === "week" ? 7 : 1));
             });
-            const eventsFor = (date: Date) => events.filter(item => localDate(item.startsAt) === calendarDateKey(date));
+            const eventsFor = (date: Date) => calendarRangeEvents.filter(item => localDate(item.startsAt) === calendarDateKey(date));
             const tasksFor = (date: Date) => openTasks.filter(item => item.dueAt && localDate(item.dueAt) === calendarDateKey(date));
             const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
             return <div className="section-page calendar-workspace">
