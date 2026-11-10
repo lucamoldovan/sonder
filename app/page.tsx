@@ -150,7 +150,10 @@ export default function Home() {
 
   const loadWorkspace = useCallback(async () => {
     try {
-      const [workspace, blockResult] = await Promise.all([apiRequest<ApiList<{
+      // The dashboard contains the core workspace data. Optional modules are
+      // loaded independently so one missing/temporarily unavailable table
+      // cannot make the whole app appear broken.
+      const workspace = await apiRequest<ApiList<{
         tasks: ApiTask[];
         lifeAreas: ApiLifeArea[];
         projects: ApiProject[];
@@ -159,7 +162,7 @@ export default function Home() {
         habits: ApiHabit[];
         habitEntries: ApiHabitEntry[];
         events: ApiCalendarEvent[];
-      }>>("/workspace/dashboard"), apiRequest<ApiList<ApiTimeBlock[]>>("/time-blocks")]);
+      }>>("/workspace/dashboard");
 
       let loadedAreas = workspace.data.lifeAreas;
       if (loadedAreas.length === 0) {
@@ -173,7 +176,6 @@ export default function Home() {
         loadedAreas = seeded.data;
       }
 
-      setError("");
       setTasks(workspace.data.tasks);
       setAreas(loadedAreas);
       setProjects(workspace.data.projects);
@@ -182,17 +184,37 @@ export default function Home() {
       setHabits(workspace.data.habits);
       setHabitEntries(workspace.data.habitEntries);
       setEvents(workspace.data.events);
-      setTimeBlocks(blockResult.data);
-      const milestoneResults = await Promise.all(workspace.data.goals.map(goal =>
-        apiRequest<ApiList<ApiMilestone[]>>("/goals/" + goal.id + "/milestones")
-      ));
-      setMilestones(Object.fromEntries(workspace.data.goals.map((goal, index) => [goal.id, milestoneResults[index].data])));
-      const notificationResult = await apiRequest<{ data: ApiNotification[]; unreadCount: number }>("/workspace/notifications");
-      setNotifications(notificationResult.data);
       setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
       setTaskProject("");
       setFilterArea(current => current === "all" || loadedAreas.some(area => area.id === current) ? current : "all");
+      setError("");
+
+      const [blockResult, milestoneResults, notificationResult] = await Promise.all([
+        apiRequest<ApiList<ApiTimeBlock[]>>("/time-blocks").catch(cause => {
+          console.error("Could not load time blocks", cause);
+          return null;
+        }),
+        Promise.all(workspace.data.goals.map(goal =>
+          apiRequest<ApiList<ApiMilestone[]>>("/goals/" + goal.id + "/milestones").catch(cause => {
+            console.error("Could not load milestones for goal", goal.id, cause);
+            return { data: [] as ApiMilestone[] };
+          })
+        )),
+        apiRequest<{ data: ApiNotification[]; unreadCount: number }>("/workspace/notifications").catch(cause => {
+          console.error("Could not load notifications", cause);
+          return null;
+        })
+      ]);
+
+      setTimeBlocks(blockResult?.data ?? []);
+      setMilestones(Object.fromEntries(workspace.data.goals.map((goal, index) => [goal.id, milestoneResults[index].data])));
+      setNotifications(notificationResult?.data ?? []);
+
+      if (!blockResult || !notificationResult) {
+        setNotice("Some optional workspace features couldn't load. Your main workspace is still available.");
+      }
     } catch (cause) {
+      console.error("Could not load workspace", cause);
       setError(cause instanceof Error ? cause.message : "Couldn't load your workspace.");
     }
   }, []);
