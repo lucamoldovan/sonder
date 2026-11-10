@@ -55,7 +55,8 @@ habitRoutes.post("/:id/check-in", async (c) => {
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const body = await c.req.json().catch(() => ({})) as { date?: string; note?: string | null };
   const date = body.date ?? new Date().toISOString().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z"))) return c.json({ error: { code: "INVALID_DATE", message: "Use YYYY-MM-DD for the check-in date." } }, 400);
+  const parsedDate = new Date(date + "T00:00:00.000Z");
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) return c.json({ error: { code: "INVALID_DATE", message: "Use a real date in YYYY-MM-DD format." } }, 400);
   const db = c.get("db");
   const [habit] = await db.select({ id: habits.id }).from(habits).where(and(eq(habits.id, id.data), eq(habits.userId, user.id))).limit(1);
   if (!habit) return c.json({ error: { code: "NOT_FOUND", message: "Habit not found." } }, 404);
