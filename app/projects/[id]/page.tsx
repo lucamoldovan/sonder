@@ -53,7 +53,7 @@ export default function ProjectWorkspacePage() {
     if (isPending) return;
     if (session?.user) void load();
     else setLoading(false);
-  }, [isPending, session?.user?.id, load]);
+  }, [isPending, session?.user, load]);
 
   async function toggleTask(task: Workspace["tasks"][number]) {
     try {
