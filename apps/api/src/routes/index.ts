@@ -24,4 +24,8 @@ v1Routes.route("/goals", goalRoutes);
 v1Routes.route("/habits", habitRoutes);
 v1Routes.route("/calendar", calendarRoutes);
 v1Routes.route("/notes", noteRoutes);
+v1Routes.route("/notes", noteLinkRoutes);
+v1Routes.route("/note-templates", noteTemplateRoutes);
+v1Routes.route("/time-blocks", timeBlockRoutes);
+v1Routes.route("/", milestoneRoutes);
 v1Routes.route("/workspace", workspaceRoutes);
