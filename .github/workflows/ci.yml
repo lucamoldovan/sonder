@@ -31,6 +31,9 @@ jobs:
           test -f apps/api/drizzle/meta/0000_snapshot.json
           test -n "$(find apps/api/drizzle -maxdepth 1 -name '*.sql' -print -quit)"
 
+      - name: Lint
+        run: bun run lint
+
       - name: Typecheck all workspaces
         run: bun run typecheck:all
 
