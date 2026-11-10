@@ -384,3 +384,41 @@
 .notes-notice button{border:0;background:transparent;color:inherit;display:grid;place-items:center}
 
 .time-block-month-event{background:rgba(167,139,250,.12)!important;color:#cbbaff!important;border-left:2px solid #a78bfa!important}
+
+/* Today: calm, contextual daily briefing */
+.today-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:6px 0 28px}
+.today-intro h1{font-family:Manrope,sans-serif;font-size:clamp(32px,3.3vw,43px);letter-spacing:-1.9px;line-height:1.12;margin:11px 0 9px;font-weight:600}
+.today-capture{margin:0 0 14px}
+.today-context-line{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:11px;margin:0 0 28px}
+.context-separator{color:#514c59}.today-overdue-count{color:var(--red)}
+.today-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,.85fr);gap:44px;align-items:start}
+.today-primary-column{min-width:0}.today-secondary-column{display:grid;gap:26px}
+.today-section{padding:0 0 26px;margin:0 0 25px;border-bottom:1px solid var(--line)}
+.today-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:15px}
+.today-section-heading h2{font-family:Manrope,sans-serif;font-size:19px;letter-spacing:-.55px;font-weight:600;margin:5px 0 0}
+.today-section-heading.compact{margin-bottom:12px}.today-section-heading.compact h2{font-size:17px}
+.today-agenda-list{display:grid}.today-agenda-row{min-height:59px;display:grid;grid-template-columns:75px 8px minmax(0,1fr) auto;align-items:center;gap:13px;border-bottom:1px solid rgba(255,255,255,.045)}
+.today-agenda-row:last-child{border-bottom:0}.today-agenda-time{font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums}
+.today-agenda-marker{width:7px;height:7px;border-radius:50%;background:var(--lav)}.today-agenda-marker.block-marker{background:var(--green)}
+.today-agenda-copy{display:grid;gap:4px;min-width:0}.today-agenda-copy strong{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.today-agenda-copy span{font-size:10px;color:var(--muted)}
+.today-quiet-state{display:flex;align-items:center;gap:13px;padding:18px 0;color:var(--lav)}
+.today-quiet-state>div{display:grid;gap:4px}.today-quiet-state strong{font-size:12px;color:var(--text);font-weight:600}
+.today-quiet-state span{font-size:11px;color:var(--muted);line-height:1.5}
+.today-task-list{display:grid}.today-habits-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+.today-context-panel{padding:20px 0 21px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.today-context-panel h3{font-family:Manrope,sans-serif;font-size:21px;letter-spacing:-.7px;margin:9px 0 7px;font-weight:600}
+.today-context-panel p{font-size:11px;color:var(--muted);line-height:1.65;margin:0;max-width:340px}
+.today-side-section{padding-bottom:5px}.today-upcoming-row,.today-goal-row{display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+.today-upcoming-row>div,.today-goal-row>div{display:grid;gap:4px;min-width:0}
+.today-upcoming-row strong,.today-goal-row strong{font-size:11px;font-weight:600}
+.today-upcoming-row span:not(.upcoming-dot),.today-goal-row span:not(.today-goal-dot){font-size:10px;color:var(--muted)}
+.today-goal-dot{width:7px;height:7px;border-radius:50%;background:var(--lav);margin-top:4px;flex:none}
+.today-muted-note{font-size:11px;color:var(--muted);line-height:1.6;margin:5px 0}
+.today-inbox-link{display:flex;align-items:center;gap:12px;text-align:left;width:100%;padding:14px 0;border:0;border-top:1px solid var(--line);background:transparent;color:var(--soft)}
+.today-inbox-link>span{display:grid;gap:4px;flex:1}.today-inbox-link strong{font-size:11px;color:var(--text);font-weight:600}.today-inbox-link small{font-size:10px;color:var(--muted)}
+.today-inbox-link:hover{color:var(--lav)}
+@media(max-width:1050px){.today-layout{grid-template-columns:minmax(0,1.35fr) minmax(230px,.8fr);gap:28px}}
+@media(max-width:760px){.today-intro{align-items:flex-start;flex-direction:column;margin-top:0}.today-intro .primary-button{align-self:stretch}.today-layout{grid-template-columns:1fr;gap:18px}.today-secondary-column{gap:20px}.today-context-line{flex-wrap:wrap}.today-habits-list{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.today-agenda-row{grid-template-columns:58px 7px minmax(0,1fr) auto;gap:9px}.today-habits-list{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.today-inbox-link{transition:none}}
