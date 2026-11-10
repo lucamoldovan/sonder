@@ -107,7 +107,9 @@ export default function NotesPage() {
         method: "POST",
         body: JSON.stringify({ title: "Untitled", content: [newBlock()], parentId: parent })
       });
-      setNotes(current => [result.data, ...current]);
+      setShowArchived(false);
+      setShowFavorites(false);
+      setNotes(current => [result.data, ...current.filter(note => !note.archivedAt)]);
       setExpanded(current => parent ? [...new Set([...current, parent])] : current);
       openNote(result.data);
     } catch (cause) {
@@ -176,11 +178,28 @@ export default function NotesPage() {
   const archiveNote = async () => {
     if (!selected) return;
     try {
-      await apiRequest("/notes/" + selected.id, { method: "PATCH", body: JSON.stringify({ archived: true }) });
-      setNotes(current => current.filter(item => item.id !== selected.id));
+      const affected = new Set<string>([selected.id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const note of notes) if (note.parentId && affected.has(note.parentId) && !affected.has(note.id)) { affected.add(note.id); changed = true; }
+      }
+      await Promise.all([...affected].map(id => apiRequest("/notes/" + id, { method: "PATCH", body: JSON.stringify({ archived: !showArchived }) })));
+      setNotes(current => current.filter(item => !affected.has(item.id)));
       setSelectedId(null);
       setSaveState("saved");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't archive the page."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't update the page archive."); }
+  };
+
+  const switchArchiveView = async (archived: boolean) => {
+    setShowArchived(archived);
+    setShowFavorites(false);
+    setSelectedId(null);
+    setDirty(false);
+    try {
+      const result = await apiRequest<ApiList<ApiNote[]>>(archived ? "/notes?archived=true" : "/notes");
+      setNotes(result.data);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't load archived pages."); }
   };
 
   const deleteNote = async () => {
@@ -231,6 +250,7 @@ export default function NotesPage() {
         <div className="notes-sidebar-label">WORKSPACE</div>
         <button className={`notes-filter ${!showFavorites && !showArchived ? "active" : ""}`} onClick={() => { setShowFavorites(false); setShowArchived(false); }}><FilePlus2 size={15}/> All pages <span>{notes.length}</span></button>
         <button className={`notes-filter ${showFavorites ? "active" : ""}`} onClick={() => { setShowFavorites(true); setShowArchived(false); }}><Heart size={15}/> Favorites</button>
+        <button className={`notes-filter ${showArchived ? "active" : ""}`} onClick={() => void switchArchiveView(!showArchived)}><Archive size={15}/> Archived</button>
         <div className="notes-sidebar-label notes-pages-label">YOUR PAGES <button onClick={() => void createNote()}><Plus size={14}/></button></div>
         <div className="notes-tree">{renderTree(null)}</div>
       </div>
@@ -242,7 +262,7 @@ export default function NotesPage() {
         <div className="notes-breadcrumb"><button className="notes-mobile-menu" onClick={() => setMobileSidebar(!mobileSidebar)}><List size={17}/></button><Link href="/">Sonder</Link><ChevronRight size={13}/><span>Notes</span>{selected && <><ChevronRight size={13}/><strong>{selected.title}</strong></>}</div>
         <div className="notes-top-actions">
           <span className={`notes-save-state ${saveState}`}>{saveState === "saving" ? "Saving..." : saveState === "error" ? "Couldn't save" : saveState === "unsaved" ? "Unsaved changes" : "Saved"}</span>
-          {selected && <><button className={`notes-icon-action ${selected.favorite ? "favorited" : ""}`} title="Toggle favorite" onClick={() => void toggleFavorite(selected)}><Heart size={16}/></button><button className="notes-icon-action" title="Archive page" onClick={() => void archiveNote()}><Archive size={16}/></button><button className="notes-icon-action danger" title="Delete page" onClick={() => void deleteNote()}><Trash2 size={16}/></button></>}
+          {selected && <><button className={`notes-icon-action ${selected.favorite ? "favorited" : ""}`} title="Toggle favorite" onClick={() => void toggleFavorite(selected)}><Heart size={16}/></button><button className="notes-icon-action" title={showArchived ? "Restore page" : "Archive page"} onClick={() => void archiveNote()}><Archive size={16}/></button><button className="notes-icon-action danger" title="Delete page" onClick={() => void deleteNote()}><Trash2 size={16}/></button></>}
         </div>
       </header>
 
