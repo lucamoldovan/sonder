@@ -39,6 +39,12 @@ export default function App() {
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [calendarRangeEvents, setCalendarRangeEvents] = useState<CalendarEventRecord[]>([]);
   const [eventDraftTitle, setEventDraftTitle] = useState("");
+  const [eventEditingId, setEventEditingId] = useState<string | null>(null);
+  const [eventEditTitle, setEventEditTitle] = useState("");
+  const [eventEditDate, setEventEditDate] = useState("");
+  const [eventEditStart, setEventEditStart] = useState("09:00");
+  const [eventEditEnd, setEventEditEnd] = useState("10:00");
+  const [eventEditAllDay, setEventEditAllDay] = useState(false);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [lifeAreas, setLifeAreas] = useState<LifeAreaRecord[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
@@ -590,6 +596,34 @@ export default function App() {
     next.setDate(next.getDate() + direction);
     setScheduleDate([next.getFullYear(),String(next.getMonth()+1).padStart(2,"0"),String(next.getDate()).padStart(2,"0")].join("-"));
   };
+  function openEventEditor(event: CalendarEventRecord) {
+    const start = new Date(event.startsAt);
+    const end = event.endsAt ? new Date(event.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+    const timeValue = (date: Date) => String(date.getHours()).padStart(2,"0") + ":" + String(date.getMinutes()).padStart(2,"0");
+    setEventEditingId(event.id);
+    setEventEditTitle(event.title);
+    setEventEditDate(localDateKey(event.startsAt));
+    setEventEditStart(timeValue(start));
+    setEventEditEnd(timeValue(end));
+    setEventEditAllDay(event.allDay);
+  }
+
+  async function saveEventEditor() {
+    if (!eventEditingId || !eventEditTitle.trim()) return;
+    try {
+      const startsAt = new Date(eventEditDate + (eventEditAllDay ? "T00:00:00" : "T" + eventEditStart + ":00")).toISOString();
+      const endsAt = new Date(eventEditDate + (eventEditAllDay ? "T23:59:59" : "T" + eventEditEnd + ":00")).toISOString();
+      if (new Date(endsAt) <= new Date(startsAt)) { setError("The event end must be after its start."); return; }
+      const result = await apiRequest<{data:CalendarEventRecord}>("/calendar/" + eventEditingId, {
+        method:"PATCH",
+        body:JSON.stringify({title:eventEditTitle.trim(),startsAt,endsAt,allDay:eventEditAllDay})
+      });
+      setEvents(current=>current.map(item=>item.id===eventEditingId?result.data:item));
+      setCalendarRangeEvents(current=>current.map(item=>item.id===eventEditingId?result.data:item));
+      setEventEditingId(null);
+    } catch(cause) { setError(cause instanceof Error?cause.message:"Couldn't update the event."); }
+  }
+
   const createCalendarEvent = async () => {
     if (!eventDraftTitle.trim()) return;
     try {
@@ -715,7 +749,7 @@ export default function App() {
           <View style={styles.mobileCalendarHeading}><TouchableOpacity onPress={()=>moveCalendarDay(-1)}><Text style={styles.link}>‹</Text></TouchableOpacity><View style={styles.taskCopy}><Text style={styles.mobileCalendarDate}>{selectedCalendarDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</Text><TouchableOpacity onPress={()=>setScheduleDate(todayKey)}><Text style={styles.link}>Today</Text></TouchableOpacity></View><TouchableOpacity onPress={()=>moveCalendarDay(1)}><Text style={styles.link}>›</Text></TouchableOpacity></View>
           <TextInput style={styles.mobileInlineInput} value={scheduleDate} onChangeText={setScheduleDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/>
           <Text style={styles.sectionTitle}>Your agenda</Text>
-          {selectedCalendarEvents.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{event.allDay?"All day":new Date(event.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})+(event.endsAt?" – "+new Date(event.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}):"")}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/calendar/"+event.id,{method:"DELETE"});setCalendarRangeEvents(current=>current.filter(item=>item.id!==event.id));setEvents(current=>current.filter(item=>item.id!==event.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't delete the event.");}}}><Text style={styles.link}>Delete</Text></TouchableOpacity></View>)}
+          {selectedCalendarEvents.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{event.allDay?"All day":new Date(event.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})+(event.endsAt?" – "+new Date(event.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}):"")}</Text></View><View style={styles.mobileEventActions}><TouchableOpacity onPress={()=>openEventEditor(event)}><Text style={styles.link}>Edit</Text></TouchableOpacity><TouchableOpacity onPress={async()=>{try{await apiRequest("/calendar/"+event.id,{method:"DELETE"});setCalendarRangeEvents(current=>current.filter(item=>item.id!==event.id));setEvents(current=>current.filter(item=>item.id!==event.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't delete the event.");}}}><Text style={styles.archiveLink}>Delete</Text></TouchableOpacity></View></View>)}
           {selectedCalendarBlocks.map(block=><View key={block.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{tasks.find(task=>task.id===block.taskId)?.title||"Scheduled task"}</Text><Text style={styles.taskMeta}>{new Date(block.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})} – {new Date(block.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't remove block.");}}}><Text style={styles.link}>Remove</Text></TouchableOpacity></View>)}
           {selectedCalendarTasks.map(task=><View key={task.id} style={styles.taskRow}><View style={styles.taskCircle}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.taskMeta}>Due today</Text></View></View>)}
           {selectedCalendarEvents.length+selectedCalendarBlocks.length+selectedCalendarTasks.length===0&&<Text style={styles.muted}>Nothing planned for this day. Leave it open, or add something below.</Text>}
@@ -754,6 +788,18 @@ export default function App() {
           <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
         </TouchableOpacity>)}
       </View>
+      <Modal visible={eventEditingId !== null} transparent animationType="fade" onRequestClose={() => setEventEditingId(null)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>CALENDAR EVENT</Text><Text style={styles.mobileCaptureTitle}>Edit event</Text></View><TouchableOpacity onPress={() => setEventEditingId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <TextInput style={styles.mobileCaptureInput} value={eventEditTitle} onChangeText={setEventEditTitle} placeholder="Event title" placeholderTextColor={colors.muted}/>
+            <TextInput style={styles.mobileCaptureInput} value={eventEditDate} onChangeText={setEventEditDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/>
+            <TouchableOpacity style={styles.mobileAllDayToggle} onPress={()=>setEventEditAllDay(current=>!current)}><View style={[styles.taskCircle,eventEditAllDay&&styles.taskCircleDone]}/><Text style={styles.taskMeta}>All-day event</Text></TouchableOpacity>
+            {!eventEditAllDay&&<View style={styles.mobileTimeRow}><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={eventEditStart} onChangeText={setEventEditStart} placeholder="09:00" placeholderTextColor={colors.muted}/><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={eventEditEnd} onChangeText={setEventEditEnd} placeholder="10:00" placeholderTextColor={colors.muted}/></View>}
+            <TouchableOpacity style={styles.mobileCaptureSave} onPress={()=>void saveEventEditor()} disabled={!eventEditTitle.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <Modal visible={lifeAreaEditId !== null} transparent animationType="fade" onRequestClose={() => setLifeAreaEditId(null)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -856,6 +902,8 @@ const styles = StyleSheet.create({
   mobileAreaColor: { width: 27, height: 27, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
   mobileAreaColorSelected: { borderColor: colors.text, transform: [{scale:1.08}] },
   mobileAreaPicker: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  mobileEventActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  mobileAllDayToggle: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7 },
   mobileCalendarHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileCalendarDate: { color: colors.text, fontSize: 16, fontWeight: "600", textAlign: "center" },
   mobileTaskPriorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
