@@ -685,3 +685,127 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   line-height:1;
 }
 @media(max-width:760px){.brand-name{font-size:21px}}
+
+
+/* Global Quick Add — compact, calm, and available from every workspace view. */
+.quick-task-fab{
+  position:fixed;right:28px;bottom:28px;z-index:75;width:58px;height:58px;
+  display:grid;place-items:center;border:1px solid rgba(255,255,255,.78);border-radius:50%;
+  background:rgba(245,245,247,.96);color:#090A0B;
+  box-shadow:0 9px 32px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.9);
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.quick-task-fab:hover{transform:translateY(-3px);background:#fff;box-shadow:0 13px 38px rgba(0,0,0,.46),inset 0 1px 0 #fff}
+.quick-task-fab:active{transform:scale(.94)}
+.quick-task-overlay{
+  position:fixed;inset:0;z-index:110;display:flex;align-items:flex-end;justify-content:flex-end;
+  padding:24px 28px 102px;background:rgba(0,0,0,.24);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+}
+.quick-task-popover{
+  width:min(440px,calc(100vw - 32px));max-height:min(760px,calc(100dvh - 126px));
+  overflow-y:auto;overscroll-behavior:contain;display:grid;gap:14px;padding:19px;
+  border:1px solid rgba(255,255,255,.16);border-radius:22px;
+  background:rgba(26,28,32,.96);color:#F7F7F8;
+  box-shadow:0 28px 90px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.055);
+  backdrop-filter:blur(30px) saturate(145%);-webkit-backdrop-filter:blur(30px) saturate(145%);
+  animation:quick-task-in .2s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes quick-task-in{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.quick-task-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.quick-task-heading h2{margin:5px 0 0;font-size:21px;letter-spacing:-.7px;font-weight:650}
+.quick-task-heading .icon-button{width:30px;height:30px;color:#a5a7af}
+.quick-task-title-input{
+  width:100%;height:52px;padding:0 2px;border:0;border-bottom:1px solid rgba(255,255,255,.13);
+  border-radius:0;background:transparent;color:#F7F7F8;font-size:17px;font-weight:550;letter-spacing:-.25px;
+  outline:0!important;
+}
+.quick-task-title-input::placeholder{color:#777b84;font-weight:450}
+.quick-task-title-input:focus{border-bottom-color:rgba(255,255,255,.55)}
+.quick-task-date-stack{display:grid;gap:8px}
+.task-date-field{display:grid;gap:8px;min-width:0}
+.task-date-trigger{
+  width:100%;min-height:57px;display:flex;align-items:center;gap:11px;padding:9px 11px;
+  border:1px solid rgba(255,255,255,.085);border-radius:13px;background:rgba(255,255,255,.035);
+  color:#F4F4F5;text-align:left;transition:background .16s,border-color .16s;
+}
+.task-date-trigger:hover,.task-date-trigger.is-open{background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.19)}
+.task-date-symbol{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.075);color:#E4E4E7}
+.task-date-copy{display:grid;gap:4px;min-width:0;flex:1}
+.task-date-copy strong{font-size:11px;font-weight:600;color:#EDEEF0}
+.task-date-copy small{font-size:10px;color:#9699A2}
+.task-date-chevron{color:#858892;transition:transform .16s}
+.task-date-chevron.is-open{transform:rotate(180deg)}
+.task-date-panel{
+  display:grid;gap:11px;padding:12px;border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;background:#14161A;box-shadow:0 12px 32px rgba(0,0,0,.22);
+  animation:quick-task-in .16s ease;
+}
+.task-date-quick-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.task-date-quick-actions button{
+  height:27px;padding:0 9px;border:1px solid rgba(255,255,255,.1);border-radius:8px;
+  background:rgba(255,255,255,.045);color:#D4D4D8;font-size:9px;
+}
+.task-date-quick-actions button:hover{background:rgba(255,255,255,.11);color:#fff}
+.task-date-quick-actions .task-date-clear{margin-left:auto;color:#A1A1AA}
+.task-date-calendar-heading{display:flex;align-items:center;justify-content:space-between}
+.task-date-calendar-heading strong{font-size:11px;font-weight:600;color:#F4F4F5}
+.task-date-calendar-heading>span{display:flex;gap:4px}
+.task-date-calendar-heading button{width:27px;height:27px;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;color:#A1A1AA}
+.task-date-calendar-heading button:hover{background:rgba(255,255,255,.09);color:#fff}
+.task-date-weekdays,.task-date-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.task-date-weekdays span{height:21px;display:grid;place-items:center;color:#777D86;font-size:9px;font-weight:600}
+.task-date-grid button{
+  aspect-ratio:1;min-width:0;display:grid;place-items:center;border:0;border-radius:50%;
+  background:transparent;color:#D4D4D8;font-size:10px;font-variant-numeric:tabular-nums;
+}
+.task-date-grid button:hover{background:rgba(255,255,255,.1);color:#fff}
+.task-date-grid button.outside-month{color:#555B64}
+.task-date-grid button.today:not(.selected){box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
+.task-date-grid button.selected{background:#F5F5F7;color:#090A0B;font-weight:700}
+.task-date-time-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.08)}
+.task-date-time-row label{display:flex;align-items:center;gap:7px;color:#B7BAC2;font-size:10px}
+.task-date-time-row input[type="checkbox"]{accent-color:#F5F5F7}
+.task-date-time-row input[type="time"]{height:31px;padding:0 8px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#202329;color:#F5F5F7;font-size:10px}
+.quick-task-meta-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick-task-choice{min-width:0;height:42px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.035);color:#A1A1AA}
+.quick-task-choice>span{font-size:10px;white-space:nowrap}
+.quick-task-choice select{min-width:0;flex:1;width:100%;border:0;outline:0;background:transparent;color:#E4E4E7;font-size:10px;text-align:right}
+.quick-task-choice select option{background:#1b1d22;color:#F5F5F7}
+.quick-task-advanced{display:grid;gap:12px;padding-top:13px;border-top:1px solid rgba(255,255,255,.09)}
+.quick-task-advanced .form-label{display:grid;gap:7px}
+.quick-task-advanced .form-label input,.quick-task-advanced .form-label textarea,.quick-task-advanced .form-label select{
+  width:100%;background:#17191D;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F5F7;
+}
+.quick-task-advanced .form-label input,.quick-task-advanced .form-label select{height:38px;padding:0 10px}
+.quick-task-advanced .form-label textarea{min-height:76px;padding:10px;resize:vertical}
+.quick-task-advanced .form-grid{gap:10px}
+.quick-task-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:13px;border-top:1px solid rgba(255,255,255,.1)}
+.quick-task-more{display:flex;align-items:center;gap:6px;border:0;background:transparent;color:#A1A1AA;font-size:10px;padding:7px 0}
+.quick-task-more:hover{color:#F5F5F7}
+.quick-task-more svg{transition:transform .16s}
+.quick-task-more svg.is-rotated{transform:rotate(180deg)}
+.quick-task-actions{display:flex;align-items:center;gap:7px}
+.quick-task-actions .secondary-button{height:36px;font-size:10px}
+.quick-task-actions .primary-button{height:36px;padding:0 12px;font-size:10px;gap:7px}
+.quick-task-actions button:disabled{opacity:.48;cursor:not-allowed;transform:none}
+.scheduled-tag{display:inline-flex;align-items:center;gap:4px;color:#A1A1AA;font-size:9px}
+.agenda-task-scheduled{position:relative;z-index:3;margin:2px;padding:4px 5px;border-radius:4px;background:rgba(255,255,255,.08);color:#E4E4E7;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agenda-task-scheduled svg{vertical-align:-2px;margin-right:3px}
+.agenda-task-deadline svg{vertical-align:-2px;margin-right:3px}
+.task-calendar-scheduled{background:rgba(255,255,255,.1)!important;border-left-color:#F5F5F7!important;color:#F4F4F5!important}
+.calendar-legend .legend-scheduled{background:#F5F5F7}
+.today-agenda-marker.task-marker{background:#F5F5F7;box-shadow:0 0 10px rgba(255,255,255,.2)}
+@media(max-width:600px){
+  .quick-task-fab{right:17px;bottom:18px;width:54px;height:54px}
+  .quick-task-overlay{padding:12px 12px 84px;align-items:flex-end}
+  .quick-task-popover{width:100%;max-height:calc(100dvh - 104px);padding:16px;border-radius:19px}
+  .quick-task-heading h2{font-size:19px}
+  .quick-task-title-input{font-size:16px}
+  .quick-task-choice{gap:6px;padding:0 8px}
+  .quick-task-choice>span{display:none}
+  .quick-task-choice select{text-align:left}
+}
+@media(prefers-reduced-motion:reduce){
+  .quick-task-fab,.quick-task-popover,.task-date-panel,.task-date-chevron,.task-date-grid button{animation:none;transition:none}
+}
