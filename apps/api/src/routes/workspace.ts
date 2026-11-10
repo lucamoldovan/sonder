@@ -11,7 +11,8 @@ workspaceRoutes.get("/dashboard", async (c) => {
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const db = c.get("db");
   const now = new Date();
-  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Include the user's local day even when their timezone differs from the Worker timezone.
+  const dayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   weekStart.setHours(0, 0, 0, 0);
