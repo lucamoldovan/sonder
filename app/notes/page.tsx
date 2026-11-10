@@ -83,8 +83,10 @@ export default function NotesPage() {
   }, []);
 
   useEffect(() => {
+    if (isPending) return;
     if (session?.user?.id) void load();
-  }, [session?.user?.id, load]);
+    else setLoading(false);
+  }, [isPending, session?.user?.id, load]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
