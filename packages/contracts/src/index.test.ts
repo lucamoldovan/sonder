@@ -45,6 +45,30 @@ describe("shared request contracts", () => {
     expect(UpdateTaskSchema.parse({ priority: "high" })).toEqual({ priority: "high" });
   });
 
+  test("validates connected goals, subtasks, reminders and recurring tasks", () => {
+    const goalId = "00000000-0000-4000-8000-000000000001";
+    const parentTaskId = "00000000-0000-4000-8000-000000000002";
+    expect(CreateTaskSchema.parse({
+      title: "Weekly review",
+      goalId,
+      parentTaskId,
+      reminderAt: "2026-11-12T08:00:00.000Z",
+      recurrenceFrequency: "weekly",
+      recurrenceInterval: 2,
+      recurrenceUntil: "2026-12-31"
+    })).toMatchObject({
+      goalId,
+      parentTaskId,
+      recurrenceFrequency: "weekly",
+      recurrenceInterval: 2,
+      recurrenceUntil: "2026-12-31"
+    });
+    expect(CreateTaskSchema.safeParse({ title: "Bad recurrence", recurrenceFrequency: "yearly" }).success).toBe(false);
+    expect(CreateTaskSchema.safeParse({ title: "Bad interval", recurrenceInterval: 0 }).success).toBe(false);
+    expect(CreateProjectSchema.safeParse({ name: "Goal project", goalId }).success).toBe(true);
+    expect(CreateHabitSchema.safeParse({ name: "Read", goalId }).success).toBe(true);
+  });
+
   test("validates life area colors", () => {
     expect(CreateLifeAreaSchema.safeParse({ name: "School", color: "#A78BFA" }).success).toBe(true);
     expect(CreateLifeAreaSchema.safeParse({ name: "School", color: "lavender" }).success).toBe(false);
