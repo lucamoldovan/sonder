@@ -408,6 +408,22 @@ export default function Home() {
     }
   }
 
+  async function moveTimeBlock(id: string, date: Date, hour: number) {
+    const block = timeBlocks.find(item => item.id === id);
+    if (!block) return;
+    const startsAt = new Date(date);
+    startsAt.setHours(hour, 0, 0, 0);
+    const duration = new Date(block.endsAt).getTime() - new Date(block.startsAt).getTime();
+    const endsAt = new Date(startsAt.getTime() + duration);
+    try {
+      const result = await apiRequest<ApiList<ApiTimeBlock> & { conflicts?: { id: string }[] }>("/time-blocks/" + id, {
+        method: "PATCH", body: JSON.stringify({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() })
+      });
+      setTimeBlocks(current => current.map(item => item.id === id ? result.data : item).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));
+      setNotice(result.conflicts?.length ? "Work block moved. It overlaps another block." : "Work block moved.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not move the work block."); }
+  }
+
   async function createTimeBlock(event: FormEvent) {
     event.preventDefault();
     if (!scheduleTask || !scheduleDate) return;
@@ -734,7 +750,7 @@ export default function Home() {
                   <div className="agenda-all-day"><div className="agenda-time-label">all-day</div>{visibleDays.map(date => <div className="agenda-all-day-cell" key={calendarDateKey(date)}>{eventsFor(date).filter(item => item.allDay).map(item => <button key={item.id} className="agenda-event all-day-event" onClick={() => openEditEvent(item)}>{item.title}</button>)}</div>)}</div>
                   <div className="agenda-scroll"><div className="agenda-time-column">{Array.from({length:17},(_,index)=>index+6).map(hour=><div key={hour} className="agenda-hour-label">{String(hour).padStart(2,"0")}:00</div>)}</div>
                     <div className="agenda-days">{visibleDays.map(date => <div className="agenda-day-column" key={calendarDateKey(date)}>
-                      {Array.from({length:17},(_,index)=><button key={index} className="agenda-hour-cell" onClick={() => { setCalendarDate(date); setEventDate(calendarDateKey(date)); setEventTime(String(index+6).padStart(2,"0")+":00"); setEventEndTime(String(index+7).padStart(2,"0")+":00"); setEventAllDay(false); setEventEditingId(null); setEventTitle(""); setEventDescription(""); setEventLocation(""); setEventArea(""); setEventProject(""); setEventOpen(true); }} aria-label={`Create event at ${index+6}:00`}/>)}
+                      {Array.from({length:17},(_,index)=><button key={index} className="agenda-hour-cell" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const id=event.dataTransfer.getData("text/time-block-id");if(id)void moveTimeBlock(id,date,index+6);}} onClick={() => { setCalendarDate(date); setEventDate(calendarDateKey(date)); setEventTime(String(index+6).padStart(2,"0")+":00"); setEventEndTime(String(index+7).padStart(2,"0")+":00"); setEventAllDay(false); setEventEditingId(null); setEventTitle(""); setEventDescription(""); setEventLocation(""); setEventArea(""); setEventProject(""); setEventOpen(true); }} aria-label={`Create event at ${index+6}:00`}/>)}
                       {eventsFor(date).filter(item => !item.allDay).map(item => {
                         const start = new Date(item.startsAt);
                         const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime()+60*60*1000);
@@ -748,7 +764,7 @@ export default function Home() {
                         const start = new Date(block.startsAt), end = new Date(block.endsAt);
                         const top = Math.max(0, (start.getHours()-6)*56 + start.getMinutes()/60*56);
                         const height = Math.max(28, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
-                        return <button key={block.id} className="agenda-event timed-agenda-event time-block-event" style={{top,height}} title="Scheduled work block" onClick={async()=>{if(window.confirm("Remove this scheduled block?")){try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not remove time block.");}}}}><strong>{task?.title || "Scheduled task"}</strong><span>{formatEventTime(block.startsAt)} – {formatEventTime(block.endsAt)} · work block</span></button>;
+                        return <button key={block.id} draggable onDragStart={event=>event.dataTransfer.setData("text/time-block-id",block.id)} className="agenda-event timed-agenda-event time-block-event" style={{top,height}} title="Drag to another hour to reschedule · click to remove" onClick={async()=>{if(window.confirm("Remove this scheduled block?")){try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not remove time block.");}}}}><strong>{task?.title || "Scheduled task"}</strong><span>{formatEventTime(block.startsAt)} – {formatEventTime(block.endsAt)} · work block</span></button>;
                       })}
                     </div>)}</div>
                   </div>
