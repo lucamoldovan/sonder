@@ -63,7 +63,8 @@ function nextOccurrence(task: typeof tasks.$inferSelect) {
   const reminderAt = task.reminderAt && task.dueAt
     ? new Date(next.getTime() - (task.dueAt.getTime() - task.reminderAt.getTime()))
     : null;
-  return { dueAt: next, reminderAt };
+  const scheduledAt = task.scheduledAt ? new Date(task.scheduledAt.getTime() + (next.getTime() - task.dueAt.getTime())) : null;
+  return { dueAt: next, dueHasTime: task.dueHasTime, reminderAt, scheduledAt, scheduledHasTime: task.scheduledHasTime };
 }
 
 taskRoutes.get("/", async (c) => {
@@ -82,6 +83,7 @@ taskRoutes.post("/", async (c) => {
   const relationError = await validateRelations(db, user.id, parsed.data);
   if (relationError) return c.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
   const data = parsed.data;
+  if (data.recurrenceFrequency && !data.dueAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "Recurring tasks need a due date." } }, 400);
   const created = await db.transaction(async (tx) => {
     const [task] = await tx.insert(tasks).values({
       userId: user.id,
@@ -93,7 +95,10 @@ taskRoutes.post("/", async (c) => {
       parentTaskId: data.parentTaskId ?? null,
       status: data.status,
       priority: data.priority,
+      scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
+      scheduledHasTime: Boolean(data.scheduledAt && data.scheduledHasTime),
       dueAt: data.dueAt ? new Date(data.dueAt) : null,
+      dueHasTime: Boolean(data.dueAt && data.dueHasTime),
       reminderAt: data.reminderAt ? new Date(data.reminderAt) : null,
       recurrenceFrequency: data.recurrenceFrequency ?? null,
       recurrenceInterval: data.recurrenceInterval ?? 1,
@@ -118,10 +123,8 @@ taskRoutes.post("/", async (c) => {
         summary: `Added task “${task.title}”.`
       });
     }
-
     return task;
   });
-
   return c.json({ data: created }, 201);
 });
 
@@ -189,6 +192,14 @@ taskRoutes.patch("/:id", async (c) => {
   const [existing] = await db.select().from(tasks).where(and(eq(tasks.id, id.data), eq(tasks.userId, user.id))).limit(1);
   if (!existing) return c.json({ error: { code: "NOT_FOUND", message: "Task not found." } }, 404);
   const data = parsed.data;
+  const effectiveRecurrence = data.recurrenceFrequency === undefined ? existing.recurrenceFrequency : data.recurrenceFrequency;
+  const effectiveScheduledAt = data.scheduledAt === undefined ? existing.scheduledAt : data.scheduledAt ? new Date(data.scheduledAt) : null;
+  const effectiveDueAt = data.dueAt === undefined ? existing.dueAt : data.dueAt ? new Date(data.dueAt) : null;
+  const effectiveScheduledHasTime = data.scheduledHasTime ?? (data.scheduledAt === undefined ? existing.scheduledHasTime : false);
+  const effectiveDueHasTime = data.dueHasTime ?? (data.dueAt === undefined ? existing.dueHasTime : false);
+  if (effectiveRecurrence && !effectiveDueAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "Recurring tasks need a due date." } }, 400);
+  if (effectiveScheduledHasTime && !effectiveScheduledAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "A scheduled time needs a scheduled date." } }, 400);
+  if (effectiveDueHasTime && !effectiveDueAt) return c.json({ error: { code: "VALIDATION_ERROR", message: "A due time needs a due date." } }, 400);
   const updates: Partial<typeof tasks.$inferInsert> = { updatedAt: new Date() };
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
@@ -198,7 +209,14 @@ taskRoutes.patch("/:id", async (c) => {
   if (data.parentTaskId !== undefined) updates.parentTaskId = data.parentTaskId;
   if (data.status !== undefined) updates.status = data.status;
   if (data.priority !== undefined) updates.priority = data.priority;
-  if (data.dueAt !== undefined) updates.dueAt = data.dueAt ? new Date(data.dueAt) : null;
+  if (data.scheduledAt !== undefined) {
+    updates.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
+    updates.scheduledHasTime = Boolean(data.scheduledAt && data.scheduledHasTime);
+  } else if (data.scheduledHasTime !== undefined) updates.scheduledHasTime = data.scheduledHasTime;
+  if (data.dueAt !== undefined) {
+    updates.dueAt = data.dueAt ? new Date(data.dueAt) : null;
+    updates.dueHasTime = Boolean(data.dueAt && data.dueHasTime);
+  } else if (data.dueHasTime !== undefined) updates.dueHasTime = data.dueHasTime;
   if (data.reminderAt !== undefined) updates.reminderAt = data.reminderAt ? new Date(data.reminderAt) : null;
   if (data.recurrenceFrequency !== undefined) updates.recurrenceFrequency = data.recurrenceFrequency;
   if (data.recurrenceInterval !== undefined) updates.recurrenceInterval = data.recurrenceInterval;
@@ -222,7 +240,10 @@ taskRoutes.patch("/:id", async (c) => {
         parentTaskId: updated.parentTaskId,
         status: "todo",
         priority: updated.priority,
+        scheduledAt: next.scheduledAt,
+        scheduledHasTime: next.scheduledHasTime,
         dueAt: next.dueAt,
+        dueHasTime: next.dueHasTime,
         reminderAt: next.reminderAt,
         recurrenceFrequency: updated.recurrenceFrequency,
         recurrenceInterval: updated.recurrenceInterval,
