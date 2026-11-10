@@ -10,10 +10,19 @@ This roadmap prioritizes user value and dependency order. It is intentionally se
 - [x] Redesign Today around agenda, next actions, quick capture, and relevant context
 - [x] Load calendar data for the currently visible month/week/day range
 - [x] Include earlier events from the current day in dashboard data
+- [x] Make quick capture globally available on desktop and mobile
+- [x] Replace mobile top tabs with persistent four-destination bottom navigation
+- [x] Add a mobile day agenda with date navigation, event creation/deletion, and work-block scheduling
+- [x] Add global mobile search across tasks, projects, goals, habits, events, and notes
+- [x] Add task editing and status filters on desktop and mobile
+- [x] Add project creation, editing, archive/restore, and linked-task workflows
+- [x] Add goal editing and honest empty-progress states
+- [x] Add mobile habit creation/archiving and preserve reversible weekly check-ins
+- [x] Add mobile note editing and life-area creation/editing
 - [ ] Review Today on narrow mobile and desktop breakpoints
 - [ ] Verify event/time-block ordering and duplicate handling
 - [ ] Verify calendar navigation across past and future periods
-- [ ] Run typecheck, tests, lint, web build, and Cloudflare build in a local CI-capable environment
+- [ ] Run the complete GitHub Actions quality gate on the final branch head
 - [ ] Complete accessibility and interaction review
 
 ## Milestone B — Make existing modules feel like one product
@@ -21,9 +30,9 @@ This roadmap prioritizes user value and dependency order. It is intentionally se
 - [x] Simplify navigation to Today, Calendar, Organize, and Notes without removing module capability
 - [x] Make Organize a clear home for Inbox, Tasks, Projects, Goals, Habits, and Life Areas
 - [ ] Ensure project, goal, task, habit, event, and note relationships are visible where useful
-- [ ] Improve project editing, archiving, milestones, and linked-work management
-- [ ] Improve task filters, saved views, and recurrence edge cases
-- [ ] Ensure note linking/backlinks are understandable and reliable
+- [ ] Add project milestones and richer linked-work management
+- [ ] Add saved task views and verify recurrence edge cases
+- [x] Ensure note linking/backlinks are understandable and reliable
 - [ ] Standardize loading, empty, error, retry, and success states
 - [ ] Review mobile parity and touch interactions
 
