@@ -297,7 +297,7 @@ export default function App() {
           <View style={styles.authCard}>
             <Text style={styles.kicker}>YOUR SPACE, YOUR PACE</Text>
             <Text style={styles.heading}>{mode === "signup" ? "Create your space." : "Welcome back."}</Text>
-            <Text style={styles.muted}>A calm place for everything you're carrying.</Text>
+            <Text style={styles.muted}>A calm place for everything you&apos;re carrying.</Text>
             {mode === "signup" && <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={colors.muted} value={name} onChangeText={setName} autoComplete="name" />}
             <TextInput style={styles.input} placeholder="Email address" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <TextInput style={styles.input} placeholder="Password (8+ characters)" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === "signup" ? "new-password" : "current-password"} />
