@@ -37,6 +37,8 @@ export default function App() {
   const [habits, setHabits] = useState<HabitRecord[]>([]);
   const [habitEntries, setHabitEntries] = useState<HabitEntryRecord[]>([]);
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
+  const [calendarRangeEvents, setCalendarRangeEvents] = useState<CalendarEventRecord[]>([]);
+  const [eventDraftTitle, setEventDraftTitle] = useState("");
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [lifeAreas, setLifeAreas] = useState<LifeAreaRecord[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
@@ -126,6 +128,17 @@ export default function App() {
     }
     void loadData();
   }, [session?.user?.id, loadData]);
+
+  useEffect(() => {
+    if (tab !== "calendar" || !scheduleDate) return;
+    let active = true;
+    const from = new Date(scheduleDate + "T00:00:00");
+    const to = new Date(scheduleDate + "T23:59:59.999");
+    void apiRequest<List<CalendarEventRecord[]>>("/calendar?from=" + encodeURIComponent(from.toISOString()) + "&to=" + encodeURIComponent(to.toISOString()))
+      .then(result => { if (active) setCalendarRangeEvents(result.data); })
+      .catch(cause => { if (active) setError(cause instanceof Error ? cause.message : "Couldn't load this day."); });
+    return () => { active = false; };
+  }, [tab, scheduleDate]);
 
   async function submitAuth() {
     setAuthBusy(true);
@@ -478,6 +491,30 @@ export default function App() {
   const weekStartDate = new Date(todayDate);
   weekStartDate.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
   const weekStartKey = [weekStartDate.getFullYear(), String(weekStartDate.getMonth() + 1).padStart(2, "0"), String(weekStartDate.getDate()).padStart(2, "0")].join("-");
+  const selectedCalendarDate = new Date(scheduleDate + "T12:00:00");
+  const selectedCalendarEvents = calendarRangeEvents.filter(event => localDateKey(event.startsAt) === scheduleDate).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const selectedCalendarBlocks = timeBlocks.filter(block => localDateKey(block.startsAt) === scheduleDate).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const selectedCalendarTasks = tasks.filter(task => task.dueAt && localDateKey(task.dueAt) === scheduleDate && task.status !== "done" && task.status !== "cancelled");
+  const moveCalendarDay = (direction: number) => {
+    const next = new Date(scheduleDate + "T12:00:00");
+    next.setDate(next.getDate() + direction);
+    setScheduleDate([next.getFullYear(),String(next.getMonth()+1).padStart(2,"0"),String(next.getDate()).padStart(2,"0")].join("-"));
+  };
+  const createCalendarEvent = async () => {
+    if (!eventDraftTitle.trim()) return;
+    try {
+      const startsAt = new Date(scheduleDate + "T" + scheduleStart + ":00").toISOString();
+      const endsAt = new Date(scheduleDate + "T" + scheduleEnd + ":00").toISOString();
+      if (new Date(endsAt) <= new Date(startsAt)) { setError("The event end must be after its start."); return; }
+      const result = await apiRequest<{data:CalendarEventRecord}>("/calendar", {
+        method:"POST",
+        body:JSON.stringify({title:eventDraftTitle.trim(),startsAt,endsAt,allDay:false})
+      });
+      setEvents(current=>[...current.filter(item=>item.id!==result.data.id),result.data]);
+      setCalendarRangeEvents(current=>[...current.filter(item=>item.id!==result.data.id),result.data]);
+      setEventDraftTitle("");
+    } catch(cause) { setError(cause instanceof Error?cause.message:"Couldn't create the event."); }
+  };
   const todayEvents = events.filter(event => localDateKey(event.startsAt) === todayKey).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
   const todayBlocks = timeBlocks.filter(block => localDateKey(block.startsAt) === todayKey).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
   const todayAgendaItems = [
@@ -584,7 +621,21 @@ export default function App() {
         {tab === "organize" && organizeSection === "inbox" && <><Text style={styles.sectionTitle}>Capture now · Organize later</Text><View style={styles.capture}><TextInput style={styles.captureInput} placeholder="Capture a thought…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/><TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity></View>{inbox.map(item=><View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={()=>void convertInboxItem(item)}><Text style={styles.link}>Task</Text></TouchableOpacity><TouchableOpacity onPress={()=>void convertInboxToNote(item)}><Text style={styles.link}>Note</Text></TouchableOpacity><TouchableOpacity onPress={()=>void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}</>}
         {tab === "organize" && organizeSection === "habits" && <><Text style={styles.sectionTitle}>Your habits</Text><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={habitDraftName} onChangeText={setHabitDraftName} placeholder="Add a small practice…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createHabit()}/><TouchableOpacity onPress={() => void createHabit()} disabled={!habitDraftName.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View><View style={styles.mobileTaskPriorityRow}>{(["daily","weekdays","weekly"] as const).map(frequency=><TouchableOpacity key={frequency} style={[styles.mobileTaskPriority,habitDraftFrequency===frequency&&styles.mobileTaskPriorityActive]} onPress={()=>setHabitDraftFrequency(frequency)}><Text style={[styles.mobileTaskPriorityText,habitDraftFrequency===frequency&&styles.mobileTaskFilterTextActive]}>{frequency}</Text></TouchableOpacity>)}</View>{habits.filter(habit=>!habit.archivedAt).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);const history=Array.from({length:28},(_,index)=>{const d=new Date();d.setDate(d.getDate()-(27-index));const key=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");return habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);});return <View key={habit.id} style={styles.mobileHabitRow}><TouchableOpacity style={[styles.taskCircle,checked&&styles.taskCircleDone]} onPress={()=>void checkInHabit(habit)}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text><View style={styles.mobileHeatmap}>{history.map((done,index)=><View key={index} style={[styles.mobileHeatCell,done&&styles.mobileHeatCellDone]}/>)}</View></View><TouchableOpacity onPress={()=>void archiveHabit(habit)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View>;})}</>}
         {tab === "organize" && organizeSection === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={goalDraftTitle} onChangeText={setGoalDraftTitle} placeholder="Add a goal…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createGoal()}/><TouchableOpacity onPress={() => void createGoal()} disabled={!goalDraftTitle.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;const steps=milestones[goal.id]||[];const completed=steps.filter(step=>step.status==="completed").length;const percent=linked.length+steps.length?Math.round((done+completed)/(linked.length+steps.length)*100):0;return <View key={goal.id} style={styles.mobileGoal}><View style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{linked.length+steps.length>0?percent+"% complete · "+done+"/"+linked.length+" tasks · "+completed+"/"+steps.length+" milestones":"No measurable progress yet"}</Text></View><TouchableOpacity onPress={() => openGoalEditor(goal)}><Text style={styles.link}>Edit</Text></TouchableOpacity></View>{steps.map(step=><TouchableOpacity key={step.id} style={styles.mobileMilestone} onPress={()=>void toggleMilestone(goal.id,step)}><View style={[styles.taskCircle,step.status==="completed"&&styles.taskCircleDone]}/><Text style={[styles.taskMeta,step.status==="completed"&&styles.taskDone]}>{step.title}</Text></TouchableOpacity>)}<View style={styles.mobileMilestoneComposer}><TextInput style={styles.mobileInlineInput} placeholder="Add a milestone…" placeholderTextColor={colors.muted} value={milestoneDrafts[goal.id]||""} onChangeText={value=>setMilestoneDrafts(current=>({...current,[goal.id]:value}))}/><TouchableOpacity onPress={()=>void addMilestone(goal.id)}><Text style={styles.link}>Add</Text></TouchableOpacity></View></View>;})}</>}
-        {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text><Text style={styles.taskMeta}>Schedule work without changing a task deadline.</Text><TextInput style={styles.mobileInlineInput} value={scheduleDate} onChangeText={setScheduleDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/><View style={styles.mobileTimeRow}><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleStart} onChangeText={setScheduleStart} placeholder="09:00" placeholderTextColor={colors.muted}/><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleEnd} onChangeText={setScheduleEnd} placeholder="10:00" placeholderTextColor={colors.muted}/></View><Text style={styles.taskMeta}>Choose an open task to schedule it:</Text>{tasks.filter(task=>task.status!=="done"&&task.status!=="cancelled").slice(0,20).map(task=><TouchableOpacity key={task.id} style={styles.mobileScheduleRow} onPress={()=>void scheduleTask(task.id)}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.link}>Schedule</Text></TouchableOpacity>)}{timeBlocks.map(block=><View key={block.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{tasks.find(task=>task.id===block.taskId)?.title||"Scheduled task"}</Text><Text style={styles.taskMeta}>{new Date(block.startsAt).toLocaleString()} – {new Date(block.endsAt).toLocaleTimeString()}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't remove block.");}}}><Text style={styles.link}>Remove</Text></TouchableOpacity></View>) }{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
+        {tab === "calendar" && <>
+          <View style={styles.mobileCalendarHeading}><TouchableOpacity onPress={()=>moveCalendarDay(-1)}><Text style={styles.link}>‹</Text></TouchableOpacity><View style={styles.taskCopy}><Text style={styles.mobileCalendarDate}>{selectedCalendarDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</Text><TouchableOpacity onPress={()=>setScheduleDate(todayKey)}><Text style={styles.link}>Today</Text></TouchableOpacity></View><TouchableOpacity onPress={()=>moveCalendarDay(1)}><Text style={styles.link}>›</Text></TouchableOpacity></View>
+          <TextInput style={styles.mobileInlineInput} value={scheduleDate} onChangeText={setScheduleDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/>
+          <Text style={styles.sectionTitle}>Your agenda</Text>
+          {selectedCalendarEvents.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{event.allDay?"All day":new Date(event.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})+(event.endsAt?" – "+new Date(event.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}):"")}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/calendar/"+event.id,{method:"DELETE"});setCalendarRangeEvents(current=>current.filter(item=>item.id!==event.id));setEvents(current=>current.filter(item=>item.id!==event.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't delete the event.");}}}><Text style={styles.link}>Delete</Text></TouchableOpacity></View>)}
+          {selectedCalendarBlocks.map(block=><View key={block.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{tasks.find(task=>task.id===block.taskId)?.title||"Scheduled task"}</Text><Text style={styles.taskMeta}>{new Date(block.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})} – {new Date(block.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't remove block.");}}}><Text style={styles.link}>Remove</Text></TouchableOpacity></View>)}
+          {selectedCalendarTasks.map(task=><View key={task.id} style={styles.taskRow}><View style={styles.taskCircle}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.taskMeta}>Due today</Text></View></View>)}
+          {selectedCalendarEvents.length+selectedCalendarBlocks.length+selectedCalendarTasks.length===0&&<Text style={styles.muted}>Nothing planned for this day. Leave it open, or add something below.</Text>}
+          <Text style={styles.sectionTitle}>Create an event</Text>
+          <TextInput style={styles.mobileInlineInput} value={eventDraftTitle} onChangeText={setEventDraftTitle} placeholder="Event title…" placeholderTextColor={colors.muted}/>
+          <View style={styles.mobileTimeRow}><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleStart} onChangeText={setScheduleStart} placeholder="09:00" placeholderTextColor={colors.muted}/><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleEnd} onChangeText={setScheduleEnd} placeholder="10:00" placeholderTextColor={colors.muted}/></View>
+          <TouchableOpacity style={styles.mobileCaptureSave} onPress={()=>void createCalendarEvent()} disabled={!eventDraftTitle.trim()}><Text style={styles.captureButtonText}>Add event</Text></TouchableOpacity>
+          <Text style={styles.sectionTitle}>Schedule a task</Text><Text style={styles.taskMeta}>This creates a work block without changing the task deadline.</Text>
+          {tasks.filter(task=>task.status!=="done"&&task.status!=="cancelled").slice(0,20).map(task=><TouchableOpacity key={task.id} style={styles.mobileScheduleRow} onPress={()=>void scheduleTask(task.id)}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.link}>Schedule</Text></TouchableOpacity>)}
+        </>}
         {tab === "organize" && organizeSection === "projects" && <>
           {selectedProjectId ? (() => {
             const project = projects.find(item => item.id === selectedProjectId);
@@ -689,6 +740,8 @@ const styles = StyleSheet.create({
   mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
   mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
   mobileAreaPicker: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  mobileCalendarHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mobileCalendarDate: { color: colors.text, fontSize: 16, fontWeight: "600", textAlign: "center" },
   mobileTaskPriorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   mobileTaskPriority: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
   mobileTaskPriorityActive: { borderColor: "rgba(167,139,250,0.4)", backgroundColor: "rgba(167,139,250,0.12)" },
