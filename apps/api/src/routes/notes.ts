@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, isNull, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateNoteSchema, UpdateNoteSchema, UuidSchema } from "@sonder/contracts";
 import { lifeAreas, notes, projects } from "../db/schema";
@@ -33,7 +33,7 @@ noteRoutes.get("/", async (c) => {
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const query = c.req.query("q")?.trim();
   const archived = c.req.query("archived") === "true";
-  const conditions = [eq(notes.userId, user.id), ...(archived ? [] : [isNull(notes.archivedAt)])];
+  const conditions = [eq(notes.userId, user.id), ...(archived ? [isNotNull(notes.archivedAt)] : [isNull(notes.archivedAt)])];
   const where = query
     ? and(...conditions, or(ilike(notes.title, `%${query}%`), sql`${notes.content}::text ILIKE ${`%${query}%`}`))
     : and(...conditions);
