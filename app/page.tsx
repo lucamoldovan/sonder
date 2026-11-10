@@ -740,12 +740,12 @@ export default function Home() {
     }
   }
 
-  if (sessionPending) return <main className="auth-screen"><div className="brand-lockup"><span className="brand-mark"><span /></span><span>sonder</span></div><p>Opening your space…</p></main>;
+  if (sessionPending) return <main className="auth-screen"><div className="brand-lockup"><span className="brand-wordmark">sonder</span></div><p>Opening your space…</p></main>;
 
   if (!session?.user) return (
     <main className="auth-screen">
       <div className="auth-card">
-        <div className="brand-lockup"><span className="brand-mark"><span /></span><span>sonder</span></div>
+        <div className="brand-lockup"><span className="brand-wordmark">sonder</span></div>
         <div className="eyebrow">YOUR LIFE, IN PERSPECTIVE</div>
         <h1>{authMode === "signup" ? "Make space for what matters." : "Welcome back."}</h1>
         <p className="subheading">A calm place for everything you&apos;re carrying.</p>
@@ -768,7 +768,7 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-brand">
-            <Link className="brand" href="/" aria-label="Sonder home"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></Link>
+            <Link className="brand" href="/" aria-label="Sonder home"><span className="brand-name">sonder</span></Link>
             <nav className="workspace-nav" aria-label="Main navigation">
               <button className={`workspace-nav-item ${view === "Today" ? "active" : ""}`} onClick={() => setView("Today")}><LayoutDashboard size={16} strokeWidth={1.8}/><span>Today</span></button>
               <button className={`workspace-nav-item ${view === "Calendar" ? "active" : ""}`} onClick={() => setView("Calendar")}><CalendarRange size={16} strokeWidth={1.8}/><span>Calendar</span></button>
