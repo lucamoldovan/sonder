@@ -189,6 +189,7 @@ export default function NotesPage() {
   };
 
   const saveDraftForVersion = useCallback(async (noteId: string, version: number) => {
+    setSaveState("saving");
     try {
       const result = await apiRequest<ApiList<ApiNote>>("/notes/" + noteId, {
         method: "PATCH",
@@ -329,7 +330,7 @@ export default function NotesPage() {
         <div className="notes-sidebar-label notes-pages-label">YOUR PAGES <button onClick={() => void createNote()}><Plus size={14}/></button></div>
         <div className="notes-tree">{renderTree(null)}</div>
       </div>
-      <div className="notes-side-bottom"><div className="notes-save-hint"><span className={saveState === "saved" ? "saved-dot" : "saving-dot"}/>{saveState === "saving" ? "Saving changes..." : saveState === "error" ? "Save failed" : "All changes saved"}</div><Link href="/">← Return to workspace</Link></div>
+      <div className="notes-side-bottom"><div className="notes-save-hint"><span className={saveState === "saved" ? "saved-dot" : "saving-dot"}/>{saveState === "saving" ? "Saving changes..." : saveState === "error" ? "Save failed" : saveState === "unsaved" ? "Unsaved changes" : "All changes saved"}</div><Link href="/">← Return to workspace</Link></div>
     </aside>
 
     <section className="notes-editor-area">
