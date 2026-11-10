@@ -1,7 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateLifeAreaSchema, UpdateLifeAreaSchema, UuidSchema } from "@sonder/contracts";
-import type { Database } from "../db";
 import { lifeAreas } from "../db/schema";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";

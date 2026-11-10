@@ -6,7 +6,6 @@ import {
   UpdateInboxItemSchema,
   UuidSchema
 } from "@sonder/contracts";
-import type { Database } from "../db";
 import { activityLog, calendarEvents, inboxItems, notes, tasks } from "../db/schema";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";

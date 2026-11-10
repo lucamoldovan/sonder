@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
+  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers, Pencil,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
 import type { ApiCalendarEvent, ApiGoal, ApiHabit, ApiHabitEntry, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask } from "@/lib/api";
 
-type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "Habits" | "Life Areas";
+type View = "Today" | "Calendar" | "Organize" | "Inbox" | "Tasks" | "Projects" | "Goals" | "Habits" | "Life Areas";
 type Priority = ApiTask["priority"];
 type CommandResult = { id: string; title: string; subtitle: string | null; type: string };
 type ApiNotification = { id: string; title: string; body: string | null; href: string | null; readAt: string | null; createdAt: string };
@@ -71,6 +71,7 @@ export default function Home() {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [habitEntries, setHabitEntries] = useState<ApiHabitEntry[]>([]);
   const [events, setEvents] = useState<ApiCalendarEvent[]>([]);
+  const [calendarRangeEvents, setCalendarRangeEvents] = useState<ApiCalendarEvent[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<ApiTimeBlock[]>([]);
   const [milestones, setMilestones] = useState<Record<string, ApiMilestone[]>>({});
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -96,9 +97,13 @@ export default function Home() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [filterArea, setFilterArea] = useState("all");
+  const [taskFilter, setTaskFilter] = useState<"open" | "completed" | "all">("open");
   const [capture, setCapture] = useState("");
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [taskEditingId, setTaskEditingId] = useState<string | null>(null);
   const [projectOpen, setProjectOpen] = useState(false);
+  const [projectFilter, setProjectFilter] = useState<"active" | "completed" | "archived" | "all">("active");
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -118,6 +123,8 @@ export default function Home() {
   const [taskRepeatUntil, setTaskRepeatUntil] = useState("");
   const [taskReminder, setTaskReminder] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [projectDueDate, setProjectDueDate] = useState("");
   const [projectGoal, setProjectGoal] = useState("");
   const [projectArea, setProjectArea] = useState("");
   const [goalOpen, setGoalOpen] = useState(false);
@@ -125,6 +132,8 @@ export default function Home() {
   const [eventOpen, setEventOpen] = useState(false);
   const [areaOpen, setAreaOpen] = useState(false);
   const [goalTitle, setGoalTitle] = useState("");
+  const [goalDescription, setGoalDescription] = useState("");
+  const [goalEditingId, setGoalEditingId] = useState<string | null>(null);
   const [goalDate, setGoalDate] = useState("");
   const [goalArea, setGoalArea] = useState("");
   const [habitName, setHabitName] = useState("");
@@ -191,7 +200,7 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); }
-      if (event.key === "Escape") setCommandOpen(false);
+      if (event.key === "Escape") { setCommandOpen(false); setCaptureOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -224,7 +233,30 @@ export default function Home() {
     };
   }, [session?.user?.id, loadWorkspace]);
 
+  useEffect(() => {
+    if (view !== "Calendar" || !session?.user?.id) return;
+    let cancelled = false;
+    const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
+    const visibleStart = calendarMode === "month" ? mondayOfWeek(monthStart)
+      : calendarMode === "week" ? mondayOfWeek(calendarDate) : calendarDate;
+    const visibleDays = calendarMode === "month" ? 42 : calendarMode === "week" ? 7 : 1;
+    const from = new Date(visibleStart);
+    from.setHours(0, 0, 0, 0);
+    const to = shiftCalendarDate(visibleStart, visibleDays);
+    to.setHours(23, 59, 59, 999);
+    void apiRequest<ApiList<ApiCalendarEvent[]>>(
+      "/calendar?from=" + encodeURIComponent(from.toISOString()) + "&to=" + encodeURIComponent(to.toISOString())
+    ).then(result => {
+      if (cancelled) return;
+      setCalendarRangeEvents(result.data);
+    }).catch(cause => {
+      if (!cancelled) setError(cause instanceof Error ? cause.message : "Couldn't load this calendar range.");
+    });
+    return () => { cancelled = true; };
+  }, [view, session?.user?.id, calendarDate, calendarMode]);
+
   const today = localDate(new Date().toISOString());
+  const isOrganizeView = view === "Organize" || ["Inbox", "Tasks", "Projects", "Goals", "Habits", "Life Areas"].includes(view);
   const weekStart = mondayOfWeek(new Date());
   const weekStartKey = calendarDateKey(weekStart);
   const completedThisWeek = tasks.filter(task => task.status === "done" && task.completedAt && localDate(task.completedAt) >= weekStartKey).length;
@@ -232,12 +264,43 @@ export default function Home() {
   const openTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
   const dueToday = openTasks.filter(task => task.dueAt && localDate(task.dueAt) === today);
   const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
-  const completed = tasks.filter(task => task.status === "done");
+  const todayEvents = events.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayBlocks = timeBlocks.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayCommitmentCount = todayEvents.length + todayBlocks.length;
+  const todayAgendaItems = [
+    ...todayEvents.map(item => ({ id: item.id, kind: "event" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: item.title, subtitle: item.location, allDay: item.allDay, event: item })),
+    ...todayBlocks.map(item => ({ id: item.id, kind: "block" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: tasks.find(task => task.id === item.taskId)?.title || "Scheduled work", subtitle: null, allDay: false, block: item }))
+  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const currentWeekStart = calendarDateKey(mondayOfWeek(new Date()));
+  const habitsDueToday = habits.filter(habit => {
+    if (habit.archivedAt) return false;
+    if (habit.frequency === "daily") return true;
+    if (habit.frequency === "weekdays") return new Date().getDay() !== 0 && new Date().getDay() !== 6;
+    const completedThisWeek = habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= currentWeekStart).length;
+    const checkedInToday = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === today);
+    return checkedInToday || completedThisWeek < habit.targetPerWeek;
+  });
+  const nextActionTasks = [...openTasks]
+    .filter(task => task.status === "in_progress" || (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
+    .sort((a,b) => {
+      const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
+      const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
+      const dueOrder = (a.dueAt || "9999").localeCompare(b.dueAt || "9999");
+      const priorityOrder = ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority);
+      return aOverdue - bOverdue || dueOrder || priorityOrder;
+    }).slice(0, 5);
   const visibleTasks = useMemo(() => tasks
+    .filter(task => taskFilter === "all" || (taskFilter === "completed" ? task.status === "done" : !["done", "cancelled"].includes(task.status)))
     .filter(task => (filterArea === "all" || task.lifeAreaId === filterArea) && (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
-      (a.dueAt || "9999").localeCompare(b.dueAt || "9999")),
-  [tasks, query, filterArea]);
+    .sort((a, b) => {
+      if (taskFilter === "completed") return (b.completedAt || "").localeCompare(a.completedAt || "");
+      const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
+      const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
+      const dueOrder = (a.dueAt || "9999").localeCompare(b.dueAt || "9999");
+      const priorityOrder = ["urgent", "high", "medium", "low"].indexOf(a.priority) - ["urgent", "high", "medium", "low"].indexOf(b.priority);
+      return aOverdue - bOverdue || dueOrder || priorityOrder;
+    }),
+  [tasks, query, filterArea, taskFilter, today]);
 
   async function markNotificationRead(item: ApiNotification) {
     if (!item.readAt) {
@@ -282,31 +345,70 @@ export default function Home() {
     }
   }
 
+  function openNewTask() {
+    setTaskEditingId(null);
+    setTaskTitle("");
+    setTaskDescription("");
+    setTaskArea("");
+    setTaskPriority("medium");
+    setTaskDue("");
+    setTaskProject("");
+    setTaskGoal("");
+    setTaskParent("");
+    setTaskRepeat("none");
+    setTaskRepeatInterval("1");
+    setTaskRepeatUntil("");
+    setTaskReminder("");
+    setTaskOpen(true);
+  }
+
+  function openEditTask(task: ApiTask) {
+    setTaskEditingId(task.id);
+    setTaskTitle(task.title);
+    setTaskDescription(task.description || "");
+    setTaskArea(task.lifeAreaId || "");
+    setTaskPriority(task.priority);
+    setTaskDue(task.dueAt ? localDate(task.dueAt) : "");
+    setTaskProject(task.projectId || "");
+    setTaskGoal(task.goalId || "");
+    setTaskParent(task.parentTaskId || "");
+    setTaskRepeat(task.recurrenceFrequency || "none");
+    setTaskRepeatInterval(String(task.recurrenceInterval || 1));
+    setTaskRepeatUntil(task.recurrenceUntil || "");
+    if (task.reminderAt) {
+      const reminder = new Date(task.reminderAt);
+      setTaskReminder(new Date(reminder.getTime() - reminder.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    } else setTaskReminder("");
+    setTaskOpen(true);
+  }
+
   async function createTask(event: FormEvent) {
     event.preventDefault();
     if (!taskTitle.trim()) return;
     if (taskRepeat !== "none" && !taskDue) { setError("Choose a due date for a recurring task."); return; }
     try {
       const dueAt = taskDue ? new Date(taskDue + "T12:00:00").toISOString() : null;
-      const result = await apiRequest<ApiList<ApiTask>>("/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          description: taskDescription.trim() || null,
-          dueAt,
-          priority: taskPriority,
-          lifeAreaId: taskArea || null,
-          projectId: taskProject || null,
-          goalId: taskGoal || projects.find(project => project.id === taskProject)?.goalId || null,
-          parentTaskId: taskParent || null,
-          reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
-          recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
-          recurrenceInterval: Number(taskRepeatInterval),
-          recurrenceUntil: taskRepeatUntil || null,
-          status: "todo"
-        })
+      const payload = {
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || null,
+        dueAt,
+        priority: taskPriority,
+        lifeAreaId: taskArea || null,
+        projectId: taskProject || null,
+        goalId: taskGoal || projects.find(project => project.id === taskProject)?.goalId || null,
+        parentTaskId: taskParent || null,
+        reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
+        recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
+        recurrenceInterval: Number(taskRepeatInterval),
+        recurrenceUntil: taskRepeatUntil || null
+      };
+      const result = await apiRequest<ApiList<ApiTask>>(taskEditingId ? "/tasks/" + taskEditingId : "/tasks", {
+        method: taskEditingId ? "PATCH" : "POST",
+        body: JSON.stringify(taskEditingId ? payload : { ...payload, status: "todo" })
       });
-      setTasks(current => [result.data, ...current]);
+      setTasks(current => taskEditingId
+        ? current.map(item => item.id === taskEditingId ? result.data : item)
+        : [result.data, ...current]);
       setTaskTitle("");
       setTaskDescription("");
       setTaskDue("");
@@ -318,7 +420,8 @@ export default function Home() {
       setTaskRepeatUntil("");
       setTaskReminder("");
       setTaskOpen(false);
-      setNotice("Task created.");
+      setNotice(taskEditingId ? "Task updated." : "Task created.");
+      setTaskEditingId(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create the task.");
     }
@@ -356,6 +459,7 @@ export default function Home() {
       });
       setInbox(current => [result.data, ...current]);
       setCapture("");
+      setCaptureOpen(false);
       setNotice("Saved to your inbox.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save that item.");
@@ -461,13 +565,42 @@ export default function Home() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update milestone."); }
   }
 
+  function openNewGoal() {
+    setGoalEditingId(null);
+    setGoalTitle("");
+    setGoalDescription("");
+    setGoalDate("");
+    setGoalArea("");
+    setGoalOpen(true);
+  }
+
+  function openEditGoal(goal: ApiGoal) {
+    setGoalEditingId(goal.id);
+    setGoalTitle(goal.title);
+    setGoalDescription(goal.description || "");
+    setGoalDate(goal.targetDate || "");
+    setGoalArea(goal.lifeAreaId || "");
+    setGoalOpen(true);
+  }
+
   async function createGoal(event: FormEvent) {
     event.preventDefault();
     if (!goalTitle.trim()) return;
     try {
-      const result = await apiRequest<ApiList<ApiGoal>>("/goals", { method: "POST", body: JSON.stringify({ title: goalTitle.trim(), targetDate: goalDate || null, lifeAreaId: goalArea || null }) });
-      setGoals(current => [...current, result.data]); setGoalTitle(""); setGoalDate(""); setGoalOpen(false); setNotice("Goal created.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the goal."); }
+      const payload = { title: goalTitle.trim(), description: goalDescription.trim() || null, targetDate: goalDate || null, lifeAreaId: goalArea || null };
+      const result = await apiRequest<ApiList<ApiGoal>>(goalEditingId ? "/goals/" + goalEditingId : "/goals", { method: goalEditingId ? "PATCH" : "POST", body: JSON.stringify(payload) });
+      setGoals(current => goalEditingId ? current.map(item => item.id === goalEditingId ? result.data : item) : [...current, result.data]);
+      setGoalTitle(""); setGoalDescription(""); setGoalDate(""); setGoalArea(""); setGoalOpen(false);
+      setNotice(goalEditingId ? "Goal updated." : "Goal created."); setGoalEditingId(null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save the goal."); }
+  }
+
+  function openNewHabit() {
+    setHabitName("");
+    setHabitFrequency("daily");
+    setHabitArea("");
+    setHabitGoal("");
+    setHabitOpen(true);
   }
 
   async function createHabit(event: FormEvent) {
@@ -475,7 +608,7 @@ export default function Home() {
     if (!habitName.trim()) return;
     try {
       const result = await apiRequest<ApiList<ApiHabit>>("/habits", { method: "POST", body: JSON.stringify({ name: habitName.trim(), frequency: habitFrequency, targetPerWeek: habitFrequency === "daily" ? 7 : habitFrequency === "weekdays" ? 5 : 1, lifeAreaId: habitArea || null, goalId: habitGoal || null }) });
-      setHabits(current => [...current, result.data]); setHabitName(""); setHabitOpen(false); setNotice("Habit created.");
+      setHabits(current => [...current, result.data]); setHabitName(""); setHabitArea(""); setHabitGoal(""); setHabitOpen(false); setNotice("Habit created.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the habit."); }
   }
 
@@ -546,6 +679,7 @@ export default function Home() {
         { method: eventEditingId ? "PATCH" : "POST", body: JSON.stringify(payload) }
       );
       setEvents(current => [...current.filter(item => item.id !== result.data.id), result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      setCalendarRangeEvents(current => [...current.filter(item => item.id !== result.data.id), result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       setEventOpen(false);
       setEventEditingId(null);
       setNotice(eventEditingId ? "Event updated." : "Event added to your calendar.");
@@ -553,7 +687,7 @@ export default function Home() {
   }
 
   async function deleteEvent(id: string) {
-    try { await apiRequest("/calendar/" + id, { method: "DELETE" }); setEvents(current => current.filter(item => item.id !== id)); }
+    try { await apiRequest("/calendar/" + id, { method: "DELETE" }); setEvents(current => current.filter(item => item.id !== id)); setCalendarRangeEvents(current => current.filter(item => item.id !== id)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the event."); }
   }
 
@@ -576,16 +710,27 @@ export default function Home() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the life area."); }
   }
 
+  function openNewProject() {
+    setProjectName("");
+    setProjectDescription("");
+    setProjectDueDate("");
+    setProjectGoal("");
+    setProjectArea("");
+    setProjectOpen(true);
+  }
+
   async function createProject(event: FormEvent) {
     event.preventDefault();
     if (!projectName.trim()) return;
     try {
       const result = await apiRequest<ApiList<ApiProject>>("/projects", {
         method: "POST",
-        body: JSON.stringify({ name: projectName.trim(), goalId: projectGoal || null, lifeAreaId: projectArea || null })
+        body: JSON.stringify({ name: projectName.trim(), description: projectDescription.trim() || null, dueDate: projectDueDate || null, goalId: projectGoal || null, lifeAreaId: projectArea || null })
       });
       setProjects(current => [...current, result.data].sort((a, b) => a.name.localeCompare(b.name)));
       setProjectName("");
+      setProjectDescription("");
+      setProjectDueDate("");
       setProjectGoal("");
       setProjectArea("");
       setProjectOpen(false);
@@ -626,19 +771,11 @@ export default function Home() {
         <nav className="main-nav">
           {([
             ["Today", LayoutDashboard],
-            ["Inbox", Inbox],
-            ["Tasks", ListTodo],
-            ["Projects", Command],
             ["Calendar", CalendarRange],
-            ["Goals", Flag],
-            ["Habits", Heart],
-            ["Life Areas", Target]
+            ["Organize", Layers]
           ] as const).map(([name, Icon]) =>
-            <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
+            <button key={name} className={`nav-item ${view === name || (name === "Organize" && isOrganizeView) ? "active" : ""}`} onClick={() => setView(name)}>
               <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
-              {name === "Inbox" && <span className="nav-count">{inbox.length}</span>}
-              {name === "Tasks" && <span className="nav-count">{openTasks.length}</span>}
-              {name === "Goals" && <span className="nav-count">{goals.filter(goal => goal.status === "active").length}</span>}
             </button>
           )}
           <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
@@ -659,35 +796,133 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-actions"><button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={16}/></button><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
         </header>
+        {captureOpen && <div className="capture-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setCaptureOpen(false); }}>
+          <form className="capture-modal" onSubmit={quickCapture}>
+            <div className="capture-modal-heading"><div><div className="section-kicker">QUICK CAPTURE</div><h2>Get it out of your head.</h2></div><button type="button" className="icon-button" onClick={() => setCaptureOpen(false)} aria-label="Close"><X size={16}/></button></div>
+            <input autoFocus value={capture} onChange={event => setCapture(event.target.value)} placeholder="A task, thought, idea, or reminder…" aria-label="Capture item"/>
+            <div className="capture-modal-actions"><span>Saved to your inbox. Sort it whenever you&apos;re ready.</span><button className="primary-button" disabled={!capture.trim()}>Capture</button></div>
+          </form>
+        </div>}
         {notificationsOpen && <div className="notification-popover"><div className="notification-popover-heading"><strong>Notifications</strong><button onClick={()=>setNotificationsOpen(false)}><X size={14}/></button></div>{notifications.length?notifications.map(item=><button className={"notification-row "+(!item.readAt?"unread":"")} key={item.id} onClick={()=>void markNotificationRead(item)}><span/><div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.createdAt).toLocaleString()}</small></div></button>):<p className="notification-empty">You&apos;re all caught up.</p>}</div>}
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
           {view === "Today" && <>
-            <div className="welcome-row"><div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1><p className="subheading">A little clarity goes a long way. Here&apos;s your day at a glance.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div>
-            <form className="today-capture" onSubmit={quickCapture}><Plus size={16}/><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Quick capture — task, thought, idea…"/><button disabled={!capture.trim()}>Add to inbox</button></form>
-            <div className="stat-grid">
-              <div className="stat-card"><div className="stat-top"><span>Open tasks</span><ListTodo size={16} /></div><div className="stat-value">{openTasks.length}</div><div className="stat-foot">Across your life areas</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Due today</span><Target size={16} /></div><div className="stat-value">{dueToday.length}</div><div className="stat-foot">{overdue.length} overdue</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Completed</span><CheckCheck size={16} /></div><div className="stat-value">{completed.length}</div><div className="stat-foot">A little progress counts</div></div>
-            </div>
-            <section className="weekly-review-strip"><div><span className="section-kicker">YOUR WEEK SO FAR</span><strong>{completedThisWeek} tasks completed</strong><small>{checkinsThisWeek} habit check-ins · {overdue.length} overdue tasks</small></div><div className="weekly-review-progress"><span>Active goals</span><strong>{goals.filter(goal => goal.status === "active").length}</strong></div><div className="weekly-review-progress"><span>Active projects</span><strong>{projects.filter(project => project.status === "active").length}</strong></div><button className="weekly-review-open" onClick={()=>setReviewOpen(true)}>Review week <ArrowRight size={13}/></button></section>
-            <div className="content-grid">
-              <section className="panel tasks-panel"><div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today&apos;s priorities</h2></div><button className="text-button" onClick={() => setView("Tasks")}>View all <ArrowRight size={14} /></button></div>
-                {dueToday.length || openTasks.length ? (dueToday.length ? dueToday : openTasks).slice(0, 7).map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><Check size={20} /><strong>All clear for now</strong><span>Enjoy the breathing room. You&apos;ve earned it.</span></div>}
-                <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15} />Add a task</button>
-              </section>
-              <div className="right-column">
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">COMING UP</div><h2>Next on your calendar</h2></div><button className="text-button" onClick={() => setView("Calendar")}>Calendar <ArrowRight size={14}/></button></div>{events.filter(item => new Date(item.startsAt) >= new Date()).sort((a,b) => a.startsAt.localeCompare(b.startsAt)).slice(0,4).map(item => <div className="upcoming-row" key={item.id}><span className="upcoming-dot"/><div><strong>{item.title}</strong><span>{new Date(item.startsAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span></div></div>)}{events.filter(item => new Date(item.startsAt) >= new Date()).length === 0 && <p className="muted-note">Nothing scheduled yet. Add an event when something is coming up.</p>}</section>
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">ONE THING AT A TIME</div><h2>Suggested focus</h2></div></div>{[...openTasks].sort((a,b) => ["urgent","high","medium","low"].indexOf(a.priority)-["urgent","high","medium","low"].indexOf(b.priority) || (a.dueAt || "9999").localeCompare(b.dueAt || "9999"))[0] ? <div className="focus-task"><strong>{[...openTasks].sort((a,b) => ["urgent","high","medium","low"].indexOf(a.priority)-["urgent","high","medium","low"].indexOf(b.priority) || (a.dueAt || "9999").localeCompare(b.dueAt || "9999"))[0].title}</strong><span>Based on priority and due date</span></div> : <p className="muted-note">No open tasks. Enjoy the space.</p>}</section>
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">SMALL THINGS, REPEATED</div><h2>Daily habits</h2></div><button className="text-button" onClick={()=>setView("Habits")}>All habits <ArrowRight size={13}/></button></div>{habits.filter(habit=>!habit.archivedAt).slice(0,5).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);return <div className="today-habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label={"Check in "+habit.name}>{checked&&<Check size={12}/>}</button><span className={checked?"is-checked":""}>{habit.name}</span></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<p className="muted-note">Add one small habit to start building consistency.</p>}</section>
-                <section className="panel areas-panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">THE BIG PICTURE</div><h2>Your life areas</h2></div></div><div className="area-progress-list">{areas.map(area => { const related = tasks.filter(task => task.lifeAreaId === area.id); const done = related.filter(task => task.status === "done").length; return <div className="area-progress" key={area.id}><span className="area-mini-icon" style={{ color: area.color }}>●</span><span className="progress-name">{area.name}</span><span className="progress-track"><i style={{ width: related.length ? `${done / related.length * 100}%` : "0%" }} /></span><span className="progress-number">{done}/{related.length}</span></div>; })}</div></section>
+            <div className="today-intro">
+              <div>
+                <div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div>
+                <h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1>
+                <p className="subheading">Here’s what matters today. You don’t need to do everything at once.</p>
               </div>
+              <button className="primary-button" onClick={openNewTask}><Plus size={17} />Add a task</button>
+            </div>
+
+            <form className="today-capture" onSubmit={quickCapture}>
+              <Plus size={16}/><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Get it out of your head…"/>
+              <button disabled={!capture.trim()}>Capture</button>
+            </form>
+
+            <div className="today-context-line">
+              <span>{todayEvents.length + todayBlocks.length} scheduled {todayEvents.length + todayBlocks.length === 1 ? "commitment" : "commitments"}</span>
+              <span className="context-separator">·</span>
+              <span>{dueToday.length} {dueToday.length === 1 ? "task" : "tasks"} due today</span>
+              {overdue.length > 0 && <><span className="context-separator">·</span><span className="today-overdue-count">{overdue.length} overdue</span></>}
+            </div>
+
+            <div className="today-layout">
+              <div className="today-primary-column">
+                <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">YOUR TIME</div><h2>Today&apos;s agenda</h2></div>
+                    <button className="text-button" onClick={() => setView("Calendar")}>Open calendar <ArrowRight size={14}/></button>
+                  </div>
+                  {todayAgendaItems.length === 0
+                    ? <div className="today-quiet-state"><CalendarDays size={18}/><div><strong>Nothing scheduled today.</strong><span>That’s room you can use—or leave free.</span></div></div>
+                    : <div className="today-agenda-list">
+                      {todayAgendaItems.map(item => <div className="today-agenda-row" key={item.kind + ":" + item.id}>
+                        <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
+                        <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : "block-marker")}/>
+                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
+                        {item.kind === "event"
+                          ? <button className="text-button" onClick={() => openEditEvent(item.event)}>Edit</button>
+                          : <button className="text-button" onClick={() => setView("Calendar")}>View</button>}
+                      </div>)}
+                    </div>}
+                </section>
+
+                <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">WHAT NEEDS YOUR ATTENTION</div><h2>Next actions</h2></div>
+                    <button className="text-button" onClick={() => setView("Tasks")}>All tasks <ArrowRight size={14}/></button>
+                  </div>
+                  {nextActionTasks.length > 0
+                    ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask}/>)}</div>
+                    : <div className="today-quiet-state"><Check size={18}/><div><strong>No urgent tasks asking for attention.</strong><span>You can choose something meaningful to work on, or enjoy the breathing room.</span></div></div>}
+                  <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15}/>Add a task</button>
+                </section>
+
+                {habitsDueToday.length > 0 && <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">OPTIONAL CHECK-IN</div><h2>Small things, repeated</h2></div>
+                    <button className="text-button" onClick={() => setView("Habits")}>Habits <ArrowRight size={14}/></button>
+                  </div>
+                  <div className="today-habits-list">{habitsDueToday.slice(0, 5).map(habit => {
+                    const checked = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === today);
+                    return <div className="today-habit-row" key={habit.id}>
+                      <button className={"task-check " + (checked ? "checked" : "")} onClick={() => void checkInHabit(habit)} aria-label={(checked ? "Undo check-in for " : "Check in ") + habit.name}>{checked && <Check size={12}/>}</button>
+                      <span className={checked ? "is-checked" : ""}>{habit.name}</span>
+                    </div>;
+                  })}</div>
+                </section>}
+              </div>
+
+              <aside className="today-secondary-column">
+                {todayCommitmentCount > 0 && <section className="today-context-panel">
+                  <div className="section-kicker">A NOTE FOR TODAY</div>
+                  <h3>{todayCommitmentCount >= 5 || dueToday.length >= 4 ? "A full day ahead." : "Keep a little room."}</h3>
+                  <p>{todayCommitmentCount >= 5 || dueToday.length >= 4
+                    ? "You have several commitments today. Leave some space between them where you can."
+                    : "Your schedule has some structure, but it doesn’t need to fill every minute."}</p>
+                </section>}
+
+                <section className="today-side-section">
+                  <div className="today-section-heading compact">
+                    <div><div className="section-kicker">IN THE NEAR FUTURE</div><h2>Coming up</h2></div>
+                  </div>
+                  {events.filter(item => new Date(item.startsAt) > new Date() && localDate(item.startsAt) !== today).sort((a,b) => a.startsAt.localeCompare(b.startsAt)).slice(0,4).map(item =>
+                    <div className="today-upcoming-row" key={item.id}><span className="upcoming-dot"/><div><strong>{item.title}</strong><span>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})} · {item.allDay ? "All day" : formatEventTime(item.startsAt)}</span></div></div>
+                  )}
+                  {events.filter(item => new Date(item.startsAt) > new Date() && localDate(item.startsAt) !== today).length === 0 && <p className="today-muted-note">Nothing else on the calendar yet.</p>}
+                </section>
+
+                <section className="today-side-section">
+                  <div className="today-section-heading compact">
+                    <div><div className="section-kicker">LONGER-TERM DIRECTION</div><h2>Goals in progress</h2></div>
+                    <button className="text-button" onClick={() => setView("Goals")}>View <ArrowRight size={13}/></button>
+                  </div>
+                  {goals.filter(goal => goal.status === "active").slice(0,3).map(goal => <div className="today-goal-row" key={goal.id}><span className="today-goal-dot"/><div><strong>{goal.title}</strong><span>{goal.targetDate ? "Target · " + new Date(goal.targetDate + "T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "Active goal"}</span></div></div>)}
+                  {goals.filter(goal => goal.status === "active").length === 0 && <p className="today-muted-note">Your longer-term goals will appear here when you add them.</p>}
+                </section>
+
+                <button className="today-inbox-link" onClick={() => setView("Inbox")}><Inbox size={16}/><span><strong>{inbox.length} items to sort</strong><small>Capture now. Organize when you’re ready.</small></span><ArrowRight size={15}/></button>
+              </aside>
             </div>
           </>}
+          {view === "Organize" && <div className="section-page organize-page">
+            <div className="welcome-row"><div><div className="eyebrow">ONE CONNECTED WORKSPACE</div><h1>Organize.</h1><p className="subheading">Everything has a place. Nothing needs to live in isolation.</p></div></div>
+            <div className="organize-intro"><span className="section-kicker">YOUR PERSONAL SYSTEMS</span><p>Choose the part of your life you want to work on. Your tasks, projects, goals, habits and notes stay connected wherever they appear.</p></div>
+            <div className="organize-list">
+              <button className="organize-item" onClick={() => setView("Inbox")}><span className="organize-item-icon"><Inbox size={18}/></span><span><strong>Inbox</strong><small>Capture and sort things later</small></span><span className="organize-count">{inbox.length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Tasks")}><span className="organize-item-icon"><ListTodo size={18}/></span><span><strong>Tasks</strong><small>Next actions and commitments</small></span><span className="organize-count">{openTasks.length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Projects")}><span className="organize-item-icon"><Command size={18}/></span><span><strong>Projects</strong><small>Work that takes more than one step</small></span><span className="organize-count">{projects.filter(project => project.status === "active").length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Goals")}><span className="organize-item-icon"><Flag size={18}/></span><span><strong>Goals</strong><small>Longer-term direction and milestones</small></span><span className="organize-count">{goals.filter(goal => goal.status === "active").length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Habits")}><span className="organize-item-icon"><Heart size={18}/></span><span><strong>Habits</strong><small>Small practices you choose to repeat</small></span><span className="organize-count">{habits.filter(habit => !habit.archivedAt).length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Life Areas")}><span className="organize-item-icon"><Target size={18}/></span><span><strong>Life areas</strong><small>Contexts that help organize your life</small></span><span className="organize-count">{areas.length}</span><ArrowRight size={15}/></button>
+            </div>
+          </div>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-list-filters" role="group" aria-label="Task status">{([["open","Open"],["completed","Completed"],["all","All"]] as const).map(([value,label])=><button key={value} className={taskFilter===value?"selected":""} aria-pressed={taskFilter===value} onClick={()=>setTaskFilter(value)}>{label}<span>{value==="all"?tasks.length:value==="completed"?tasks.filter(task=>task.status==="done").length:openTasks.length}</span></button>)}</div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>{taskFilter==="open"?"Nothing open right now":taskFilter==="completed"?"No completed tasks yet":"No tasks found"}</strong><span>{taskFilter==="open"?"You have room to choose what matters next.":taskFilter==="completed"?"Completed work will collect here.":"Try changing your search or filters."}</span></div>}</section></div>}
           {view === "Calendar" && (() => {
             const todayKey = calendarDateKey(new Date());
             const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
@@ -709,7 +944,7 @@ export default function Home() {
               }
               return shiftCalendarDate(current, direction * (calendarMode === "week" ? 7 : 1));
             });
-            const eventsFor = (date: Date) => events.filter(item => localDate(item.startsAt) === calendarDateKey(date));
+            const eventsFor = (date: Date) => calendarRangeEvents.filter(item => localDate(item.startsAt) === calendarDateKey(date));
             const tasksFor = (date: Date) => openTasks.filter(item => item.dueAt && localDate(item.dueAt) === calendarDateKey(date));
             const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
             return <div className="section-page calendar-workspace">
@@ -776,17 +1011,17 @@ export default function Home() {
             </div>;
           })()}
 
-          {view === "Goals" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE BIGGER PICTURE</div><h1>Your goals.</h1><p className="subheading">Give your longer-term intentions a place to live.</p></div><button className="primary-button" onClick={()=>setGoalOpen(true)}><Plus size={17}/>New goal</button></div><section className="project-grid">{goals.map(goal=>{const linkedTasks=tasks.filter(task=>task.goalId===goal.id);const doneTasks=linkedTasks.filter(task=>task.status==="done").length;const linkedHabits=habits.filter(habit=>habit.goalId===goal.id);const goalSteps=milestones[goal.id]||[];const doneSteps=goalSteps.filter(item=>item.status==="completed").length;const progress=(goalSteps.length+linkedTasks.length)?Math.round((doneSteps+doneTasks)/(goalSteps.length+linkedTasks.length)*100):0;return <article className="panel project-card" key={goal.id}><div className="section-kicker">{goal.status.toUpperCase()}</div><h2>{goal.title}</h2><p>{goal.description||"A direction worth making time for."}</p><div className="goal-progress"><span>{progress}% complete · {doneTasks}/{linkedTasks.length} tasks · {doneSteps}/{goalSteps.length} milestones · {linkedHabits.length} habits</span><i><b style={{width:progress+"%"}}/></i></div><span>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No target date"}</span><div className="goal-milestones"><div className="goal-milestones-heading"><strong>Milestones</strong><button className="text-button" onClick={()=>void addMilestone(goal.id)}>+ Add</button></div>{(milestones[goal.id]||[]).map(milestone=><label className="goal-milestone-row" key={milestone.id}><input type="checkbox" checked={milestone.status==="completed"} onChange={()=>void toggleMilestone(goal.id,milestone)}/><span className={milestone.status==="completed"?"milestone-done":""}>{milestone.title}</span>{milestone.targetDate&&<small>{milestone.targetDate}</small>}</label>)}<small>{(milestones[goal.id]||[]).filter(item=>item.status==="completed").length}/{(milestones[goal.id]||[]).length} milestones complete</small></div><div className="goal-actions"><button className="secondary-button" onClick={async()=>{const status=goal.status==="completed"?"active":"completed";try{const result=await apiRequest<ApiList<ApiGoal>>("/goals/"+goal.id,{method:"PATCH",body:JSON.stringify({status})});setGoals(current=>current.map(item=>item.id===goal.id?result.data:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not update goal.");}}}>{goal.status==="completed"?"Reopen":"Mark complete"}</button><button className="icon-button" onClick={async()=>{try{await apiRequest("/goals/"+goal.id,{method:"DELETE"});setGoals(current=>current.filter(item=>item.id!==goal.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not delete goal.");}}} aria-label="Delete goal"><Trash2 size={14}/></button></div></article>;})}{goals.length===0&&<div className="empty-state"><Flag size={20}/><strong>No goals yet</strong><span>Start with something you want to move towards.</span></div>}</section></div>}
-          {view === "Habits" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">SMALL THINGS, REPEATED</div><h1>Your habits.</h1><p className="subheading">Build consistency without the pressure of perfect streaks.</p></div><button className="primary-button" onClick={()=>setHabitOpen(true)}><Plus size={17}/>New habit</button></div><section className="panel full-task-panel">{habits.filter(habit=>!habit.archivedAt).map(habit=>{const today=localDate(new Date().toISOString());const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);const area=areas.find(item=>item.id===habit.lifeAreaId);const recent=habitEntries.filter(entry=>entry.habitId===habit.id).length;return <div className="habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label="Toggle today's check-in">{checked&&<Check size={13}/>}</button><div className="task-copy"><strong className="task-title">{habit.name}</strong><div className="habit-history-grid" aria-label="Last 28 days">{Array.from({length:28},(_,index)=>{const day=new Date();day.setDate(day.getDate()-(27-index));const key=calendarDateKey(day);const done=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);return <span key={key} className={done?"habit-history-day is-done":"habit-history-day"} title={key+(done?" · completed":" · not completed")}/>})}</div><div className="task-meta"><span className="area-tag">{area?.name||"Personal"}</span><span className="repeat-tag">{habit.frequency==="weekdays"?"Weekdays":habit.frequency==="weekly"?"Weekly":"Daily"}</span><span className="due-tag">{recent} check-ins</span></div></div><button className="icon-button" onClick={async()=>{try{await apiRequest("/habits/"+habit.id,{method:"PATCH",body:JSON.stringify({archived:true})});setHabits(current=>current.map(item=>item.id===habit.id?{...item,archivedAt:new Date().toISOString()}:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not archive habit.");}}} aria-label="Archive habit"><CheckCheck size={15}/></button></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<div className="empty-state"><Heart size={20}/><strong>No habits yet</strong><span>Choose one small practice you want to repeat.</span></div>}</section></div>}
+          {view === "Goals" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE BIGGER PICTURE</div><h1>Your goals.</h1><p className="subheading">Give your longer-term intentions a place to live.</p></div><button className="primary-button" onClick={openNewGoal}><Plus size={17}/>New goal</button></div><section className="project-grid">{goals.map(goal=>{const linkedTasks=tasks.filter(task=>task.goalId===goal.id);const doneTasks=linkedTasks.filter(task=>task.status==="done").length;const linkedHabits=habits.filter(habit=>habit.goalId===goal.id);const goalSteps=milestones[goal.id]||[];const doneSteps=goalSteps.filter(item=>item.status==="completed").length;const progress=(goalSteps.length+linkedTasks.length)?Math.round((doneSteps+doneTasks)/(goalSteps.length+linkedTasks.length)*100):0;return <article className="panel project-card" key={goal.id}><div className="section-kicker">{goal.status.toUpperCase()}</div><h2>{goal.title}</h2><p>{goal.description||"A direction worth making time for."}</p><div className="goal-progress"><span>{goalSteps.length+linkedTasks.length>0?progress+"% complete · "+doneTasks+"/"+linkedTasks.length+" tasks · "+doneSteps+"/"+goalSteps.length+" milestones":"No measurable progress yet · "+linkedHabits.length+" linked habits"}</span>{goalSteps.length+linkedTasks.length>0&&<i><b style={{width:progress+"%"}}/></i>}</div><span>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No target date"}</span><div className="goal-milestones"><div className="goal-milestones-heading"><strong>Milestones</strong><button className="text-button" onClick={()=>void addMilestone(goal.id)}>+ Add</button></div>{(milestones[goal.id]||[]).map(milestone=><label className="goal-milestone-row" key={milestone.id}><input type="checkbox" checked={milestone.status==="completed"} onChange={()=>void toggleMilestone(goal.id,milestone)}/><span className={milestone.status==="completed"?"milestone-done":""}>{milestone.title}</span>{milestone.targetDate&&<small>{milestone.targetDate}</small>}</label>)}<small>{(milestones[goal.id]||[]).filter(item=>item.status==="completed").length}/{(milestones[goal.id]||[]).length} milestones complete</small></div><div className="goal-actions"><button className="secondary-button" onClick={()=>openEditGoal(goal)}><Pencil size={13}/> Edit</button><button className="secondary-button" onClick={async()=>{const status=goal.status==="completed"?"active":"completed";try{const result=await apiRequest<ApiList<ApiGoal>>("/goals/"+goal.id,{method:"PATCH",body:JSON.stringify({status})});setGoals(current=>current.map(item=>item.id===goal.id?result.data:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not update goal.");}}}>{goal.status==="completed"?"Reopen":"Mark complete"}</button><button className="icon-button" onClick={async()=>{try{await apiRequest("/goals/"+goal.id,{method:"DELETE"});setGoals(current=>current.filter(item=>item.id!==goal.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not delete goal.");}}} aria-label="Delete goal"><Trash2 size={14}/></button></div></article>;})}{goals.length===0&&<div className="empty-state"><Flag size={20}/><strong>No goals yet</strong><span>Start with something you want to move towards.</span></div>}</section></div>}
+          {view === "Habits" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">SMALL THINGS, REPEATED</div><h1>Your habits.</h1><p className="subheading">Build consistency without the pressure of perfect streaks.</p></div><button className="primary-button" onClick={openNewHabit}><Plus size={17}/>New habit</button></div><section className="panel full-task-panel">{habits.filter(habit=>!habit.archivedAt).map(habit=>{const today=localDate(new Date().toISOString());const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);const area=areas.find(item=>item.id===habit.lifeAreaId);const recent=habitEntries.filter(entry=>entry.habitId===habit.id).length;return <div className="habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label="Toggle today's check-in">{checked&&<Check size={13}/>}</button><div className="task-copy"><strong className="task-title">{habit.name}</strong><div className="habit-history-grid" aria-label="Last 28 days">{Array.from({length:28},(_,index)=>{const day=new Date();day.setDate(day.getDate()-(27-index));const key=calendarDateKey(day);const done=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);return <span key={key} className={done?"habit-history-day is-done":"habit-history-day"} title={key+(done?" · completed":" · not completed")}/>})}</div><div className="task-meta"><span className="area-tag">{area?.name||"Personal"}</span><span className="repeat-tag">{habit.frequency==="weekdays"?"Weekdays":habit.frequency==="weekly"?(habit.targetPerWeek>1?habit.targetPerWeek+"× per week":"Weekly"):"Daily"}</span><span className="due-tag">{recent} check-ins</span></div></div><button className="icon-button" onClick={async()=>{try{await apiRequest("/habits/"+habit.id,{method:"PATCH",body:JSON.stringify({archived:true})});setHabits(current=>current.map(item=>item.id===habit.id?{...item,archivedAt:new Date().toISOString()}:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not archive habit.");}}} aria-label="Archive habit"><CheckCheck size={15}/></button></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<div className="empty-state"><Heart size={20}/><strong>No habits yet</strong><span>Choose one small practice you want to repeat.</span></div>}</section></div>}
           {view === "Life Areas" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE CONTEXT BEHIND YOUR WORK</div><h1>Your life areas.</h1><p className="subheading">Organize responsibilities without splitting your life into silos.</p></div><button className="primary-button" onClick={()=>setAreaOpen(true)}><Plus size={17}/>New area</button></div><section className="project-grid">{areas.map(area=><article className="panel project-card" key={area.id}><div className="section-kicker">LIFE AREA</div><h2><span className="area-mini-icon" style={{display:"inline-grid",background:area.color+"22",color:area.color,marginRight:8}}>●</span>{area.name}</h2><p>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects</p><div className="goal-actions"><button className="secondary-button" onClick={()=>{setFilterArea(area.id);setView("Tasks");}}>View tasks</button><button className="icon-button" onClick={()=>void deleteArea(area)} aria-label="Delete life area"><Trash2 size={14}/></button></div></article>)}</section></div>}
-          {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU&apos;RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <Link className="project-card-link" href={"/projects/" + project.id} key={project.id}><article className="panel project-card"><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks · {events.filter(event => event.projectId === project.id).length} events</span><small>Open project workspace →</small></article></Link>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
+          {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU&apos;RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={openNewProject}><Plus size={17} />New project</button></div><div className="project-filter-row" role="group" aria-label="Filter projects">{([["active","Active"],["completed","Completed"],["archived","Archived"],["all","All"]] as const).map(([value,label])=><button key={value} className={projectFilter===value?"selected":""} aria-pressed={projectFilter===value} onClick={()=>setProjectFilter(value)}>{label}<span>{value==="all"?projects.length:projects.filter(project=>value==="active"?["active","on_hold"].includes(project.status):project.status===value).length}</span></button>)}</div><section className="project-grid">{projects.filter(project=>projectFilter==="all"||(projectFilter==="active"?["active","on_hold"].includes(project.status):project.status===projectFilter)).map(project => <Link className="project-card-link" href={"/projects/" + project.id} key={project.id}><article className="panel project-card"><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks · {events.filter(event => event.projectId === project.id).length} events</span><small>Open project workspace →</small></article></Link>)}{projects.filter(project=>projectFilter==="all"||(projectFilter==="active"?["active","on_hold"].includes(project.status):project.status===projectFilter)).length===0 && <div className="empty-state"><Command size={20} /><strong>{projectFilter==="active"?"No active projects":projectFilter==="completed"?"No completed projects":projectFilter==="archived"?"No archived projects":"No projects yet"}</strong><span>{projectFilter==="active"?"Start with one meaningful piece of work.":projectFilter==="all"?"Create a project when something needs more than one step.":"Projects will appear here when their status changes."}</span></div>}</section></div>}
         </div>
       </section>
 
       {reviewOpen && <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setReviewOpen(false);}}><section className="task-modal weekly-review-modal"><div className="modal-heading"><div><div className="section-kicker">PAUSE AND TAKE STOCK</div><h2>Your weekly review.</h2></div><button className="icon-button" onClick={()=>setReviewOpen(false)} aria-label="Close review"><X size={18}/></button></div><div className="weekly-review-metrics"><div><strong>{completedThisWeek}</strong><span>Tasks completed</span></div><div><strong>{checkinsThisWeek}</strong><span>Habit check-ins</span></div><div><strong>{overdue.length}</strong><span>Still overdue</span></div><div><strong>{dueToday.length}</strong><span>Due today</span></div></div><div className="weekly-review-detail"><h3>Things to bring forward</h3>{overdue.slice(0,5).map(task=><p key={task.id}>{task.title}<small>Overdue</small></p>)}{overdue.length===0&&<p className="muted-note">No overdue tasks. Nice.</p>}</div><div className="weekly-review-detail"><h3>Coming up</h3>{events.filter(item=>new Date(item.startsAt)>=new Date()).slice(0,5).map(item=><p key={item.id}>{item.title}<small>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</small></p>)}{events.filter(item=>new Date(item.startsAt)>=new Date()).length===0&&<p className="muted-note">Nothing scheduled yet.</p>}</div><div className="modal-footer"><button className="primary-button" onClick={()=>setReviewOpen(false)}>Done</button></div></section></div>}
       {commandOpen && <div className="command-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setCommandOpen(false);}}><section className="command-palette"><div className="command-search-row"><Search size={18}/><input autoFocus value={commandQuery} onChange={event=>setCommandQuery(event.target.value)} placeholder="Search tasks, projects, notes, goals…"/><kbd>ESC</kbd></div><div className="command-results">{commandLoading?<p>Searching…</p>:commandQuery.trim().length<2?<p>Type at least two characters to search across Sonder.</p>:commandResults.length?commandResults.map(result=><button key={result.type+result.id} onClick={()=>{setCommandOpen(false);if(result.type==="project"){window.location.href="/projects/"+result.id;return;}if(result.type==="note"){window.location.href="/notes";return;}setView(result.type==="task"?"Tasks":result.type==="goal"?"Goals":result.type==="habit"?"Habits":"Calendar");setQuery(result.title);}}><span className="command-result-type">{result.type}</span><strong>{result.title}</strong><small>{result.subtitle||" "}</small></button>):<p>No matching items found.</p>}</div><div className="command-footer"><span>Search everything in your workspace</span><span>CTRL K</span></div></section></div>}
-      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>New task</h2></div><button type="button" className="icon-button" onClick={() => setTaskOpen(false)}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => {setTaskProject(event.target.value);setTaskGoal(projects.find(project=>project.id===event.target.value)?.goalId||"");}}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-label">Goal<select value={taskGoal} onChange={event=>setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label className="form-label">Parent task<select value={taskParent} onChange={event=>setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task=>!task.parentTaskId&&task.status!=="done").map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><label className="form-label">Repeat<select value={taskRepeat} onChange={event=>setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>{taskRepeat!=="none"&&<><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event=>setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event=>setTaskRepeatUntil(event.target.value)}/></label></>}<label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event=>setTaskReminder(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setTaskOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create task <ArrowRight size={14} /></button></div></form></div>}
-      {goalOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createGoal}><div className="modal-heading"><div><div className="section-kicker">THINK LONG TERM</div><h2>New goal</h2></div><button type="button" className="icon-button" onClick={()=>setGoalOpen(false)}><X size={18}/></button></div><label className="form-label">Goal<input required autoFocus value={goalTitle} onChange={event=>setGoalTitle(event.target.value)} placeholder="What do you want to work towards?"/></label><div className="form-grid"><label className="form-label">Life area<select value={goalArea} onChange={event=>setGoalArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Target date<input type="date" value={goalDate} onChange={event=>setGoalDate(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setGoalOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create goal</button></div></form></div>}
+      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>{taskEditingId ? "Edit task" : "New task"}</h2></div><button type="button" className="icon-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => {setTaskProject(event.target.value);setTaskGoal(projects.find(project=>project.id===event.target.value)?.goalId||"");}}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-label">Goal<select value={taskGoal} onChange={event=>setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label className="form-label">Parent task<select value={taskParent} onChange={event=>setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task=>!task.parentTaskId&&task.status!=="done").map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><label className="form-label">Repeat<select value={taskRepeat} onChange={event=>setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>{taskRepeat!=="none"&&<><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event=>setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event=>setTaskRepeatUntil(event.target.value)}/></label></>}<label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event=>setTaskReminder(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}>Cancel</button><button className="primary-button" type="submit">{taskEditingId ? "Save changes" : "Create task"} <ArrowRight size={14} /></button></div></form></div>}
+      {goalOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createGoal}><div className="modal-heading"><div><div className="section-kicker">THINK LONG TERM</div><h2>{goalEditingId?"Edit goal":"New goal"}</h2></div><button type="button" className="icon-button" onClick={()=>{setGoalOpen(false);setGoalEditingId(null);}}><X size={18}/></button></div><label className="form-label">Goal<input required autoFocus value={goalTitle} onChange={event=>setGoalTitle(event.target.value)} placeholder="What do you want to work towards?"/></label><label className="form-label">Description<textarea rows={3} value={goalDescription} onChange={event=>setGoalDescription(event.target.value)} placeholder="Why does this matter to you?"/></label><div className="form-grid"><label className="form-label">Life area<select value={goalArea} onChange={event=>setGoalArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Target date<input type="date" value={goalDate} onChange={event=>setGoalDate(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>{setGoalOpen(false);setGoalEditingId(null);}}>Cancel</button><button className="primary-button" type="submit">{goalEditingId?"Save changes":"Create goal"}</button></div></form></div>}
       {habitOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createHabit}><div className="modal-heading"><div><div className="section-kicker">BUILD A PRACTICE</div><h2>New habit</h2></div><button type="button" className="icon-button" onClick={()=>setHabitOpen(false)}><X size={18}/></button></div><label className="form-label">Habit name<input required autoFocus value={habitName} onChange={event=>setHabitName(event.target.value)} placeholder="e.g. Read for 15 minutes"/></label><div className="form-grid"><label className="form-label">Life area<select value={habitArea} onChange={event=>setHabitArea(event.target.value)}><option value="">Personal</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Frequency<select value={habitFrequency} onChange={event=>setHabitFrequency(event.target.value as typeof habitFrequency)}><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option></select></label><label className="form-label">Supports goal<select value={habitGoal} onChange={event=>setHabitGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setHabitOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create habit</button></div></form></div>}
       {eventOpen && <div className="modal-backdrop"><form className="task-modal calendar-event-modal" onSubmit={createEvent}>
         <div className="modal-heading"><div><div className="section-kicker">{eventEditingId ? "UPDATE YOUR PLANS" : "MAKE TIME FOR IT"}</div><h2>{eventEditingId ? "Edit event" : "New event"}</h2></div><button type="button" className="icon-button" onClick={() => setEventOpen(false)}><X size={18}/></button></div>
@@ -800,16 +1035,17 @@ export default function Home() {
       </form></div>}
       {scheduleOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTimeBlock}><div className="modal-heading"><div><div className="section-kicker">MAKE ROOM FOR DEEP WORK</div><h2>Schedule a task</h2></div><button type="button" className="icon-button" onClick={()=>setScheduleOpen(false)}><X size={18}/></button></div><label className="form-label">Task<select required value={scheduleTask} onChange={event=>setScheduleTask(event.target.value)}><option value="">Choose a task</option>{openTasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><div className="form-grid"><label className="form-label">Date<input required type="date" value={scheduleDate} onChange={event=>setScheduleDate(event.target.value)}/></label><label className="form-label">Starts<input required type="time" value={scheduleStart} onChange={event=>setScheduleStart(event.target.value)}/></label><label className="form-label">Ends<input required type="time" value={scheduleEnd} onChange={event=>setScheduleEnd(event.target.value)}/></label></div><p className="muted-note">This creates a work block. It does not change the task deadline.</p><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setScheduleOpen(false)}>Cancel</button><button className="primary-button" type="submit">Schedule task</button></div></form></div>}
       {areaOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createArea}><div className="modal-heading"><div><div className="section-kicker">MAKE IT YOURS</div><h2>New life area</h2></div><button type="button" className="icon-button" onClick={()=>setAreaOpen(false)}><X size={18}/></button></div><label className="form-label">Area name<input required autoFocus value={areaName} onChange={event=>setAreaName(event.target.value)} placeholder="e.g. Learning"/></label><label className="form-label">Color<input type="color" value={areaColor} onChange={event=>setAreaColor(event.target.value)}/></label><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setAreaOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create area</button></div></form></div>}
-      {projectOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createProject}><div className="modal-heading"><div><div className="section-kicker">START SOMETHING</div><h2>New project</h2></div><button type="button" className="icon-button" onClick={() => setProjectOpen(false)}><X size={18} /></button></div><label className="form-label">Project name<input required autoFocus value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="What are you working on?" /></label><div className="form-grid"><label className="form-label">Life area<select value={projectArea} onChange={event=>setProjectArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Supports goal<select value={projectGoal} onChange={event=>setProjectGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setProjectOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create project</button></div></form></div>}
+      {projectOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createProject}><div className="modal-heading"><div><div className="section-kicker">START SOMETHING</div><h2>New project</h2></div><button type="button" className="icon-button" onClick={() => setProjectOpen(false)}><X size={18} /></button></div><label className="form-label">Project name<input required autoFocus value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="What are you working on?" /></label><label className="form-label">Description<textarea rows={3} value={projectDescription} onChange={event => setProjectDescription(event.target.value)} placeholder="What does this project involve?" /></label><div className="form-grid"><label className="form-label">Target date<input type="date" value={projectDueDate} onChange={event => setProjectDueDate(event.target.value)} /></label><label className="form-label">Life area<select value={projectArea} onChange={event=>setProjectArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Supports goal<select value={projectGoal} onChange={event=>setProjectGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setProjectOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create project</button></div></form></div>}
     </main>
   );
 }
 
-function TaskRow({ task, areas, onToggle, onDelete }: {
+function TaskRow({ task, areas, onToggle, onDelete, onEdit }: {
   task: ApiTask;
   areas: ApiLifeArea[];
   onToggle: (task: ApiTask) => void;
   onDelete: (id: string) => void;
+  onEdit: (task: ApiTask) => void;
 }) {
   const area = areas.find(item => item.id === task.lifeAreaId);
   const due = task.dueAt ? localDate(task.dueAt) : "";
@@ -817,6 +1053,6 @@ function TaskRow({ task, areas, onToggle, onDelete }: {
   return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
     <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
     <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarDays size={12} />{due === today ? "Today" : new Date(task.dueAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div></div>
-    <button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
+    <button className="icon-button task-more" onClick={() => onEdit(task)} aria-label="Edit task"><Pencil size={14}/></button><button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
   </div>;
 }
