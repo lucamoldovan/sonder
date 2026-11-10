@@ -130,6 +130,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   status: taskStatus("status").notNull().default("todo"),
   priority: taskPriority("priority").notNull().default("medium"),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   dueAt: timestamp("due_at", { withTimezone: true }),
   reminderAt: timestamp("reminder_at", { withTimezone: true }),
   recurrenceFrequency: text("recurrence_frequency"),
@@ -147,7 +148,8 @@ export const tasks = pgTable("tasks", {
   index("tasks_goal_id_idx").on(table.goalId),
   index("tasks_parent_task_id_idx").on(table.parentTaskId),
   index("tasks_life_area_id_idx").on(table.lifeAreaId),
-  index("tasks_due_at_idx").on(table.userId, table.dueAt)
+  index("tasks_due_at_idx").on(table.userId, table.dueAt),
+  index("tasks_scheduled_at_idx").on(table.userId, table.scheduledAt)
 ]).enableRLS();
 
 export const goals = pgTable("goals", {
