@@ -224,6 +224,32 @@ export default function Home() {
     };
   }, [session?.user?.id, loadWorkspace]);
 
+  useEffect(() => {
+    if (view !== "Calendar" || !session?.user?.id) return;
+    let cancelled = false;
+    const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
+    const visibleStart = calendarMode === "month" ? mondayOfWeek(monthStart)
+      : calendarMode === "week" ? mondayOfWeek(calendarDate) : calendarDate;
+    const visibleDays = calendarMode === "month" ? 42 : calendarMode === "week" ? 7 : 1;
+    const from = new Date(visibleStart);
+    from.setHours(0, 0, 0, 0);
+    const to = shiftCalendarDate(visibleStart, visibleDays);
+    to.setHours(23, 59, 59, 999);
+    void apiRequest<ApiList<ApiCalendarEvent[]>>(
+      "/calendar?from=" + encodeURIComponent(from.toISOString()) + "&to=" + encodeURIComponent(to.toISOString())
+    ).then(result => {
+      if (cancelled) return;
+      setEvents(current => {
+        const merged = new Map(current.map(item => [item.id, item]));
+        for (const item of result.data) merged.set(item.id, item);
+        return [...merged.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      });
+    }).catch(cause => {
+      if (!cancelled) setError(cause instanceof Error ? cause.message : "Couldn't load this calendar range.");
+    });
+    return () => { cancelled = true; };
+  }, [view, session?.user?.id, calendarDate, calendarMode]);
+
   const today = localDate(new Date().toISOString());
   const weekStart = mondayOfWeek(new Date());
   const weekStartKey = calendarDateKey(weekStart);
