@@ -421,7 +421,8 @@ export default function App() {
     if (habit.archivedAt) return false;
     if (habit.frequency === "daily") return true;
     if (habit.frequency === "weekdays") return todayDate.getDay() !== 0 && todayDate.getDay() !== 6;
-    return habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= weekStartKey).length < habit.targetPerWeek;
+    const checkedInToday = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === todayKey);
+    return checkedInToday || habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= weekStartKey).length < habit.targetPerWeek;
   });
 
   const openOrganizeSection = (section: Exclude<OrganizeSection, "home">) => {
