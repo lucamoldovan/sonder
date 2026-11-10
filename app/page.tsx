@@ -97,6 +97,7 @@ export default function Home() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [filterArea, setFilterArea] = useState("all");
+  const [taskFilter, setTaskFilter] = useState<"open" | "completed" | "all">("open");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
@@ -285,10 +286,17 @@ export default function Home() {
       return aOverdue - bOverdue || dueOrder || priorityOrder;
     }).slice(0, 5);
   const visibleTasks = useMemo(() => tasks
+    .filter(task => taskFilter === "all" || (taskFilter === "completed" ? task.status === "done" : !["done", "cancelled"].includes(task.status)))
     .filter(task => (filterArea === "all" || task.lifeAreaId === filterArea) && (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
-      (a.dueAt || "9999").localeCompare(b.dueAt || "9999")),
-  [tasks, query, filterArea]);
+    .sort((a, b) => {
+      if (taskFilter === "completed") return (b.completedAt || "").localeCompare(a.completedAt || "");
+      const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
+      const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
+      const dueOrder = (a.dueAt || "9999").localeCompare(b.dueAt || "9999");
+      const priorityOrder = ["urgent", "high", "medium", "low"].indexOf(a.priority) - ["urgent", "high", "medium", "low"].indexOf(b.priority);
+      return aOverdue - bOverdue || dueOrder || priorityOrder;
+    }),
+  [tasks, query, filterArea, taskFilter, today]);
 
   async function markNotificationRead(item: ApiNotification) {
     if (!item.readAt) {
@@ -855,7 +863,7 @@ export default function Home() {
             </div>
           </div>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-list-filters" role="group" aria-label="Task status">{([["open","Open"],["completed","Completed"],["all","All"]] as const).map(([value,label])=><button key={value} className={taskFilter===value?"selected":""} aria-pressed={taskFilter===value} onClick={()=>setTaskFilter(value)}>{label}<span>{value==="all"?tasks.length:value==="completed"?tasks.filter(task=>task.status==="done").length:openTasks.length}</span></button>)}</div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>{taskFilter==="open"?"Nothing open right now":taskFilter==="completed"?"No completed tasks yet":"No tasks found"}</strong><span>{taskFilter==="open"?"You have room to choose what matters next.":taskFilter==="completed"?"Completed work will collect here.":"Try changing your search or filters."}</span></div>}</section></div>}
           {view === "Calendar" && (() => {
             const todayKey = calendarDateKey(new Date());
             const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
