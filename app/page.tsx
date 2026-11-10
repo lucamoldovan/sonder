@@ -735,13 +735,15 @@ export default function Home() {
                     const key = calendarDateKey(date);
                     const dayEvents = eventsFor(date);
                     const dayTasks = tasksFor(date);
+                    const dayBlocks = timeBlocks.filter(block => localDate(block.startsAt) === key);
                     const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
                         {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
                         {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
-                        {dayEvents.length + dayTasks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length - 3} more</span>}
+                        {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTasks.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
+                        {dayEvents.length + dayTasks.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length + dayBlocks.length - 3} more</span>}
                       </span>
                     </button>;
                   })}</div>
