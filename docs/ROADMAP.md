@@ -59,6 +59,10 @@ This roadmap prioritizes user value and dependency order. It is intentionally se
 
 - [ ] Revisit AI only after core workflows are excellent
 - [ ] Any AI recommendation must explain source context and request approval before consequential changes
+- [ ] Implement dedicated, read-only Google Calendar connection with shared-calendar selection and incremental sync
+- [ ] Merge imported Google events into the agenda without duplicating native Sonder events
+- [ ] Add mobile and web share targets that capture selected conversation content into Inbox
+- [ ] Add safe task/event/note suggestions with confirmation and duplicate protection
 - [ ] Evaluate platform integrations based on user demand and privacy
 - [ ] No paid service or billing change without explicit product approval
 
