@@ -9,6 +9,10 @@ import { habitRoutes } from "./habits";
 import { calendarRoutes } from "./calendar";
 import { noteRoutes } from "./notes";
 import { workspaceRoutes } from "./workspace";
+import { timeBlockRoutes } from "./time-blocks";
+import { milestoneRoutes } from "./milestones";
+import { noteTemplateRoutes } from "./note-templates";
+import { noteLinkRoutes } from "./note-links";
 
 export const v1Routes = new Hono<AppEnv>();
 
