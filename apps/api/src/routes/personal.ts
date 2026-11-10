@@ -97,7 +97,8 @@ personalRoutes.get("/insights", async (c) => {
   const requestedDays = Number(c.req.query("days") ?? 30);
   const days = [7, 30, 90].includes(requestedDays) ? requestedDays : 30;
   const from = new Date();
-  from.setDate(from.getDate() - days + 1);\n  from.setHours(0, 0, 0, 0);
+  from.setDate(from.getDate() - days + 1);
+  from.setHours(0, 0, 0, 0);
   const fromDate = from.toISOString().slice(0, 10);
   const db = c.get("db");
   const [taskRows, habitRows, focusRows, moodRows, goalRows, areaRows] = await Promise.all([
@@ -166,13 +167,17 @@ personalRoutes.get("/export/data", async (c) => {
 });
 
 function icsEscape(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?
+/g, "\
+");
 }
 function icsDate(value: Date) {
   return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 function unescapeIcs(value: string) {
-  return value.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
+  return value.replace(/\
+/gi, "
+").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
 }
 function parseIcsDate(value: string) {
   const raw = value.trim();
@@ -194,10 +199,12 @@ personalRoutes.post("/import/calendar.ics", async (c) => {
   if (!body?.content || typeof body.content !== "string" || body.content.length > 1_000_000) {
     return c.json({ error: { code: "INVALID_IMPORT", message: "Upload an iCalendar file smaller than 1 MB." } }, 400);
   }
-  const unfolded = body.content.replace(/\r?\n[ \t]/g, "");
+  const unfolded = body.content.replace(/\r?
+[ \t]/g, "");
   const events: Record<string, string>[][] = [];
   let current: Record<string, string> | null = null;
-  for (const line of unfolded.split(/\r?\n/)) {
+  for (const line of unfolded.split(/\r?
+/)) {
     if (line === "BEGIN:VEVENT") { current = {}; continue; }
     if (line === "END:VEVENT") { if (current) events.push([current]); current = null; continue; }
     if (!current) continue;
@@ -262,5 +269,7 @@ personalRoutes.get("/export/calendar.ics", async (c) => {
   lines.push("END:VCALENDAR");
   c.header("Content-Type", "text/calendar; charset=utf-8");
   c.header("Content-Disposition", 'attachment; filename="sonder-calendar.ics"');
-  return c.body(lines.join("\r\n") + "\r\n");
+  return c.body(lines.join("\r
+") + "\r
+");
 });
