@@ -82,25 +82,46 @@ taskRoutes.post("/", async (c) => {
   const relationError = await validateRelations(db, user.id, parsed.data);
   if (relationError) return c.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
   const data = parsed.data;
-  const [created] = await db.insert(tasks).values({
-    userId: user.id,
-    title: data.title,
-    description: data.description ?? null,
-    lifeAreaId: data.lifeAreaId ?? null,
-    projectId: data.projectId ?? null,
-    goalId: data.goalId ?? null,
-    parentTaskId: data.parentTaskId ?? null,
-    status: data.status,
-    priority: data.priority,
-    dueAt: data.dueAt ? new Date(data.dueAt) : null,
-    reminderAt: data.reminderAt ? new Date(data.reminderAt) : null,
-    recurrenceFrequency: data.recurrenceFrequency ?? null,
-    recurrenceInterval: data.recurrenceInterval ?? 1,
-    recurrenceUntil: data.recurrenceUntil ?? null,
-    estimateMinutes: data.estimateMinutes ?? null
-  }).returning();
-  await db.insert(activityLog).values({ userId: user.id, entityType: "task", entityId: created.id, action: "created", summary: `Created task “${created.title}”.` });
-  if (created.projectId) await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: created.projectId, action: "task_created", summary: `Added task “${created.title}”.` });
+  const created = await db.transaction(async (tx) => {
+    const [task] = await tx.insert(tasks).values({
+      userId: user.id,
+      title: data.title,
+      description: data.description ?? null,
+      lifeAreaId: data.lifeAreaId ?? null,
+      projectId: data.projectId ?? null,
+      goalId: data.goalId ?? null,
+      parentTaskId: data.parentTaskId ?? null,
+      status: data.status,
+      priority: data.priority,
+      dueAt: data.dueAt ? new Date(data.dueAt) : null,
+      reminderAt: data.reminderAt ? new Date(data.reminderAt) : null,
+      recurrenceFrequency: data.recurrenceFrequency ?? null,
+      recurrenceInterval: data.recurrenceInterval ?? 1,
+      recurrenceUntil: data.recurrenceUntil ?? null,
+      estimateMinutes: data.estimateMinutes ?? null
+    }).returning();
+
+    await tx.insert(activityLog).values({
+      userId: user.id,
+      entityType: "task",
+      entityId: task.id,
+      action: "created",
+      summary: `Created task “${task.title}”.`
+    });
+
+    if (task.projectId) {
+      await tx.insert(activityLog).values({
+        userId: user.id,
+        entityType: "project",
+        entityId: task.projectId,
+        action: "task_created",
+        summary: `Added task “${task.title}”.`
+      });
+    }
+
+    return task;
+  });
+
   return c.json({ data: created }, 201);
 });
 
