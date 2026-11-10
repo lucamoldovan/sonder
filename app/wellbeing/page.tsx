@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";\nimport type { FormEvent } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Heart, Save, Trash2 } from "lucide-react";
 import { apiRequest, type ApiList } from "@/lib/api";
