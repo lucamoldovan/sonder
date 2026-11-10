@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
+  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -14,6 +14,7 @@ import type { ApiCalendarEvent, ApiGoal, ApiHabit, ApiHabitEntry, ApiInboxItem, 
 type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "Habits" | "Life Areas";
 type Priority = ApiTask["priority"];
 type CommandResult = { id: string; title: string; subtitle: string | null; type: string };
+type ApiNotification = { id: string; title: string; body: string | null; href: string | null; readAt: string | null; createdAt: string };
 
 const defaultAreas = [
   { name: "School", color: "#A78BFA", icon: "book-open" },
@@ -82,6 +83,8 @@ export default function Home() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandResults, setCommandResults] = useState<CommandResult[]>([]);
   const [commandLoading, setCommandLoading] = useState(false);
+  const [notifications, setNotifications] = useState<ApiNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [filterArea, setFilterArea] = useState("all");
   const [capture, setCapture] = useState("");
   const [taskOpen, setTaskOpen] = useState(false);
@@ -159,6 +162,8 @@ export default function Home() {
       setHabits(workspace.data.habits);
       setHabitEntries(workspace.data.habitEntries);
       setEvents(workspace.data.events);
+      const notificationResult = await apiRequest<{ data: ApiNotification[]; unreadCount: number }>("/workspace/notifications");
+      setNotifications(notificationResult.data);
       setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
       setTaskProject("");
       setFilterArea(current => current === "all" || loadedAreas.some(area => area.id === current) ? current : "all");
@@ -213,6 +218,16 @@ export default function Home() {
     .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
       (a.dueAt || "9999").localeCompare(b.dueAt || "9999")),
   [tasks, query, filterArea]);
+
+  async function markNotificationRead(item: ApiNotification) {
+    if (!item.readAt) {
+      try {
+        const result = await apiRequest<ApiList<ApiNotification>>("/workspace/notifications/" + item.id + "/read", { method: "PATCH" });
+        setNotifications(current => current.map(notification => notification.id === item.id ? result.data : notification));
+      } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the notification."); }
+    }
+    if (item.href) window.location.href = item.href;
+  }
 
   async function handleAuth(event: FormEvent) {
     event.preventDefault();
@@ -342,6 +357,19 @@ export default function Home() {
       await apiRequest(`/inbox/${item.id}/convert-to-note`, { method: "POST" });
       setInbox(current => current.filter(entry => entry.id !== item.id));
       setNotice("Inbox item converted into a note.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not convert the inbox item."); }
+  }
+
+  async function convertInboxToEvent(item: ApiInboxItem) {
+    const value = window.prompt("When should this happen? Enter YYYY-MM-DD HH:MM");
+    if (!value) return;
+    const parsedDate = new Date(value.trim().replace(" ", "T"));
+    if (Number.isNaN(parsedDate.getTime())) { setError("Use a date like 2026-11-12 14:30."); return; }
+    try {
+      await apiRequest(`/inbox/${item.id}/convert-to-event`, { method: "POST", body: JSON.stringify({ startsAt: parsedDate.toISOString() }) });
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+      await loadWorkspace();
+      setNotice("Inbox item added to your calendar.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not convert the inbox item."); }
   }
 
@@ -555,8 +583,9 @@ export default function Home() {
       <section className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-actions"><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
         </header>
+        {notificationsOpen && <div className="notification-popover"><div className="notification-popover-heading"><strong>Notifications</strong><button onClick={()=>setNotificationsOpen(false)}><X size={14}/></button></div>{notifications.length?notifications.map(item=><button className={"notification-row "+(!item.readAt?"unread":"")} key={item.id} onClick={()=>void markNotificationRead(item)}><span/><div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.createdAt).toLocaleString()}</small></div></button>):<p className="notification-empty">You&apos;re all caught up.</p>}</div>}
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
           {view === "Today" && <>
@@ -580,7 +609,7 @@ export default function Home() {
               </div>
             </div>
           </>}
-          {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
+          {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
           {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
           {view === "Calendar" && (() => {
             const todayKey = calendarDateKey(new Date());
