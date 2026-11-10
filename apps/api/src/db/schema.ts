@@ -125,7 +125,7 @@ export const tasks = pgTable("tasks", {
   lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   goalId: uuid("goal_id"),
-  parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, { onDelete: "cascade" }),
+  parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description"),
   status: taskStatus("status").notNull().default("todo"),
