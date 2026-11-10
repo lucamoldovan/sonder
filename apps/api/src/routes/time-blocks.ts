@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { tasks, timeBlocks } from "../db/schema";
@@ -36,7 +36,7 @@ timeBlockRoutes.post("/", async c => {
   if (!task) return c.json({ error: { code: "INVALID_RELATION", message: "The selected task does not exist." } }, 400);
   const [created] = await db.insert(timeBlocks).values({ userId: user.id, taskId: parsed.data.taskId, startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), note: parsed.data.note ?? null }).returning();
   const overlaps = await db.select({ id: timeBlocks.id, startsAt: timeBlocks.startsAt, endsAt: timeBlocks.endsAt }).from(timeBlocks)
-    .where(and(eq(timeBlocks.userId, user.id), gte(timeBlocks.startsAt, created.startsAt), lt(timeBlocks.startsAt, created.endsAt)));
+    .where(and(eq(timeBlocks.userId, user.id), lt(timeBlocks.startsAt, created.endsAt), gt(timeBlocks.endsAt, created.startsAt)));
   return c.json({ data: created, conflicts: overlaps.filter(row => row.id !== created.id) }, 201);
 });
 
