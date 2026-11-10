@@ -232,6 +232,18 @@ export default function Home() {
   const openTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
   const dueToday = openTasks.filter(task => task.dueAt && localDate(task.dueAt) === today);
   const overdue = openTasks.filter(task => task.dueAt && localDate(task.dueAt) < today);
+  const todayEvents = events.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayBlocks = timeBlocks.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayCommitmentCount = todayEvents.length + todayBlocks.length;
+  const nextActionTasks = [...openTasks]
+    .filter(task => (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
+    .sort((a,b) => {
+      const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
+      const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
+      const dueOrder = (a.dueAt || "9999").localeCompare(b.dueAt || "9999");
+      const priorityOrder = ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority);
+      return aOverdue - bOverdue || dueOrder || priorityOrder;
+    }).slice(0, 5);
   const completed = tasks.filter(task => task.status === "done");
   const visibleTasks = useMemo(() => tasks
     .filter(task => (filterArea === "all" || task.lifeAreaId === filterArea) && (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
@@ -665,25 +677,108 @@ export default function Home() {
         <div className="page-content">
           {(error || notice) && <div className={`workspace-message ${error ? "message-error" : ""}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button></div>}
           {view === "Today" && <>
-            <div className="welcome-row"><div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div><h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1><p className="subheading">A little clarity goes a long way. Here&apos;s your day at a glance.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div>
-            <form className="today-capture" onSubmit={quickCapture}><Plus size={16}/><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Quick capture — task, thought, idea…"/><button disabled={!capture.trim()}>Add to inbox</button></form>
-            <div className="stat-grid">
-              <div className="stat-card"><div className="stat-top"><span>Open tasks</span><ListTodo size={16} /></div><div className="stat-value">{openTasks.length}</div><div className="stat-foot">Across your life areas</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Due today</span><Target size={16} /></div><div className="stat-value">{dueToday.length}</div><div className="stat-foot">{overdue.length} overdue</div></div>
-              <div className="stat-card"><div className="stat-top"><span>Completed</span><CheckCheck size={16} /></div><div className="stat-value">{completed.length}</div><div className="stat-foot">A little progress counts</div></div>
-            </div>
-            <section className="weekly-review-strip"><div><span className="section-kicker">YOUR WEEK SO FAR</span><strong>{completedThisWeek} tasks completed</strong><small>{checkinsThisWeek} habit check-ins · {overdue.length} overdue tasks</small></div><div className="weekly-review-progress"><span>Active goals</span><strong>{goals.filter(goal => goal.status === "active").length}</strong></div><div className="weekly-review-progress"><span>Active projects</span><strong>{projects.filter(project => project.status === "active").length}</strong></div><button className="weekly-review-open" onClick={()=>setReviewOpen(true)}>Review week <ArrowRight size={13}/></button></section>
-            <div className="content-grid">
-              <section className="panel tasks-panel"><div className="panel-heading"><div><div className="section-kicker">YOUR FOCUS</div><h2>Today&apos;s priorities</h2></div><button className="text-button" onClick={() => setView("Tasks")}>View all <ArrowRight size={14} /></button></div>
-                {dueToday.length || openTasks.length ? (dueToday.length ? dueToday : openTasks).slice(0, 7).map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><Check size={20} /><strong>All clear for now</strong><span>Enjoy the breathing room. You&apos;ve earned it.</span></div>}
-                <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15} />Add a task</button>
-              </section>
-              <div className="right-column">
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">COMING UP</div><h2>Next on your calendar</h2></div><button className="text-button" onClick={() => setView("Calendar")}>Calendar <ArrowRight size={14}/></button></div>{events.filter(item => new Date(item.startsAt) >= new Date()).sort((a,b) => a.startsAt.localeCompare(b.startsAt)).slice(0,4).map(item => <div className="upcoming-row" key={item.id}><span className="upcoming-dot"/><div><strong>{item.title}</strong><span>{new Date(item.startsAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span></div></div>)}{events.filter(item => new Date(item.startsAt) >= new Date()).length === 0 && <p className="muted-note">Nothing scheduled yet. Add an event when something is coming up.</p>}</section>
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">ONE THING AT A TIME</div><h2>Suggested focus</h2></div></div>{[...openTasks].sort((a,b) => ["urgent","high","medium","low"].indexOf(a.priority)-["urgent","high","medium","low"].indexOf(b.priority) || (a.dueAt || "9999").localeCompare(b.dueAt || "9999"))[0] ? <div className="focus-task"><strong>{[...openTasks].sort((a,b) => ["urgent","high","medium","low"].indexOf(a.priority)-["urgent","high","medium","low"].indexOf(b.priority) || (a.dueAt || "9999").localeCompare(b.dueAt || "9999"))[0].title}</strong><span>Based on priority and due date</span></div> : <p className="muted-note">No open tasks. Enjoy the space.</p>}</section>
-                <section className="panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">SMALL THINGS, REPEATED</div><h2>Daily habits</h2></div><button className="text-button" onClick={()=>setView("Habits")}>All habits <ArrowRight size={13}/></button></div>{habits.filter(habit=>!habit.archivedAt).slice(0,5).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);return <div className="today-habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label={"Check in "+habit.name}>{checked&&<Check size={12}/>}</button><span className={checked?"is-checked":""}>{habit.name}</span></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<p className="muted-note">Add one small habit to start building consistency.</p>}</section>
-                <section className="panel areas-panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">THE BIG PICTURE</div><h2>Your life areas</h2></div></div><div className="area-progress-list">{areas.map(area => { const related = tasks.filter(task => task.lifeAreaId === area.id); const done = related.filter(task => task.status === "done").length; return <div className="area-progress" key={area.id}><span className="area-mini-icon" style={{ color: area.color }}>●</span><span className="progress-name">{area.name}</span><span className="progress-track"><i style={{ width: related.length ? `${done / related.length * 100}%` : "0%" }} /></span><span className="progress-number">{done}/{related.length}</span></div>; })}</div></section>
+            <div className="today-intro">
+              <div>
+                <div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div>
+                <h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1>
+                <p className="subheading">Here’s what matters today. You don’t need to do everything at once.</p>
               </div>
+              <button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />Add a task</button>
+            </div>
+
+            <form className="today-capture" onSubmit={quickCapture}>
+              <Plus size={16}/><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Get it out of your head…"/>
+              <button disabled={!capture.trim()}>Capture</button>
+            </form>
+
+            <div className="today-context-line">
+              <span>{todayEvents.length + todayBlocks.length} scheduled {todayEvents.length + todayBlocks.length === 1 ? "commitment" : "commitments"}</span>
+              <span className="context-separator">·</span>
+              <span>{dueToday.length} {dueToday.length === 1 ? "task" : "tasks"} due today</span>
+              {overdue.length > 0 && <><span className="context-separator">·</span><span className="today-overdue-count">{overdue.length} overdue</span></>}
+            </div>
+
+            <div className="today-layout">
+              <div className="today-primary-column">
+                <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">YOUR TIME</div><h2>Today&apos;s agenda</h2></div>
+                    <button className="text-button" onClick={() => setView("Calendar")}>Open calendar <ArrowRight size={14}/></button>
+                  </div>
+                  {todayEvents.length === 0 && todayBlocks.length === 0
+                    ? <div className="today-quiet-state"><CalendarDays size={18}/><div><strong>Nothing scheduled today.</strong><span>That’s room you can use—or leave free.</span></div></div>
+                    : <div className="today-agenda-list">
+                      {todayEvents.map(item => <div className="today-agenda-row" key={item.id}>
+                        <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
+                        <span className="today-agenda-marker event-marker"/>
+                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.location || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
+                        <button className="text-button" onClick={() => openEditEvent(item)}>Edit</button>
+                      </div>)}
+                      {todayBlocks.map(block => <div className="today-agenda-row" key={block.id}>
+                        <span className="today-agenda-time">{formatEventTime(block.startsAt)}</span>
+                        <span className="today-agenda-marker block-marker"/>
+                        <div className="today-agenda-copy"><strong>{tasks.find(task => task.id === block.taskId)?.title || "Scheduled work"}</strong><span>{formatEventTime(block.endsAt)} · Work block</span></div>
+                        <button className="text-button" onClick={() => setView("Calendar")}>View</button>
+                      </div>)}
+                    </div>}
+                </section>
+
+                <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">WHAT NEEDS YOUR ATTENTION</div><h2>Next actions</h2></div>
+                    <button className="text-button" onClick={() => setView("Tasks")}>All tasks <ArrowRight size={14}/></button>
+                  </div>
+                  {nextActionTasks.length > 0
+                    ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask}/>)}</div>
+                    : <div className="today-quiet-state"><Check size={18}/><div><strong>No urgent tasks asking for attention.</strong><span>You can choose something meaningful to work on, or enjoy the breathing room.</span></div></div>}
+                  <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15}/>Add a task</button>
+                </section>
+
+                {habits.filter(habit => !habit.archivedAt).length > 0 && <section className="today-section">
+                  <div className="today-section-heading">
+                    <div><div className="section-kicker">OPTIONAL CHECK-IN</div><h2>Small things, repeated</h2></div>
+                    <button className="text-button" onClick={() => setView("Habits")}>Habits <ArrowRight size={14}/></button>
+                  </div>
+                  <div className="today-habits-list">{habits.filter(habit => !habit.archivedAt).slice(0, 5).map(habit => {
+                    const checked = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === today);
+                    return <div className="today-habit-row" key={habit.id}>
+                      <button className={"task-check " + (checked ? "checked" : "")} onClick={() => void checkInHabit(habit)} aria-label={(checked ? "Undo check-in for " : "Check in ") + habit.name}>{checked && <Check size={12}/>}</button>
+                      <span className={checked ? "is-checked" : ""}>{habit.name}</span>
+                    </div>;
+                  })}</div>
+                </section>}
+              </div>
+
+              <aside className="today-secondary-column">
+                {todayCommitmentCount > 0 && <section className="today-context-panel">
+                  <div className="section-kicker">A NOTE FOR TODAY</div>
+                  <h3>{todayCommitmentCount >= 5 || dueToday.length >= 4 ? "A full day ahead." : "Keep a little room."}</h3>
+                  <p>{todayCommitmentCount >= 5 || dueToday.length >= 4
+                    ? "You have several commitments today. Leave some space between them where you can."
+                    : "Your schedule has some structure, but it doesn’t need to fill every minute."}</p>
+                </section>}
+
+                <section className="today-side-section">
+                  <div className="today-section-heading compact">
+                    <div><div className="section-kicker">IN THE NEAR FUTURE</div><h2>Coming up</h2></div>
+                  </div>
+                  {events.filter(item => new Date(item.startsAt) > new Date() && localDate(item.startsAt) !== today).sort((a,b) => a.startsAt.localeCompare(b.startsAt)).slice(0,4).map(item =>
+                    <div className="today-upcoming-row" key={item.id}><span className="upcoming-dot"/><div><strong>{item.title}</strong><span>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})} · {item.allDay ? "All day" : formatEventTime(item.startsAt)}</span></div></div>
+                  )}
+                  {events.filter(item => new Date(item.startsAt) > new Date() && localDate(item.startsAt) !== today).length === 0 && <p className="today-muted-note">Nothing else on the calendar yet.</p>}
+                </section>
+
+                <section className="today-side-section">
+                  <div className="today-section-heading compact">
+                    <div><div className="section-kicker">LONGER-TERM DIRECTION</div><h2>Goals in progress</h2></div>
+                    <button className="text-button" onClick={() => setView("Goals")}>View <ArrowRight size={13}/></button>
+                  </div>
+                  {goals.filter(goal => goal.status === "active").slice(0,3).map(goal => <div className="today-goal-row" key={goal.id}><span className="today-goal-dot"/><div><strong>{goal.title}</strong><span>{goal.targetDate ? "Target · " + new Date(goal.targetDate + "T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "Active goal"}</span></div></div>)}
+                  {goals.filter(goal => goal.status === "active").length === 0 && <p className="today-muted-note">Your longer-term goals will appear here when you add them.</p>}
+                </section>
+
+                <button className="today-inbox-link" onClick={() => setView("Inbox")}><Inbox size={16}/><span><strong>{inbox.length} items to sort</strong><small>Capture now. Organize when you’re ready.</small></span><ArrowRight size={15}/></button>
+              </aside>
             </div>
           </>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
