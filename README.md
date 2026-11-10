@@ -19,9 +19,10 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 - Tagline: Your life, in perspective.
 - Visual direction: clean, minimal, Apple-inspired
 - Theme: dark-first
-- Background: Obsidian `#0B0B0F`
-- Accent: Lavender `#A78BFA`
-- Typography: Inter
+- Background: Graphite `#101114`
+- Surfaces: `#181A1F` / `#202228`
+- Accent: Monochrome white `#F5F5F7`
+- Typography: native system sans stack (SF Pro where available)
 - Logo: abstract geometric symbol + wordmark
 
 ## Repository structure

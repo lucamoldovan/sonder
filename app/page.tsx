@@ -19,7 +19,7 @@ type ApiTimeBlock = { id: string; taskId: string; startsAt: string; endsAt: stri
 type ApiMilestone = { id: string; goalId: string; title: string; description: string | null; targetDate: string | null; status: "pending" | "completed"; position: number; completedAt: string | null };
 
 const defaultAreas = [
-  { name: "School", color: "#A78BFA", icon: "book-open" },
+  { name: "School", color: "#F5F5F7", icon: "book-open" },
   { name: "Church", color: "#E6A2B0", icon: "heart" },
   { name: "Projects", color: "#82B8E7", icon: "layers" },
   { name: "Personal", color: "#D5B77D", icon: "compass" },
@@ -146,7 +146,7 @@ export default function Home() {
   const [eventEndTime, setEventEndTime] = useState("10:00");
   const [eventArea, setEventArea] = useState("");
   const [areaName, setAreaName] = useState("");
-  const [areaColor, setAreaColor] = useState("#A78BFA");
+  const [areaColor, setAreaColor] = useState("#F5F5F7");
 
   const loadWorkspace = useCallback(async () => {
     try {
@@ -765,38 +765,26 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></a>
-        <div className="workspace-label">WORKSPACE</div>
-        <nav className="main-nav">
-          {([
-            ["Today", LayoutDashboard],
-            ["Calendar", CalendarRange],
-            ["Organize", Layers]
-          ] as const).map(([name, Icon]) =>
-            <button key={name} className={`nav-item ${view === name || (name === "Organize" && isOrganizeView) ? "active" : ""}`} onClick={() => setView(name)}>
-              <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
-            </button>
-          )}
-          <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
-        </nav>
-        <div className="workspace-label areas-label">YOUR LIFE</div>
-        <div className="area-nav">
-          {areas.map(area => <button key={area.id} className="area-item" onClick={() => { setTaskArea(area.id); setFilterArea(area.id); setView("Tasks"); }}>
-            <span className="area-dot" style={{ color: area.color, background: area.color + "20" }}><span>•</span></span><span>{area.name}</span>
-          </button>)}
-        </div>
-        <div className="sidebar-bottom">
-          <div className="sidebar-quote">“You don&apos;t have to do it all. Just the next thing.”</div>
-          <button className="nav-item settings-link" onClick={() => void authClient.signOut()}><LogOut size={17} /><span>Sign out</span></button>
-          <div className="profile-row"><div className="avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div><div className="profile-copy"><strong>{session.user.name}</strong><span>{session.user.email}</span></div></div>
-        </div>
-      </aside>
-
       <section className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs"><span>Workspace</span><span>›</span><strong>{view}</strong></div>
-          <div className="topbar-actions"><button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={16}/></button><button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={15} /></button><button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={15}/>{notifications.some(item=>!item.readAt)&&<i/>}</button><button className="icon-button" onClick={() => void loadWorkspace()} aria-label="Refresh workspace"><RefreshCw size={15} /></button><div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div><div className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</div></div>
+          <div className="topbar-brand">
+            <Link className="brand" href="/" aria-label="Sonder home"><span className="brand-mark"><span /></span><span className="brand-name">sonder</span></Link>
+            <nav className="workspace-nav" aria-label="Main navigation">
+              <button className={`workspace-nav-item ${view === "Today" ? "active" : ""}`} onClick={() => setView("Today")}><LayoutDashboard size={16} strokeWidth={1.8}/><span>Today</span></button>
+              <button className={`workspace-nav-item ${view === "Calendar" ? "active" : ""}`} onClick={() => setView("Calendar")}><CalendarRange size={16} strokeWidth={1.8}/><span>Calendar</span></button>
+              <button className={`workspace-nav-item ${isOrganizeView ? "active" : ""}`} onClick={() => setView("Organize")}><Layers size={16} strokeWidth={1.8}/><span>Organize</span></button>
+              <Link className="workspace-nav-item" href="/notes"><NotebookPen size={16} strokeWidth={1.8}/><span>Notes</span></Link>
+            </nav>
+          </div>
+          <div className="topbar-actions">
+            <button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={17}/></button>
+            <button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={16}/></button>
+            <button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={16}/>{notifications.some(item=>!item.readAt)&&<i/>}</button>
+            <button className="icon-button topbar-refresh" onClick={() => void loadWorkspace()} aria-label="Refresh workspace" title="Refresh workspace"><RefreshCw size={15}/></button>
+            <span className="topbar-divider"/>
+            <div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
+            <button className="profile-button" onClick={() => void authClient.signOut()} aria-label="Sign out" title={session.user.name + " · Sign out"}><span className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</span><LogOut size={13}/></button>
+          </div>
         </header>
         {captureOpen && <div className="capture-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setCaptureOpen(false); }}>
           <form className="capture-modal" onSubmit={quickCapture}>
@@ -975,7 +963,7 @@ export default function Home() {
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
-                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
+                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
                         {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
                         {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTasks.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
                         {dayEvents.length + dayTasks.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length + dayBlocks.length - 3} more</span>}
@@ -993,7 +981,7 @@ export default function Home() {
                         const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime()+60*60*1000);
                         const top = Math.max(0, (start.getHours()-6)*56 + start.getMinutes()/60*56);
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
-                        return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
+                        return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
                       {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarDays size={11}/>{item.title} · deadline</div>)}
                       {timeBlocks.filter(block => localDate(block.startsAt) === calendarDateKey(date)).map(block => {
