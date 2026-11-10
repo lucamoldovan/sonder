@@ -9,10 +9,11 @@ import { apiRequest } from "@/lib/api";
 
 type Workspace = {
   project: { id: string; name: string; description: string | null; status: string; dueDate: string | null; goalId?: string | null };
-  tasks: Array<{ id: string; title: string; status: string; priority: string; dueAt: string | null; description: string | null }>;
+  tasks: Array<{ id: string; title: string; status: string; priority: string; dueAt: string | null; description: string | null; parentTaskId?: string | null }>;
   events: Array<{ id: string; title: string; startsAt: string; endsAt: string | null; allDay: boolean }>;
   notes: Array<{ id: string; title: string; icon: string | null; updatedAt: string }>;
   activity: Array<{ id: string; summary: string; createdAt: string }>;
+  dependencies: Array<{ id: string; taskId: string; dependsOnTaskId: string }>;
   goal: { id: string; title: string; status: string } | null;
   lifeArea: { id: string; name: string; color: string } | null;
   progress: { completed: number; total: number; percentage: number };
@@ -24,6 +25,8 @@ export default function ProjectWorkspacePage() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dependencyTaskId, setDependencyTaskId] = useState("");
+  const [dependsOnTaskId, setDependsOnTaskId] = useState("");
 
   const load = useCallback(async () => {
     if (!params.id) return;
@@ -55,11 +58,26 @@ export default function ProjectWorkspacePage() {
     }
   }
 
+  async function addDependency(event: React.FormEvent) {
+    event.preventDefault();
+    if (!dependencyTaskId || !dependsOnTaskId) return;
+    try {
+      await apiRequest("/tasks/" + dependencyTaskId + "/dependencies", {
+        method: "POST",
+        body: JSON.stringify({ dependsOnTaskId })
+      });
+      setDependsOnTaskId("");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't add that dependency.");
+    }
+  }
+
   if (isPending || loading) return <main className="project-workspace-loading"><LoaderCircle className="spin" size={20}/>Loading project…</main>;
   if (!session?.user) return <main className="project-workspace-loading">Please <Link href="/">sign in</Link> to continue.</main>;
   if (error || !workspace) return <main className="project-workspace-loading"><p>{error || "Project not found."}</p><Link href="/">Back to Sonder</Link></main>;
 
-  const { project, tasks, events, notes, activity, goal, lifeArea, progress } = workspace;
+  const { project, tasks, events, notes, activity, dependencies, goal, lifeArea, progress } = workspace;
   return <main className="project-workspace">
     <header className="project-workspace-topbar"><Link href="/"><ArrowLeft size={16}/> Back to Sonder</Link><span>PROJECT WORKSPACE</span></header>
     <div className="project-workspace-content">
@@ -72,7 +90,7 @@ export default function ProjectWorkspacePage() {
       <div className="project-workspace-grid">
         <section className="project-workspace-panel project-workspace-tasks">
           <div className="project-workspace-panel-heading"><div><span>MAKE PROGRESS</span><h2>Tasks <small>{tasks.length}</small></h2></div><Link href="/">Open tasks <ArrowLeft size={13}/></Link></div>
-          {tasks.length ? tasks.map(task => <div className={"project-task-row " + (task.status === "done" ? "is-done" : "")} key={task.id}>
+          {tasks.length ? tasks.map(task => <div className={"project-task-row " + (task.status === "done" ? "is-done" : "")} style={{paddingLeft:task.parentTaskId?22:0}} key={task.id}>
             <button onClick={() => void toggleTask(task)} aria-label="Toggle task">{task.status === "done" ? <CheckCircle2 size={17}/> : <Circle size={17}/>}</button>
             <div><strong>{task.title}</strong><span>{task.priority}{task.dueAt ? " · Due " + new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span></div>
           </div>) : <p className="project-workspace-empty">No tasks linked to this project yet.</p>}
