@@ -104,6 +104,7 @@ export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  goalId: uuid("goal_id"),
   name: text("name").notNull(),
   description: text("description"),
   status: text("status").notNull().default("active"),
@@ -114,7 +115,8 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 }, (table) => [
   index("projects_user_id_idx").on(table.userId),
-  index("projects_life_area_id_idx").on(table.lifeAreaId)
+  index("projects_life_area_id_idx").on(table.lifeAreaId),
+  index("projects_goal_id_idx").on(table.goalId)
 ]).enableRLS();
 
 export const tasks = pgTable("tasks", {
@@ -122,11 +124,17 @@ export const tasks = pgTable("tasks", {
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  goalId: uuid("goal_id"),
+  parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description"),
   status: taskStatus("status").notNull().default("todo"),
   priority: taskPriority("priority").notNull().default("medium"),
   dueAt: timestamp("due_at", { withTimezone: true }),
+  reminderAt: timestamp("reminder_at", { withTimezone: true }),
+  recurrenceFrequency: text("recurrence_frequency"),
+  recurrenceInterval: integer("recurrence_interval").notNull().default(1),
+  recurrenceUntil: date("recurrence_until"),
   estimateMinutes: integer("estimate_minutes"),
   position: integer("position").notNull().default(0),
   completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -136,6 +144,8 @@ export const tasks = pgTable("tasks", {
   index("tasks_user_id_idx").on(table.userId),
   index("tasks_user_status_idx").on(table.userId, table.status),
   index("tasks_project_id_idx").on(table.projectId),
+  index("tasks_goal_id_idx").on(table.goalId),
+  index("tasks_parent_task_id_idx").on(table.parentTaskId),
   index("tasks_life_area_id_idx").on(table.lifeAreaId),
   index("tasks_due_at_idx").on(table.userId, table.dueAt)
 ]).enableRLS();
@@ -159,6 +169,7 @@ export const habits = pgTable("habits", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  goalId: uuid("goal_id"),
   name: text("name").notNull(),
   description: text("description"),
   frequency: text("frequency").notNull().default("daily"),
@@ -167,7 +178,8 @@ export const habits = pgTable("habits", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 }, (table) => [
-  index("habits_user_id_idx").on(table.userId)
+  index("habits_user_id_idx").on(table.userId),
+  index("habits_goal_id_idx").on(table.goalId)
 ]).enableRLS();
 
 export const habitEntries = pgTable("habit_entries", {
@@ -245,4 +257,44 @@ export const notes = pgTable("notes", {
   index("notes_parent_id_idx").on(table.parentId),
   index("notes_project_id_idx").on(table.projectId),
   index("notes_life_area_id_idx").on(table.lifeAreaId)
+]).enableRLS();
+
+
+export const taskDependencies = pgTable("task_dependencies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  dependsOnTaskId: uuid("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  uniqueIndex("task_dependencies_unique").on(table.taskId, table.dependsOnTaskId),
+  index("task_dependencies_user_idx").on(table.userId, table.taskId)
+]).enableRLS();
+
+export const activityLog = pgTable("activity_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(),
+  entityId: uuid("entity_id").notNull(),
+  action: text("action").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("activity_log_user_created_idx").on(table.userId, table.createdAt),
+  index("activity_log_entity_idx").on(table.entityType, table.entityId)
+]).enableRLS();
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body"),
+  href: text("href"),
+  sourceKey: text("source_key"),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("notifications_user_created_idx").on(table.userId, table.createdAt),
+  index("notifications_user_unread_idx").on(table.userId, table.readAt),
+  uniqueIndex("notifications_user_source_unique").on(table.userId, table.sourceKey)
 ]).enableRLS();

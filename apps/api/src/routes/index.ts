@@ -8,6 +8,7 @@ import { goalRoutes } from "./goals";
 import { habitRoutes } from "./habits";
 import { calendarRoutes } from "./calendar";
 import { noteRoutes } from "./notes";
+import { workspaceRoutes } from "./workspace";
 
 export const v1Routes = new Hono<AppEnv>();
 
@@ -19,3 +20,4 @@ v1Routes.route("/goals", goalRoutes);
 v1Routes.route("/habits", habitRoutes);
 v1Routes.route("/calendar", calendarRoutes);
 v1Routes.route("/notes", noteRoutes);
+v1Routes.route("/workspace", workspaceRoutes);

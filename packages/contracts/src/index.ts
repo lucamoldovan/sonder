@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format").refine((value) => {
+  const parsed = new Date(value + "T00:00:00.000Z");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, "Expected a real calendar date");
+
 export const TaskStatusSchema = z.enum([
   "inbox",
   "todo",
@@ -20,6 +25,12 @@ export const CreateTaskSchema = z.object({
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
+  parentTaskId: z.string().uuid().nullable().optional(),
+  reminderAt: z.string().datetime().nullable().optional(),
+  recurrenceFrequency: z.enum(["daily", "weekly", "monthly"]).nullable().optional(),
+  recurrenceInterval: z.number().int().min(1).max(52).optional(),
+  recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.default("todo"),
   priority: TaskPrioritySchema.default("medium"),
   dueAt: z.string().datetime().nullable().optional(),
@@ -32,6 +43,12 @@ export const UpdateTaskSchema = z.object({
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
+  parentTaskId: z.string().uuid().nullable().optional(),
+  reminderAt: z.string().datetime().nullable().optional(),
+  recurrenceFrequency: z.enum(["daily", "weekly", "monthly"]).nullable().optional(),
+  recurrenceInterval: z.number().int().min(1).max(52).optional(),
+  recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
   dueAt: z.string().datetime().nullable().optional(),
@@ -76,15 +93,11 @@ const SafeHttpUrlSchema = z.string().url().max(2_048).refine(
   "Only HTTP and HTTPS links are allowed"
 );
 
-const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format").refine((value) => {
-  const parsed = new Date(value + "T00:00:00.000Z");
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}, "Expected a real calendar date");
-
 export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   status: ProjectStatusSchema.default("active"),
   startDate: DateOnlySchema.nullable().optional(),
   dueDate: DateOnlySchema.nullable().optional()
@@ -94,6 +107,7 @@ export const UpdateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   status: ProjectStatusSchema.optional(),
   startDate: DateOnlySchema.nullable().optional(),
   dueDate: DateOnlySchema.nullable().optional()
@@ -142,6 +156,12 @@ export type TaskRecord = {
   dueAt: string | null;
   lifeAreaId: string | null;
   projectId: string | null;
+  goalId?: string | null;
+  parentTaskId?: string | null;
+  reminderAt?: string | null;
+  recurrenceFrequency?: "daily" | "weekly" | "monthly" | null;
+  recurrenceInterval?: number;
+  recurrenceUntil?: string | null;
   createdAt: string;
   completedAt: string | null;
 };
@@ -160,6 +180,7 @@ export type ProjectRecord = {
   description: string | null;
   status: ProjectStatus;
   lifeAreaId: string | null;
+  goalId?: string | null;
   startDate: string | null;
   dueDate: string | null;
 };
@@ -193,6 +214,7 @@ const HabitFieldsSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().max(2_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   frequency: z.enum(["daily", "weekdays", "weekly"]).optional(),
   targetPerWeek: z.number().int().min(1).max(7).optional()
 });
@@ -205,7 +227,7 @@ export const CreateHabitSchema = HabitFieldsSchema.transform(data => {
   };
 });
 export const UpdateHabitSchema = HabitFieldsSchema.partial().extend({ archived: z.boolean().optional() });
-export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
+export type HabitRecord = { id: string; name: string; description: string | null; lifeAreaId: string | null; goalId?: string | null; frequency: "daily" | "weekdays" | "weekly"; targetPerWeek: number; archivedAt: string | null; createdAt: string };
 export type HabitEntryRecord = { id: string; habitId: string; entryDate: string; note: string | null };
 
 const CalendarEventFieldsSchema = z.object({

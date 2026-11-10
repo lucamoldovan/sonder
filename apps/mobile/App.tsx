@@ -3,11 +3,12 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from "react-native";
-import type { InboxItemRecord, TaskRecord } from "@sonder/contracts";
+import type { CalendarEventRecord, GoalRecord, HabitEntryRecord, HabitRecord, InboxItemRecord, LifeAreaRecord, NoteRecord, ProjectRecord, TaskRecord } from "@sonder/contracts";
 import { API_BASE_URL, apiRequest, authClient } from "./auth-client";
 
 type Task = TaskRecord;
-type InboxItem = Pick<InboxItemRecord, "id" | "title" | "createdAt">;
+type InboxItem = InboxItemRecord;
+type Tab = "today" | "tasks" | "inbox" | "habits" | "goals" | "calendar" | "projects" | "notes" | "areas";
 type List<T> = { data: T };
 
 const colors = {
@@ -26,6 +27,16 @@ export default function App() {
   const [error, setError] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [inbox, setInbox] = useState<InboxItem[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [goals, setGoals] = useState<GoalRecord[]>([]);
+  const [habits, setHabits] = useState<HabitRecord[]>([]);
+  const [habitEntries, setHabitEntries] = useState<HabitEntryRecord[]>([]);
+  const [events, setEvents] = useState<CalendarEventRecord[]>([]);
+  const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const [lifeAreas, setLifeAreas] = useState<LifeAreaRecord[]>([]);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteBody, setNoteBody] = useState("");
+  const [tab, setTab] = useState<Tab>("today");
   const [capture, setCapture] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,12 +44,25 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const [taskResult, inboxResult] = await Promise.all([
-        apiRequest<List<Task[]>>("/tasks"),
-        apiRequest<List<InboxItem[]>>("/inbox?status=inbox")
-      ]);
-      setTasks(taskResult.data);
-      setInbox(inboxResult.data);
+      const [result, noteResult] = await Promise.all([apiRequest<List<{
+        tasks: Task[];
+        inbox: InboxItem[];
+        projects: ProjectRecord[];
+        goals: GoalRecord[];
+        habits: HabitRecord[];
+        habitEntries: HabitEntryRecord[];
+        events: CalendarEventRecord[];
+        lifeAreas: LifeAreaRecord[];
+      }>>("/workspace/dashboard"), apiRequest<List<NoteRecord[]>>("/notes")]);
+      setTasks(result.data.tasks);
+      setInbox(result.data.inbox);
+      setProjects(result.data.projects);
+      setGoals(result.data.goals);
+      setHabits(result.data.habits);
+      setHabitEntries(result.data.habitEntries);
+      setEvents(result.data.events);
+      setLifeAreas(result.data.lifeAreas);
+      setNotes(noteResult.data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your data.");
     } finally {
@@ -50,6 +74,13 @@ export default function App() {
     if (!session?.user?.id) {
       setTasks([]);
       setInbox([]);
+      setProjects([]);
+      setGoals([]);
+      setHabits([]);
+      setHabitEntries([]);
+      setEvents([]);
+      setNotes([]);
+      setLifeAreas([]);
       return;
     }
     void loadData();
@@ -115,6 +146,52 @@ export default function App() {
     }
   }
 
+  async function checkInHabit(habit: HabitRecord) {
+    const now = new Date();
+    const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+    const existing = habitEntries.find(entry => entry.habitId === habit.id && entry.entryDate === date);
+    try {
+      if (existing) {
+        await apiRequest("/habits/" + habit.id + "/check-in/" + date, { method: "DELETE" });
+        setHabitEntries(current => current.filter(entry => entry.id !== existing.id));
+      } else {
+        const result = await apiRequest<List<HabitEntryRecord>>("/habits/" + habit.id + "/check-in", {
+          method: "POST", body: JSON.stringify({ date })
+        });
+        setHabitEntries(current => [result.data, ...current]);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't update habit.");
+    }
+  }
+
+  async function convertInboxToNote(item: InboxItem) {
+    try {
+      await apiRequest("/inbox/" + item.id + "/convert-to-note", { method: "POST" });
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create note.");
+    }
+  }
+
+  async function createNote() {
+    if (!noteTitle.trim()) return;
+    try {
+      const result = await apiRequest<List<NoteRecord>>("/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          title: noteTitle.trim(),
+          content: noteBody.trim() ? [{ id: String(Date.now()), type: "paragraph", text: noteBody.trim() }] : []
+        })
+      });
+      setNotes(current => [result.data, ...current]);
+      setNoteTitle("");
+      setNoteBody("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create note.");
+    }
+  }
+
   async function archiveInboxItem(item: InboxItem) {
     try {
       await apiRequest(`/inbox/${item.id}`, {
@@ -129,11 +206,11 @@ export default function App() {
 
   async function toggleTask(task: Task) {
     try {
-      const result = await apiRequest<List<Task>>(`/tasks/${task.id}`, {
+      const result = await apiRequest<{ data: Task; nextOccurrence?: Task | null }>(`/tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: task.status === "done" ? "todo" : "done" })
       });
-      setTasks(current => current.map(item => item.id === task.id ? result.data : item));
+      setTasks(current => [...current.map(item => item.id === task.id ? result.data : item), ...(result.nextOccurrence ? [result.nextOccurrence] : [])]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't update task.");
     }
@@ -176,41 +253,64 @@ export default function App() {
 
   const activeTasks = tasks.filter(task => !["done", "cancelled"].includes(task.status));
   const dueToday = activeTasks.filter(task => task.dueAt && new Date(task.dueAt).toDateString() === new Date().toDateString());
+  const todayDate = new Date();
+  const todayKey = [todayDate.getFullYear(), String(todayDate.getMonth() + 1).padStart(2, "0"), String(todayDate.getDate()).padStart(2, "0")].join("-");
+
+  const renderTask = (task: Task) => (
+    <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => void toggleTask(task)}>
+      <View style={[styles.taskCircle, task.status === "done" && styles.taskCircleDone]} />
+      <View style={styles.taskCopy}><Text style={[styles.taskTitle, task.status === "done" && styles.taskDone]}>{task.title}</Text><Text style={styles.taskMeta}>{task.priority} priority{task.dueAt ? " · " + new Date(task.dueAt).toLocaleDateString() : ""}{task.recurrenceFrequency ? " · Repeats " + task.recurrenceFrequency : ""}</Text></View>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View><Text style={styles.kicker}>YOUR WORKSPACE</Text><Text style={styles.heading}>Today.</Text><Text style={styles.muted}>A little clarity goes a long way.</Text></View>
+          <View><Text style={styles.kicker}>YOUR WORKSPACE</Text><Text style={styles.heading}>{tab === "today" ? "Today." : tab[0].toUpperCase()+tab.slice(1)+"."}</Text><Text style={styles.muted}>A little clarity goes a long way.</Text></View>
           <TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity>
         </View>
-        <View style={styles.welcome}><Text style={styles.welcomeName}>Hey, {session.user.name?.split(" ")[0] || "there"}.</Text><Text style={styles.muted}>Make room for what matters.</Text></View>
-        <View style={styles.stats}>
-          <View style={styles.stat}><Text style={styles.statValue}>{activeTasks.length}</Text><Text style={styles.statLabel}>Open tasks</Text></View>
-          <View style={styles.stat}><Text style={styles.statValue}>{dueToday.length}</Text><Text style={styles.statLabel}>Due today</Text></View>
-          <View style={styles.stat}><Text style={styles.statValue}>{inbox.length}</Text><Text style={styles.statLabel}>Inbox</Text></View>
-        </View>
-        <Text style={styles.sectionTitle}>Quick capture</Text>
-        <View style={styles.capture}>
-          <TextInput style={styles.captureInput} placeholder="Don't forget…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done" />
-          <TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
+          {(["today","tasks","inbox","habits","goals","calendar","projects","notes","areas"] as Tab[]).map(item=><TouchableOpacity key={item} style={[styles.tab,tab===item&&styles.tabActive]} onPress={()=>setTab(item)}><Text style={[styles.tabText,tab===item&&styles.tabTextActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></TouchableOpacity>)}
+        </ScrollView>
         {!!error && <Text style={styles.error}>{error}</Text>}
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Your priorities</Text><TouchableOpacity onPress={() => void loadData()}><Text style={styles.link}>Refresh</Text></TouchableOpacity></View>
-        {loading ? <ActivityIndicator color={colors.lavender} /> : activeTasks.slice(0, 12).map(task => (
-          <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => void toggleTask(task)}>
-            <View style={styles.taskCircle} /><View style={styles.taskCopy}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.taskMeta}>{task.priority} priority{task.dueAt ? " · " + new Date(task.dueAt).toLocaleDateString() : ""}</Text></View>
-          </TouchableOpacity>
-        ))}
-        {!loading && activeTasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>All clear for now</Text><Text style={styles.muted}>Capture something above when it comes to mind.</Text></View>}
-        <Text style={styles.sectionTitle}>Inbox</Text>
-        {inbox.slice(0, 5).map(item => <View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>Saved for later</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={() => void convertInboxItem(item)}><Text style={styles.link}>Make task</Text></TouchableOpacity><TouchableOpacity onPress={() => void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}
+        {tab === "today" && <>
+          <View style={styles.welcome}><Text style={styles.welcomeName}>Hey, {session.user.name?.split(" ")[0] || "there"}.</Text><Text style={styles.muted}>Make room for what matters.</Text></View>
+          <View style={styles.stats}>
+            <View style={styles.stat}><Text style={styles.statValue}>{activeTasks.length}</Text><Text style={styles.statLabel}>Open tasks</Text></View>
+            <View style={styles.stat}><Text style={styles.statValue}>{dueToday.length}</Text><Text style={styles.statLabel}>Due today</Text></View>
+            <View style={styles.stat}><Text style={styles.statValue}>{inbox.length}</Text><Text style={styles.statLabel}>Inbox</Text></View>
+          </View>
+          <Text style={styles.sectionTitle}>Quick capture</Text>
+          <View style={styles.capture}>
+            <TextInput style={styles.captureInput} placeholder="Don't forget…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done" />
+            <TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity>
+          </View>
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Your priorities</Text><TouchableOpacity onPress={() => void loadData()}><Text style={styles.link}>Refresh</Text></TouchableOpacity></View>
+          {loading ? <ActivityIndicator color={colors.lavender} /> : (dueToday.length ? dueToday : activeTasks).slice(0,8).map(renderTask)}
+          {!loading && activeTasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>All clear for now</Text><Text style={styles.muted}>Capture something above when it comes to mind.</Text></View>}
+          <Text style={styles.sectionTitle}>Daily habits</Text>
+          {habits.filter(habit=>!habit.archivedAt).slice(0,5).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);return <TouchableOpacity key={habit.id} style={styles.taskRow} onPress={()=>void checkInHabit(habit)}><View style={[styles.taskCircle,checked&&styles.taskCircleDone]}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text></View></TouchableOpacity>;})}
+          <Text style={styles.sectionTitle}>Coming up</Text>
+          {events.slice(0,4).map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}
+          <Text style={styles.sectionTitle}>Goals</Text>
+          {goals.filter(goal=>goal.status==="active").slice(0,4).map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;return <View key={goal.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{done}/{linked.length} linked tasks</Text></View></View>;})}
+        </>}
+        {tab === "tasks" && <><Text style={styles.sectionTitle}>All tasks</Text>{tasks.map(renderTask)}</>}
+        {tab === "inbox" && <><Text style={styles.sectionTitle}>Capture now · Organize later</Text><View style={styles.capture}><TextInput style={styles.captureInput} placeholder="Capture a thought…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/><TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity></View>{inbox.map(item=><View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={()=>void convertInboxItem(item)}><Text style={styles.link}>Task</Text></TouchableOpacity><TouchableOpacity onPress={()=>void convertInboxToNote(item)}><Text style={styles.link}>Note</Text></TouchableOpacity><TouchableOpacity onPress={()=>void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}</>}
+        {tab === "habits" && <><Text style={styles.sectionTitle}>Your habits</Text>{habits.filter(habit=>!habit.archivedAt).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);return <TouchableOpacity key={habit.id} style={styles.taskRow} onPress={()=>void checkInHabit(habit)}><View style={[styles.taskCircle,checked&&styles.taskCircleDone]}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text></View></TouchableOpacity>;})}</>}
+        {tab === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;return <View key={goal.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.status} · {done}/{linked.length} linked tasks</Text></View></View>;})}</>}
+        {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text>{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
+        {tab === "projects" && <><Text style={styles.sectionTitle}>Your projects</Text>{projects.map(project=><View key={project.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View></View>)}</>}
+        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity></View>{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text></View></View>)}</>}
+        {tab === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
@@ -262,5 +362,20 @@ const styles = StyleSheet.create({
   inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },
   archiveLink: { color: colors.muted, fontSize: 10 },
   error: { color: "#E18A91", fontSize: 11, marginTop: 12 },
-  footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 }
+  footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 },
+  tabs: { marginTop: 22, maxHeight: 42 },
+  tabsContent: { flexDirection: "row", gap: 7, alignItems: "center" },
+  tab: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9 },
+  tabActive: { backgroundColor: "#292137", borderColor: colors.lavender },
+  tabText: { color: colors.muted, fontSize: 10, fontWeight: "600" },
+  tabTextActive: { color: "#D8CAFF" },
+  taskCircleDone: { backgroundColor: colors.lavender, borderColor: colors.lavender },
+  taskDone: { color: colors.muted, textDecorationLine: "line-through" },
+  eventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#79B7D7" },
+  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.lavender },
+  areaDot: { width: 9, height: 9, borderRadius: 5 },
+  noteComposer: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, gap: 8, marginBottom: 14 },
+  noteTitleInput: { color: colors.text, fontSize: 14, fontWeight: "600", paddingVertical: 8 },
+  noteBodyInput: { color: colors.text, fontSize: 12, minHeight: 68, textAlignVertical: "top" },
+
 });

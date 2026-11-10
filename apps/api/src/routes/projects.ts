@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { CreateProjectSchema, UpdateProjectSchema, UuidSchema } from "@sonder/contracts";
 import type { Database } from "../db";
-import { lifeAreas, projects } from "../db/schema";
+import { activityLog, goals, lifeAreas, projects } from "../db/schema";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
@@ -20,7 +20,15 @@ async function validateLifeArea(
     .where(and(eq(lifeAreas.id, lifeAreaId), eq(lifeAreas.userId, userId)))
     .limit(1);
 
-  return area ? null : "The selected life area does not exist.";
+  if (!area) return "The selected life area does not exist.";
+  return null;
+}
+
+async function validateGoal(database: Database, userId: string, goalId?: string | null) {
+  if (!goalId) return null;
+  const [goal] = await database.select({ id: goals.id }).from(goals)
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId))).limit(1);
+  return goal ? null : "The selected goal does not exist.";
 }
 
 projectRoutes.get("/", async (context) => {
@@ -52,7 +60,7 @@ projectRoutes.post("/", async (context) => {
   }
 
   const db = context.get("db");
-  const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId);
+  const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId) ?? await validateGoal(db, user.id, parsed.data.goalId);
   if (relationError) {
     return context.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
   }
@@ -62,12 +70,14 @@ projectRoutes.post("/", async (context) => {
     name: parsed.data.name,
     description: parsed.data.description ?? null,
     lifeAreaId: parsed.data.lifeAreaId ?? null,
+    goalId: parsed.data.goalId ?? null,
     status: parsed.data.status,
     startDate: parsed.data.startDate ?? null,
     dueDate: parsed.data.dueDate ?? null,
     archivedAt: parsed.data.status === "archived" ? new Date() : null
   }).returning();
 
+  await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: created.id, action: "created", summary: `Created project “${created.name}”.` });
   return context.json({ data: created }, 201);
 });
 
@@ -89,7 +99,7 @@ projectRoutes.patch("/:id", async (context) => {
   }
 
   const db = context.get("db");
-  const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId);
+  const relationError = await validateLifeArea(db, user.id, parsed.data.lifeAreaId) ?? await validateGoal(db, user.id, parsed.data.goalId);
   if (relationError) {
     return context.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
   }
@@ -99,6 +109,7 @@ projectRoutes.patch("/:id", async (context) => {
   if (data.name !== undefined) updates.name = data.name;
   if (data.description !== undefined) updates.description = data.description;
   if (data.lifeAreaId !== undefined) updates.lifeAreaId = data.lifeAreaId;
+  if (data.goalId !== undefined) updates.goalId = data.goalId;
   if (data.status !== undefined) {
     updates.status = data.status;
     updates.archivedAt = data.status === "archived" ? new Date() : null;
@@ -113,7 +124,7 @@ projectRoutes.patch("/:id", async (context) => {
   if (!updated) {
     return context.json({ error: { code: "NOT_FOUND", message: "Project not found." } }, 404);
   }
-
+  await db.insert(activityLog).values({ userId: user.id, entityType: "project", entityId: updated.id, action: "updated", summary: `Updated project “${updated.name}”.` });
   return context.json({ data: updated });
 });
 
