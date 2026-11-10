@@ -5,7 +5,7 @@ import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers, Pencil,
-  LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, Search, Target, Trash2, X
+  LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
@@ -780,6 +780,7 @@ export default function Home() {
             <button className="icon-button" onClick={() => setCaptureOpen(true)} aria-label="Quick capture" title="Quick capture"><Plus size={17}/></button>
             <button className="icon-button" onClick={() => setCommandOpen(true)} aria-label="Search everything" title="Search (Ctrl K)"><Search size={16}/></button>
             <button className="icon-button notification-trigger" onClick={() => setNotificationsOpen(value=>!value)} aria-label="Notifications"><Bell size={16}/>{notifications.some(item=>!item.readAt)&&<i/>}</button>
+            <button className="icon-button topbar-refresh" onClick={() => void loadWorkspace()} aria-label="Refresh workspace" title="Refresh workspace"><RefreshCw size={15}/></button>
             <span className="topbar-divider"/>
             <div className="date-chip"><CalendarDays size={14} />{new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
             <button className="profile-button" onClick={() => void authClient.signOut()} aria-label="Sign out" title={session.user.name + " · Sign out"}><span className="avatar top-avatar">{session.user.name?.slice(0, 1).toUpperCase() || "S"}</span><LogOut size={13}/></button>
