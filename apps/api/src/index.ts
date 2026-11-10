@@ -82,7 +82,8 @@ app.get("/api/health/database", databaseMiddleware, async (context) => {
           to_regclass('public.goals'),
           to_regclass('public.habits'),
           to_regclass('public.habit_entries'),
-          to_regclass('public.calendar_events'),\n          to_regclass('public.notes')
+          to_regclass('public.calendar_events'),
+          to_regclass('public.notes')
         )`
   );
   const row = result.rows[0] as { schema_ready?: boolean } | undefined;
