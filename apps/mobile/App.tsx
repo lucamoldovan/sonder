@@ -358,14 +358,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={{flex:1}} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View><Text style={styles.kicker}>YOUR WORKSPACE</Text><Text style={styles.heading}>{tab === "organize" ? (organizeSection === "home" ? "Organize." : organizeSection[0].toUpperCase()+organizeSection.slice(1)+".") : tab === "today" ? "Today." : tab[0].toUpperCase()+tab.slice(1)+"."}</Text><Text style={styles.muted}>A little clarity goes a long way.</Text></View>
           <View style={styles.mobileHeaderActions}><TouchableOpacity style={styles.mobileCaptureButton} onPress={() => setCaptureOpen(true)}><Text style={styles.mobileCaptureButtonText}>Capture</Text></TouchableOpacity><TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity></View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
-          {(["today","calendar","organize","notes"] as Tab[]).map(item=><TouchableOpacity key={item} style={[styles.tab,tab===item&&styles.tabActive]} onPress={()=>{if(item==="organize")setOrganizeSection("home");setTab(item);}}><Text style={[styles.tabText,tab===item&&styles.tabTextActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></TouchableOpacity>)}
-        </ScrollView>
         {!!error && <Text style={styles.error}>{error}</Text>}
         {tab === "today" && <>
           <View style={styles.mobileTodayIntro}>
@@ -436,6 +433,12 @@ export default function App() {
         {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
+      <View style={styles.mobileBottomNav}>
+        {(["today","calendar","organize","notes"] as Tab[]).map(item=><TouchableOpacity key={item} style={styles.mobileBottomItem} onPress={()=>{if(item==="organize")setOrganizeSection("home");setTab(item);}}>
+          <View style={[styles.mobileBottomIndicator,tab===item&&styles.mobileBottomIndicatorActive]}/>
+          <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
+        </TouchableOpacity>)}
+      </View>
       <Modal visible={captureOpen} transparent animationType="fade" onRequestClose={() => setCaptureOpen(false)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -472,6 +475,12 @@ const styles = StyleSheet.create({
   switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
   footnote: { color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 28 },
   apiHint: { color: "#514d5a", fontSize: 9, textAlign: "center", marginTop: 12 },
+  mobileBottomNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", minHeight: 62, paddingTop: 7, paddingBottom: 5, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
+  mobileBottomItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 4 },
+  mobileBottomIndicator: { width: 18, height: 3, borderRadius: 2, backgroundColor: "transparent" },
+  mobileBottomIndicatorActive: { backgroundColor: colors.lavender },
+  mobileBottomLabel: { color: colors.muted, fontSize: 10, fontWeight: "500" },
+  mobileBottomLabelActive: { color: "#D8CAFF", fontWeight: "700" },
   mobileHeaderActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   mobileCaptureButton: { borderWidth: 1, borderColor: "rgba(167,139,250,0.35)", backgroundColor: "rgba(167,139,250,0.12)", borderRadius: 9, paddingHorizontal: 11, paddingVertical: 8 },
   mobileCaptureButtonText: { color: "#D8CAFF", fontSize: 10, fontWeight: "600" },
@@ -499,7 +508,7 @@ const styles = StyleSheet.create({
   mobileTodayNote: { marginTop: 22, padding: 16, borderRadius: 12, backgroundColor: colors.surface2, gap: 6 },
   mobileTodayNoteTitle: { color: colors.text, fontSize: 14, fontWeight: "600" },
   mobileTodayInbox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 22, paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
-  content: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 50 },
+  content: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 38 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   signOut: { borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8 },
   signOutText: { color: colors.muted, fontSize: 11 },
