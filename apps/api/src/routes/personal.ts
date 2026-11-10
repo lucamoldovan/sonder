@@ -97,7 +97,7 @@ personalRoutes.get("/insights", async (c) => {
   const requestedDays = Number(c.req.query("days") ?? 30);
   const days = [7, 30, 90].includes(requestedDays) ? requestedDays : 30;
   const from = new Date();
-  from.setDate(from.getDate() - days + 1);
+  from.setDate(from.getDate() - days + 1);\n  from.setHours(0, 0, 0, 0);
   const fromDate = from.toISOString().slice(0, 10);
   const db = c.get("db");
   const [taskRows, habitRows, focusRows, moodRows, goalRows, areaRows] = await Promise.all([
