@@ -1,3 +1,5 @@
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import type { NoteBlock } from "@sonder/contracts";
 import {
   boolean,
   date,
