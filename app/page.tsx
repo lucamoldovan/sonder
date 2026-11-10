@@ -981,7 +981,7 @@ export default function Home() {
   );
 }
 
-function TaskRow({ task, areas, onToggle, onDelete }: {
+function TaskRow({ task, areas, onToggle, onDelete, onEdit }: {
   task: ApiTask;
   areas: ApiLifeArea[];
   onToggle: (task: ApiTask) => void;
