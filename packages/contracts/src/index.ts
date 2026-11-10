@@ -34,7 +34,9 @@ export const CreateTaskSchema = z.object({
   status: TaskStatusSchema.default("todo"),
   priority: TaskPrioritySchema.default("medium"),
   scheduledAt: z.string().datetime().nullable().optional(),
+  scheduledHasTime: z.boolean().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  dueHasTime: z.boolean().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
 
@@ -156,7 +158,9 @@ export type TaskRecord = {
   status: TaskStatus;
   priority: TaskPriority;
   scheduledAt: string | null;
+  scheduledHasTime: boolean;
   dueAt: string | null;
+  dueHasTime: boolean;
   lifeAreaId: string | null;
   projectId: string | null;
   goalId?: string | null;
