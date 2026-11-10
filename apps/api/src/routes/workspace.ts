@@ -14,7 +14,7 @@ workspaceRoutes.get("/dashboard", async (c) => {
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   weekStart.setHours(0, 0, 0, 0);
-  const [taskRows, eventRows, goalRows, habitRows, entryRows, projectRows, inboxRows, areaRows, reminderRows] = await Promise.all([
+  const [taskRows, eventRows, goalRows, habitRows, entryRows, projectRows, inboxRows, areaRows] = await Promise.all([
     db.select().from(tasks).where(eq(tasks.userId, user.id)).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)),
     db.select().from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), gte(calendarEvents.startsAt, now))).orderBy(asc(calendarEvents.startsAt)).limit(12),
     db.select().from(goals).where(eq(goals.userId, user.id)).orderBy(asc(goals.targetDate)),
@@ -22,8 +22,7 @@ workspaceRoutes.get("/dashboard", async (c) => {
     db.select().from(habitEntries).where(and(eq(habitEntries.userId, user.id), gte(habitEntries.entryDate, weekStart.toISOString().slice(0, 10)))),
     db.select().from(projects).where(eq(projects.userId, user.id)).orderBy(asc(projects.name)),
     db.select().from(inboxItems).where(and(eq(inboxItems.userId, user.id), eq(inboxItems.status, "inbox"))).orderBy(desc(inboxItems.createdAt)),
-    db.select().from(lifeAreas).where(eq(lifeAreas.userId, user.id)).orderBy(asc(lifeAreas.position)),
-    db.select().from(tasks).where(and(eq(tasks.userId, user.id), gte(tasks.reminderAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))))
+    db.select().from(lifeAreas).where(eq(lifeAreas.userId, user.id)).orderBy(asc(lifeAreas.position))
   ]);
   const dueReminders = taskRows.filter(task => task.reminderAt && task.reminderAt <= now && !["done", "cancelled"].includes(task.status));
   await Promise.all(dueReminders.map(task => db.insert(notifications).values({
@@ -47,7 +46,7 @@ workspaceRoutes.get("/dashboard", async (c) => {
       projects: projectRows,
       inbox: inboxRows,
       lifeAreas: areaRows,
-      reminders: reminderRows,
+      reminders: dueReminders,
       summary: { openTasks: openTasks.length, completedTasks: completedTasks.length, dueToday: dueToday.length, overdue: overdue.length, inbox: inboxRows.length }
     }
   });
