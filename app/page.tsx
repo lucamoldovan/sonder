@@ -261,6 +261,18 @@ export default function Home() {
   const todayEvents = events.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
   const todayBlocks = timeBlocks.filter(item => localDate(item.startsAt) === today).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
   const todayCommitmentCount = todayEvents.length + todayBlocks.length;
+  const todayAgendaItems = [
+    ...todayEvents.map(item => ({ id: item.id, kind: "event" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: item.title, subtitle: item.location, allDay: item.allDay, event: item })),
+    ...todayBlocks.map(item => ({ id: item.id, kind: "block" as const, startsAt: item.startsAt, endsAt: item.endsAt, title: tasks.find(task => task.id === item.taskId)?.title || "Scheduled work", subtitle: null, allDay: false, block: item }))
+  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const currentWeekStart = calendarDateKey(mondayOfWeek(new Date()));
+  const habitsDueToday = habits.filter(habit => {
+    if (habit.archivedAt) return false;
+    if (habit.frequency === "daily") return true;
+    if (habit.frequency === "weekdays") return new Date().getDay() !== 0 && new Date().getDay() !== 6;
+    const completedThisWeek = habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= currentWeekStart).length;
+    return completedThisWeek < habit.targetPerWeek;
+  });
   const nextActionTasks = [...openTasks]
     .filter(task => (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
     .sort((a,b) => {
@@ -270,7 +282,6 @@ export default function Home() {
       const priorityOrder = ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority);
       return aOverdue - bOverdue || dueOrder || priorityOrder;
     }).slice(0, 5);
-  const completed = tasks.filter(task => task.status === "done");
   const visibleTasks = useMemo(() => tasks
     .filter(task => (filterArea === "all" || task.lifeAreaId === filterArea) && (task.title + " " + (task.description || "")).toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") ||
@@ -731,20 +742,16 @@ export default function Home() {
                     <div><div className="section-kicker">YOUR TIME</div><h2>Today&apos;s agenda</h2></div>
                     <button className="text-button" onClick={() => setView("Calendar")}>Open calendar <ArrowRight size={14}/></button>
                   </div>
-                  {todayEvents.length === 0 && todayBlocks.length === 0
+                  {todayAgendaItems.length === 0
                     ? <div className="today-quiet-state"><CalendarDays size={18}/><div><strong>Nothing scheduled today.</strong><span>That’s room you can use—or leave free.</span></div></div>
                     : <div className="today-agenda-list">
-                      {todayEvents.map(item => <div className="today-agenda-row" key={item.id}>
+                      {todayAgendaItems.map(item => <div className="today-agenda-row" key={item.kind + ":" + item.id}>
                         <span className="today-agenda-time">{item.allDay ? "All day" : formatEventTime(item.startsAt)}</span>
-                        <span className="today-agenda-marker event-marker"/>
-                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.location || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
-                        <button className="text-button" onClick={() => openEditEvent(item)}>Edit</button>
-                      </div>)}
-                      {todayBlocks.map(block => <div className="today-agenda-row" key={block.id}>
-                        <span className="today-agenda-time">{formatEventTime(block.startsAt)}</span>
-                        <span className="today-agenda-marker block-marker"/>
-                        <div className="today-agenda-copy"><strong>{tasks.find(task => task.id === block.taskId)?.title || "Scheduled work"}</strong><span>{formatEventTime(block.endsAt)} · Work block</span></div>
-                        <button className="text-button" onClick={() => setView("Calendar")}>View</button>
+                        <span className={"today-agenda-marker " + (item.kind === "event" ? "event-marker" : "block-marker")}/>
+                        <div className="today-agenda-copy"><strong>{item.title}</strong><span>{item.kind === "block" ? formatEventTime(item.endsAt) + " · Work block" : item.subtitle || (item.endsAt ? formatEventTime(item.endsAt) : "Calendar event")}</span></div>
+                        {item.kind === "event"
+                          ? <button className="text-button" onClick={() => openEditEvent(item.event)}>Edit</button>
+                          : <button className="text-button" onClick={() => setView("Calendar")}>View</button>}
                       </div>)}
                     </div>}
                 </section>
@@ -760,12 +767,12 @@ export default function Home() {
                   <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15}/>Add a task</button>
                 </section>
 
-                {habits.filter(habit => !habit.archivedAt).length > 0 && <section className="today-section">
+                {habitsDueToday.length > 0 && <section className="today-section">
                   <div className="today-section-heading">
                     <div><div className="section-kicker">OPTIONAL CHECK-IN</div><h2>Small things, repeated</h2></div>
                     <button className="text-button" onClick={() => setView("Habits")}>Habits <ArrowRight size={14}/></button>
                   </div>
-                  <div className="today-habits-list">{habits.filter(habit => !habit.archivedAt).slice(0, 5).map(habit => {
+                  <div className="today-habits-list">{habitsDueToday.slice(0, 5).map(habit => {
                     const checked = habitEntries.some(entry => entry.habitId === habit.id && entry.entryDate === today);
                     return <div className="today-habit-row" key={habit.id}>
                       <button className={"task-check " + (checked ? "checked" : "")} onClick={() => void checkInHabit(habit)} aria-label={(checked ? "Undo check-in for " : "Check in ") + habit.name}>{checked && <Check size={12}/>}</button>
