@@ -13,7 +13,9 @@ import {
   CreateHabitSchema,
   UpdateHabitSchema,
   CreateCalendarEventSchema,
-  UpdateCalendarEventSchema
+  UpdateCalendarEventSchema,
+  CreateNoteSchema,
+  UpdateNoteSchema
 } from "./index";
 
 describe("shared request contracts", () => {
