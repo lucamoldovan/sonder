@@ -290,9 +290,11 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(),
   body: text("body"),
   href: text("href"),
+  sourceKey: text("source_key"),
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 }, (table) => [
   index("notifications_user_created_idx").on(table.userId, table.createdAt),
-  index("notifications_user_unread_idx").on(table.userId, table.readAt)
+  index("notifications_user_unread_idx").on(table.userId, table.readAt),
+  uniqueIndex("notifications_user_source_unique").on(table.userId, table.sourceKey)
 ]).enableRLS();
