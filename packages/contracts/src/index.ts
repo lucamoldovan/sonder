@@ -55,7 +55,9 @@ export const UpdateTaskSchema = z.object({
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
+  scheduledHasTime: z.boolean().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  dueHasTime: z.boolean().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
 
