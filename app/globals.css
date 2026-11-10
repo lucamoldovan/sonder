@@ -379,3 +379,6 @@
 .notes-backlinks strong{font-size:9px;letter-spacing:.08em;color:#8f8798;text-transform:uppercase}
 .notes-backlinks button{border:1px solid #393342;border-radius:6px;background:#17141d;color:#cfc8d8;padding:6px 9px;font-size:10px}
 @media(max-width:620px){.calendar-heading-actions{width:100%;justify-content:flex-end}.notes-template-tools{align-items:flex-start}.habit-history-grid{grid-template-columns:repeat(14,9px);gap:3px}.habit-history-day{width:9px;height:9px}}
+
+.notes-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 24px;padding:10px 12px;border:1px solid rgba(131,201,161,.22);border-radius:7px;background:rgba(131,201,161,.06);color:#a5d5b5;font-size:10px}
+.notes-notice button{border:0;background:transparent;color:inherit;display:grid;place-items:center}
