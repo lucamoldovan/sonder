@@ -348,3 +348,8 @@
 .weekly-review-detail>p{display:flex;justify-content:space-between;gap:12px;padding:8px 0;margin:0;border-bottom:1px solid #292530;font-size:10px;color:#e1dce7}
 .weekly-review-detail small{color:#918a99;font-size:9px}
 @media(max-width:620px){.weekly-review-strip{flex-wrap:wrap}.weekly-review-open{width:100%;justify-content:flex-end}.weekly-review-metrics{grid-template-columns:repeat(2,1fr)}}
+
+
+.today-habit-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #25212c}
+.today-habit-row>span{font-size:11px;color:#e2dce8}
+.today-habit-row>span.is-checked{text-decoration:line-through;color:#77717e}
