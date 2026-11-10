@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { activityLog, calendarEvents, goals, habitEntries, habits, inboxItems, lifeAreas, notes, notifications, projects, taskDependencies, tasks } from "../db/schema";
 import type { AppEnv } from "../env";
@@ -61,12 +61,12 @@ workspaceRoutes.get("/search", async (c) => {
   const pattern = "%" + query.replace(/[\\%_]/g, "\\$&") + "%";
   const db = c.get("db");
   const [taskRows, projectRows, goalRows, habitRows, eventRows, noteRows] = await Promise.all([
-    db.select({ id: tasks.id, title: tasks.title, subtitle: tasks.description }).from(tasks).where(and(eq(tasks.userId, user.id), ilike(tasks.title, pattern))).limit(8),
-    db.select({ id: projects.id, title: projects.name, subtitle: projects.description }).from(projects).where(and(eq(projects.userId, user.id), ilike(projects.name, pattern))).limit(8),
-    db.select({ id: goals.id, title: goals.title, subtitle: goals.description }).from(goals).where(and(eq(goals.userId, user.id), ilike(goals.title, pattern))).limit(8),
-    db.select({ id: habits.id, title: habits.name, subtitle: habits.description }).from(habits).where(and(eq(habits.userId, user.id), ilike(habits.name, pattern))).limit(8),
-    db.select({ id: calendarEvents.id, title: calendarEvents.title, subtitle: calendarEvents.description }).from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), ilike(calendarEvents.title, pattern))).limit(8),
-    db.select({ id: notes.id, title: notes.title, subtitle: notes.tags }).from(notes).where(and(eq(notes.userId, user.id), ilike(notes.title, pattern))).limit(8)
+    db.select({ id: tasks.id, title: tasks.title, subtitle: tasks.description }).from(tasks).where(and(eq(tasks.userId, user.id), or(ilike(tasks.title, pattern), ilike(tasks.description, pattern)))).limit(8),
+    db.select({ id: projects.id, title: projects.name, subtitle: projects.description }).from(projects).where(and(eq(projects.userId, user.id), or(ilike(projects.name, pattern), ilike(projects.description, pattern)))).limit(8),
+    db.select({ id: goals.id, title: goals.title, subtitle: goals.description }).from(goals).where(and(eq(goals.userId, user.id), or(ilike(goals.title, pattern), ilike(goals.description, pattern)))).limit(8),
+    db.select({ id: habits.id, title: habits.name, subtitle: habits.description }).from(habits).where(and(eq(habits.userId, user.id), or(ilike(habits.name, pattern), ilike(habits.description, pattern)))).limit(8),
+    db.select({ id: calendarEvents.id, title: calendarEvents.title, subtitle: calendarEvents.description }).from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), or(ilike(calendarEvents.title, pattern), ilike(calendarEvents.description, pattern), ilike(calendarEvents.location, pattern)))).limit(8),
+    db.select({ id: notes.id, title: notes.title, subtitle: notes.tags }).from(notes).where(and(eq(notes.userId, user.id), or(ilike(notes.title, pattern), sql`${notes.content}::text ILIKE ${pattern}`, sql`${notes.tags}::text ILIKE ${pattern}`))).limit(8)
   ]);
   const data = [
     ...taskRows.map(item => ({ ...item, type: "task", href: "/?view=Tasks" })),
