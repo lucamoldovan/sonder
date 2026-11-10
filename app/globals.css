@@ -459,3 +459,9 @@
 @media(max-width:650px){.project-workspace-topbar{padding:0 16px}.project-topbar-actions>span{display:none}.project-workspace-content{padding:30px 17px 60px}.project-workspace-heading{flex-direction:column}.project-workspace-grid{grid-template-columns:1fr}.project-edit-fields{grid-template-columns:1fr}.project-quick-task{flex-wrap:wrap}.project-quick-task input{flex-basis:100%}.project-quick-task button{min-height:34px}}
 
 .project-workspace-error{margin:0 0 18px;padding:11px 13px;border:1px solid rgba(225,138,145,.25);border-radius:9px;background:rgba(225,138,145,.07);color:#e6a3a8;font-size:11px;line-height:1.5}
+
+.project-filter-row{display:flex;align-items:center;gap:6px;margin:0 0 18px;flex-wrap:wrap}
+.project-filter-row button{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted);font-size:10px}
+.project-filter-row button span{font-size:9px;color:var(--soft);font-variant-numeric:tabular-nums}
+.project-filter-row button.selected{border-color:rgba(167,139,250,.25);background:var(--lav-dim);color:#d9cefa}
+.project-filter-row button.selected span{color:#bba7f4}
