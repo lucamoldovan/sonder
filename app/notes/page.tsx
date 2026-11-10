@@ -133,7 +133,8 @@ export default function NotesPage() {
   };
 
   const openNote = async (note: ApiNote, skipSave = false) => {
-    if (!skipSave && note.id !== selectedId && !(await saveDraft())) return;
+    if (note.id === selectedId) { setMobileSidebar(false); return; }
+    if (!skipSave && !(await saveDraft())) return;
     draftVersion.current += 1;
     setSelectedId(note.id);
     setTitle(note.title);
