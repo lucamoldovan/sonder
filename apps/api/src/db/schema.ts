@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -220,4 +221,26 @@ export const inboxItems = pgTable("inbox_items", {
 }, (table) => [
   index("inbox_items_user_status_idx").on(table.userId, table.status),
   index("inbox_items_created_at_idx").on(table.userId, table.createdAt)
+]).enableRLS();
+
+
+export const notes = pgTable("notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references((): AnyPgColumn => notes.id, { onDelete: "cascade" }),
+  lifeAreaId: uuid("life_area_id").references(() => lifeAreas.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  title: text("title").notNull().default("Untitled"),
+  content: jsonb("content").$type<NoteBlock[]>().notNull().default([]),
+  icon: text("icon").default("📝"),
+  tags: text("tags").array().notNull().default([]),
+  favorite: boolean("favorite").notNull().default(false),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("notes_user_updated_idx").on(table.userId, table.updatedAt),
+  index("notes_parent_id_idx").on(table.parentId),
+  index("notes_project_id_idx").on(table.projectId),
+  index("notes_life_area_id_idx").on(table.lifeAreaId)
 ]).enableRLS();
