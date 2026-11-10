@@ -1,15 +1,46 @@
-/* Native-feeling Sonder shell: full-width bottom navigation and restrained monochrome accents */
+/* Sonder's floating glass navigation — translucent, centered and safe-area aware. */
 .app-shell{--accent:#f5f5f7;--accent-dim:rgba(255,255,255,.1)}
-.app-shell .main-area{margin-left:0;padding-bottom:calc(112px + env(safe-area-inset-bottom))}
-.app-shell .topbar{height:76px;position:relative;top:auto;padding:0 max(22px,calc((100vw - 1440px)/2));border:0;background:transparent;backdrop-filter:none;z-index:15}
+.app-shell .main-area{margin-left:0;padding-bottom:calc(126px + env(safe-area-inset-bottom))}
+.app-shell .topbar{height:76px;position:relative;top:auto;padding:0 max(22px,calc((100vw - 1440px)/2));border:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;z-index:15}
 .app-shell .topbar-brand{display:contents}
 .app-shell .topbar-brand>.brand{position:absolute;left:max(22px,calc((100vw - 1440px)/2));top:21px;height:34px;margin:0;padding:0}
 .app-shell .brand-name{font-size:24px;letter-spacing:-1.35px}
-.app-shell .workspace-nav{position:fixed;z-index:30;left:50%;right:auto;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100vw - 32px));height:68px;padding:7px;display:flex;align-items:stretch;justify-content:space-around;gap:5px;border:1px solid rgba(255,255,255,.16);border-radius:24px;background:rgba(30,31,35,.78);box-shadow:0 12px 44px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.09);backdrop-filter:saturate(180%) blur(28px);-webkit-backdrop-filter:saturate(180%) blur(28px)}
-.app-shell .workspace-nav-item{min-width:0;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:5px 10px;border:0;border-radius:17px;background:transparent;color:#a1a1aa;text-decoration:none;font-size:10px;font-weight:550;transition:color .18s,background .18s}
-.app-shell .workspace-nav-item svg{width:19px;height:19px}
-.app-shell .workspace-nav-item.active{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
-.app-shell .workspace-nav-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+/* Floating material: the low-opacity fill lets the live page show through the blur. */
+.app-shell .workspace-nav{
+  position:fixed;z-index:100;left:50%;right:auto;bottom:calc(18px + env(safe-area-inset-bottom));
+  transform:translate3d(-50%,0,0);width:min(540px,calc(100vw - 36px));height:76px;
+  padding:7px;display:flex;align-items:stretch;justify-content:space-around;gap:5px;
+  overflow:hidden;isolation:isolate;
+  border:1px solid rgba(255,255,255,.22);border-radius:26px;
+  background:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.025)),rgba(30,32,37,.24);
+  box-shadow:0 14px 48px rgba(0,0,0,.30),0 2px 8px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.24),inset 0 -1px 0 rgba(255,255,255,.045);
+  -webkit-backdrop-filter:blur(32px) saturate(190%) brightness(1.12);
+  backdrop-filter:blur(32px) saturate(190%) brightness(1.12);
+}
+.app-shell .workspace-nav::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(115deg,rgba(255,255,255,.10),transparent 34%,transparent 70%,rgba(255,255,255,.045));
+}
+.app-shell .workspace-nav-item{
+  position:relative;z-index:1;min-width:0;flex:1;min-height:100%;
+  display:grid;grid-template-rows:21px 12px;align-content:center;justify-items:center;align-items:center;
+  gap:5px;padding:5px 4px;border:1px solid transparent;border-radius:19px;
+  background:transparent;color:rgba(255,255,255,.78);text-decoration:none;
+  text-align:center;font-size:10px;line-height:12px;font-weight:550;
+  transition:color .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.app-shell .workspace-nav-item svg{display:block;width:20px;height:20px;align-self:center;justify-self:center;flex:none}
+.app-shell .workspace-nav-item span{display:block;align-self:center;justify-self:center;line-height:12px;white-space:nowrap}
+.app-shell .workspace-nav-item.active{
+  color:#fff;background:rgba(255,255,255,.135);border-color:rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 5px rgba(0,0,0,.08);
+}
+.app-shell .workspace-nav-item:hover{color:#fff;background:rgba(255,255,255,.09)}
+.app-shell .workspace-nav-item:focus-visible{outline:2px solid rgba(255,255,255,.85);outline-offset:-3px}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .app-shell .workspace-nav{background:rgba(27,29,34,.94)}
+}
 .app-shell .topbar-actions{margin-left:auto;gap:10px}
 .app-shell .topbar-actions .date-chip,.app-shell .topbar-actions .topbar-refresh,.app-shell .topbar-divider{display:none}
 .app-shell .icon-button{color:#a5a5aa}
@@ -39,9 +70,11 @@
   .app-shell .topbar-actions{gap:5px}
   .app-shell .topbar-actions .icon-button{width:32px;height:32px}
   .app-shell .page-content{padding:20px 20px 32px}
-  .app-shell .workspace-nav{width:min(500px,calc(100vw - 28px));height:66px;padding:6px;gap:3px;bottom:calc(13px + env(safe-area-inset-bottom))}
-  .app-shell .workspace-nav-item{font-size:9px;gap:4px;padding:4px 5px}
-  .app-shell .workspace-nav-item svg{width:18px;height:18px}
+  .app-shell .main-area{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+  .app-shell .workspace-nav{width:min(500px,calc(100vw - 28px));height:72px;padding:6px;gap:4px;bottom:calc(15px + env(safe-area-inset-bottom));border-radius:24px}
+  .app-shell .workspace-nav-item{grid-template-rows:20px 11px;gap:4px;font-size:9px;line-height:11px;padding:4px 3px}
+  .app-shell .workspace-nav-item svg{width:19px;height:19px}
+  .app-shell .workspace-nav-item span{line-height:11px}
 }
 @media(max-width:560px){
   .app-shell .topbar{height:62px;padding:0 12px}
@@ -50,8 +83,9 @@
   .app-shell .topbar-actions{gap:2px}
   .app-shell .topbar-actions .icon-button{width:30px;height:30px}
   .app-shell .page-content{padding:18px 15px 28px}
-  .app-shell .workspace-nav{width:calc(100vw - 24px);height:64px;padding:5px;bottom:calc(11px + env(safe-area-inset-bottom));border-radius:22px}
-  .app-shell .workspace-nav-item{font-size:9px;letter-spacing:0;border-radius:16px}
-  .app-shell .workspace-nav-item svg{width:18px;height:18px}
+  .app-shell .main-area{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+  .app-shell .workspace-nav{width:calc(100vw - 24px);height:68px;padding:5px;bottom:calc(12px + env(safe-area-inset-bottom));border-radius:23px}
+  .app-shell .workspace-nav-item{grid-template-rows:19px 11px;gap:4px;font-size:9px;letter-spacing:0;border-radius:17px}
+  .app-shell .workspace-nav-item svg{width:19px;height:19px}
 }
 @media(prefers-reduced-motion:reduce){.app-shell .workspace-nav-item{transition:none}}
