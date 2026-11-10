@@ -1,4 +1,8 @@
 import type {
+  CalendarEventRecord,
+  GoalRecord,
+  HabitEntryRecord,
+  HabitRecord,
   InboxItemRecord,
   LifeAreaRecord,
   ProjectRecord,
@@ -32,7 +36,7 @@ export async function apiRequest<T>(
   const headers = new Headers(options.headers);
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await fetch("/api/v1" + path, {
     ...options,
     credentials: "include",
     headers
@@ -57,4 +61,8 @@ export type ApiTask = TaskRecord;
 export type ApiLifeArea = LifeAreaRecord;
 export type ApiProject = ProjectRecord;
 export type ApiInboxItem = InboxItemRecord;
+export type ApiGoal = GoalRecord;
+export type ApiHabit = HabitRecord;
+export type ApiHabitEntry = HabitEntryRecord;
+export type ApiCalendarEvent = CalendarEventRecord;
 export type ApiList<T> = { data: T };

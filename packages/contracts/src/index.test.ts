@@ -7,7 +7,13 @@ import {
   UpdateTaskSchema,
   UpdateLifeAreaSchema,
   UpdateProjectSchema,
-  UpdateInboxItemSchema
+  UpdateInboxItemSchema,
+  CreateGoalSchema,
+  UpdateGoalSchema,
+  CreateHabitSchema,
+  UpdateHabitSchema,
+  CreateCalendarEventSchema,
+  UpdateCalendarEventSchema
 } from "./index";
 
 describe("shared request contracts", () => {
@@ -46,6 +52,33 @@ describe("shared request contracts", () => {
     expect(CreateInboxItemSchema.safeParse({ title: "Read this", type: "link", url: "https://example.com" }).success).toBe(true);
     expect(CreateInboxItemSchema.safeParse({ title: "Unsafe", type: "link", url: "javascript:alert(1)" }).success).toBe(false);
     expect(CreateInboxItemSchema.safeParse({ title: "Malformed", url: "not a URL" }).success).toBe(false);
+  });
+
+  test("validates goals and preserves PATCH omission semantics", () => {
+    expect(CreateGoalSchema.parse({ title: "Finish school year" })).toMatchObject({ title: "Finish school year", status: "active" });
+    expect(UpdateGoalSchema.parse({ status: "completed" })).toEqual({ status: "completed" });
+    expect(UpdateGoalSchema.parse({ title: "Renamed goal" })).toEqual({ title: "Renamed goal" });
+    expect(CreateGoalSchema.safeParse({ title: "Invalid date", targetDate: "2026-02-30" }).success).toBe(false);
+  });
+
+  test("validates habit frequency and check-in configuration", () => {
+    expect(CreateHabitSchema.parse({ name: "Read", frequency: "weekdays" })).toMatchObject({ frequency: "weekdays", targetPerWeek: 5 });
+    expect(UpdateHabitSchema.parse({ archived: true })).toEqual({ archived: true });
+    expect(CreateHabitSchema.safeParse({ name: "Read", frequency: "monthly" }).success).toBe(false);
+  });
+
+  test("validates calendar event time ranges", () => {
+    expect(CreateCalendarEventSchema.safeParse({
+      title: "Study session",
+      startsAt: "2026-11-10T09:00:00.000Z",
+      endsAt: "2026-11-10T10:00:00.000Z"
+    }).success).toBe(true);
+    expect(CreateCalendarEventSchema.safeParse({
+      title: "Invalid event",
+      startsAt: "2026-11-10T10:00:00.000Z",
+      endsAt: "2026-11-10T09:00:00.000Z"
+    }).success).toBe(false);
+    expect(UpdateCalendarEventSchema.parse({ title: "Renamed event" })).toEqual({ title: "Renamed event" });
   });
 
   test("validates project names, status, and date-only fields", () => {
