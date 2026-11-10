@@ -677,9 +677,6 @@ export default function Home() {
           ] as const).map(([name, Icon]) =>
             <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
               <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
-              {name === "Inbox" && <span className="nav-count">{inbox.length}</span>}
-              {name === "Tasks" && <span className="nav-count">{openTasks.length}</span>}
-              {name === "Goals" && <span className="nav-count">{goals.filter(goal => goal.status === "active").length}</span>}
             </button>
           )}
           <Link className="nav-item" href="/notes"><NotebookPen size={17} strokeWidth={1.8}/><span>Notes</span></Link>
