@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ArrowLeft, Archive, Check, ChevronDown, ChevronRight, Code2, FilePlus2, Heart, List, ListOrdered, LoaderCircle, MoreHorizontal, Plus, Quote, Search, Trash2, Type, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
@@ -218,7 +219,7 @@ export default function NotesPage() {
     });
 
   if (isPending || loading) return <main className="notes-loading"><LoaderCircle className="spin" size={22}/>Loading your notes...</main>;
-  if (!session?.user) return <main className="notes-loading">Please <a href="/">sign in</a> to open your notes.</main>;
+  if (!session?.user) return <main className="notes-loading">Please <Link href="/">sign in</Link> to open your notes.</main>;
 
   return <main className="notes-shell">
     <aside className={`notes-sidebar ${mobileSidebar ? "mobile-open" : ""}`}>
@@ -233,12 +234,12 @@ export default function NotesPage() {
         <div className="notes-sidebar-label notes-pages-label">YOUR PAGES <button onClick={() => void createNote()}><Plus size={14}/></button></div>
         <div className="notes-tree">{renderTree(null)}</div>
       </div>
-      <div className="notes-side-bottom"><div className="notes-save-hint"><span className={saveState === "saved" ? "saved-dot" : "saving-dot"}/>{saveState === "saving" ? "Saving changes..." : saveState === "error" ? "Save failed" : "All changes saved"}</div><a href="/">← Return to workspace</a></div>
+      <div className="notes-side-bottom"><div className="notes-save-hint"><span className={saveState === "saved" ? "saved-dot" : "saving-dot"}/>{saveState === "saving" ? "Saving changes..." : saveState === "error" ? "Save failed" : "All changes saved"}</div><Link href="/">← Return to workspace</Link></div>
     </aside>
 
     <section className="notes-editor-area">
       <header className="notes-topbar">
-        <div className="notes-breadcrumb"><button className="notes-mobile-menu" onClick={() => setMobileSidebar(!mobileSidebar)}><List size={17}/></button><a href="/">Sonder</a><ChevronRight size={13}/><span>Notes</span>{selected && <><ChevronRight size={13}/><strong>{selected.title}</strong></>}</div>
+        <div className="notes-breadcrumb"><button className="notes-mobile-menu" onClick={() => setMobileSidebar(!mobileSidebar)}><List size={17}/></button><Link href="/">Sonder</Link><ChevronRight size={13}/><span>Notes</span>{selected && <><ChevronRight size={13}/><strong>{selected.title}</strong></>}</div>
         <div className="notes-top-actions">
           <span className={`notes-save-state ${saveState}`}>{saveState === "saving" ? "Saving..." : saveState === "error" ? "Couldn't save" : saveState === "unsaved" ? "Unsaved changes" : "Saved"}</span>
           {selected && <><button className={`notes-icon-action ${selected.favorite ? "favorited" : ""}`} title="Toggle favorite" onClick={() => void toggleFavorite(selected)}><Heart size={16}/></button><button className="notes-icon-action" title="Archive page" onClick={() => void archiveNote()}><Archive size={16}/></button><button className="notes-icon-action danger" title="Delete page" onClick={() => void deleteNote()}><Trash2 size={16}/></button></>}
@@ -247,7 +248,7 @@ export default function NotesPage() {
 
       {error && <div className="notes-error"><span>{error}</span><button onClick={() => setError("")}><X size={14}/></button></div>}
 
-      {!selected ? <div className="notes-empty"><div className="notes-empty-icon">✳</div><div className="notes-eyebrow">YOUR PERSONAL WIKI</div><h1>A place for everything.</h1><p>Capture ideas, build your own knowledge base, and connect it all to the things you're working on.</p><button className="notes-create-cta" onClick={() => void createNote()}><Plus size={16}/> Create your first page</button></div> :
+      {!selected ? <div className="notes-empty"><div className="notes-empty-icon">✳</div><div className="notes-eyebrow">YOUR PERSONAL WIKI</div><h1>A place for everything.</h1><p>Capture ideas, build your own knowledge base, and connect it all to the things you&apos;re working on.</p><button className="notes-create-cta" onClick={() => void createNote()}><Plus size={16}/> Create your first page</button></div> :
       <div className="notes-document-wrap">
         <div className="notes-document">
           <div className="notes-document-icon"><input aria-label="Page icon" value={icon} onChange={event => { setIcon(event.target.value.slice(0, 8)); markDirty(); }} maxLength={8}/></div>
@@ -259,7 +260,7 @@ export default function NotesPage() {
           </div>
           <div className="notes-editor-toolbar"><span>ADD BLOCK</span>{blockTools.map(tool => <button key={tool.type} title={tool.label} onClick={() => addBlock(tool.type)}>{tool.type === "heading1" ? "H1" : tool.type === "heading2" ? "H2" : <tool.icon size={15}/>}</button>)}</div>
           <div className="notes-block-list">
-            {blocks.map((block, index) => <div className={`notes-block notes-block-${block.type}`} key={block.id}>
+            {blocks.map(block => <div className={`notes-block notes-block-${block.type}`} key={block.id}>
               {block.type === "todo" && <input className="notes-todo-check" type="checkbox" checked={Boolean(block.checked)} onChange={event => updateBlock(block.id, { checked: event.target.checked })}/>}
               {block.type === "divider" ? <div className="notes-divider-block"/> :
                 <textarea value={block.text} rows={Math.max(1, Math.min(8, block.type.startsWith("heading") ? 1 : Math.ceil((block.text.length + 1) / 75)))} placeholder={blockPlaceholder(block.type)} onChange={event => updateBlock(block.id, { text: event.target.value })} />}
