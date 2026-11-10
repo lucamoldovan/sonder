@@ -393,6 +393,11 @@ export default function App() {
 
           {todayAgendaItems.length>=5&&<View style={styles.mobileTodayNote}><Text style={styles.mobileTodayNoteTitle}>A full day ahead.</Text><Text style={styles.muted}>You have several scheduled commitments. Leave a little space between them where you can.</Text></View>}
 
+          {goals.filter(goal=>goal.status==="active").length>0&&<View style={styles.mobileTodaySection}>
+            <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Goals in progress</Text><TouchableOpacity onPress={()=>setTab("goals")}><Text style={styles.link}>All goals</Text></TouchableOpacity></View>
+            {goals.filter(goal=>goal.status==="active").slice(0,3).map(goal=><View key={goal.id} style={styles.mobileTodayAgendaRow}><View style={[styles.mobileTodayDot,{backgroundColor:colors.lavender}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"Active goal"}</Text></View></View>)}
+          </View>}
+
           <View style={styles.mobileTodaySection}>
             <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Coming up</Text><TouchableOpacity onPress={()=>setTab("calendar")}><Text style={styles.link}>Calendar</Text></TouchableOpacity></View>
             {events.filter(event=>new Date(event.startsAt)>new Date()&&localDateKey(event.startsAt)!==todayKey).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,3).map(event=><View key={event.id} style={styles.mobileTodayAgendaRow}><Text style={styles.mobileTodayTime}>{new Date(event.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</Text><View style={[styles.mobileTodayDot,{backgroundColor:"#79B7D7"}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{event.allDay?"All day":new Date(event.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text></View></View>)}
