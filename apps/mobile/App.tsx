@@ -61,6 +61,12 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectTaskDraft, setProjectTaskDraft] = useState("");
   const [projectDraft, setProjectDraft] = useState("");
+  const [goalDraftTitle, setGoalDraftTitle] = useState("");
+  const [goalEditingId, setGoalEditingId] = useState<string | null>(null);
+  const [goalEditTitle, setGoalEditTitle] = useState("");
+  const [goalEditDescription, setGoalEditDescription] = useState("");
+  const [goalEditDate, setGoalEditDate] = useState("");
+  const [goalEditArea, setGoalEditArea] = useState("");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -277,6 +283,42 @@ export default function App() {
       setInbox(current => current.filter(entry => entry.id !== item.id));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't archive the item.");
+    }
+  }
+
+  async function createGoal() {
+    if (!goalDraftTitle.trim()) return;
+    try {
+      const result = await apiRequest<{ data: GoalRecord }>("/goals", {
+        method: "POST",
+        body: JSON.stringify({ title: goalDraftTitle.trim(), status: "active" })
+      });
+      setGoals(current => [...current, result.data]);
+      setGoalDraftTitle("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create the goal.");
+    }
+  }
+
+  function openGoalEditor(goal: GoalRecord) {
+    setGoalEditingId(goal.id);
+    setGoalEditTitle(goal.title);
+    setGoalEditDescription(goal.description || "");
+    setGoalEditDate(goal.targetDate || "");
+    setGoalEditArea(goal.lifeAreaId || "");
+  }
+
+  async function saveGoalEditor() {
+    if (!goalEditingId || !goalEditTitle.trim()) return;
+    try {
+      const result = await apiRequest<{ data: GoalRecord }>(`/goals/${goalEditingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: goalEditTitle.trim(), description: goalEditDescription.trim() || null, targetDate: goalEditDate || null, lifeAreaId: goalEditArea || null })
+      });
+      setGoals(current => current.map(goal => goal.id === goalEditingId ? result.data : goal));
+      setGoalEditingId(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't update the goal.");
     }
   }
 
@@ -514,7 +556,7 @@ export default function App() {
         </>}
         {tab === "organize" && organizeSection === "inbox" && <><Text style={styles.sectionTitle}>Capture now · Organize later</Text><View style={styles.capture}><TextInput style={styles.captureInput} placeholder="Capture a thought…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/><TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity></View>{inbox.map(item=><View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={()=>void convertInboxItem(item)}><Text style={styles.link}>Task</Text></TouchableOpacity><TouchableOpacity onPress={()=>void convertInboxToNote(item)}><Text style={styles.link}>Note</Text></TouchableOpacity><TouchableOpacity onPress={()=>void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}</>}
         {tab === "organize" && organizeSection === "habits" && <><Text style={styles.sectionTitle}>Your habits</Text>{habits.filter(habit=>!habit.archivedAt).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);const history=Array.from({length:28},(_,index)=>{const d=new Date();d.setDate(d.getDate()-(27-index));const key=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");return habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);});return <View key={habit.id} style={styles.mobileHabitRow}><TouchableOpacity style={[styles.taskCircle,checked&&styles.taskCircleDone]} onPress={()=>void checkInHabit(habit)}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text><View style={styles.mobileHeatmap}>{history.map((done,index)=><View key={index} style={[styles.mobileHeatCell,done&&styles.mobileHeatCellDone]}/>)}</View></View></View>;})}</>}
-        {tab === "organize" && organizeSection === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;const steps=milestones[goal.id]||[];const completed=steps.filter(step=>step.status==="completed").length;const percent=linked.length+steps.length?Math.round((done+completed)/(linked.length+steps.length)*100):0;return <View key={goal.id} style={styles.mobileGoal}><View style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{linked.length+steps.length>0?percent+"% complete · "+done+"/"+linked.length+" tasks · "+completed+"/"+steps.length+" milestones":"No measurable progress yet"}</Text></View></View>{steps.map(step=><TouchableOpacity key={step.id} style={styles.mobileMilestone} onPress={()=>void toggleMilestone(goal.id,step)}><View style={[styles.taskCircle,step.status==="completed"&&styles.taskCircleDone]}/><Text style={[styles.taskMeta,step.status==="completed"&&styles.taskDone]}>{step.title}</Text></TouchableOpacity>)}<View style={styles.mobileMilestoneComposer}><TextInput style={styles.mobileInlineInput} placeholder="Add a milestone…" placeholderTextColor={colors.muted} value={milestoneDrafts[goal.id]||""} onChangeText={value=>setMilestoneDrafts(current=>({...current,[goal.id]:value}))}/><TouchableOpacity onPress={()=>void addMilestone(goal.id)}><Text style={styles.link}>Add</Text></TouchableOpacity></View></View>;})}</>}
+        {tab === "organize" && organizeSection === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text><View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={goalDraftTitle} onChangeText={setGoalDraftTitle} placeholder="Add a goal…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createGoal()}/><TouchableOpacity onPress={() => void createGoal()} disabled={!goalDraftTitle.trim()}><Text style={styles.link}>Create</Text></TouchableOpacity></View>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;const steps=milestones[goal.id]||[];const completed=steps.filter(step=>step.status==="completed").length;const percent=linked.length+steps.length?Math.round((done+completed)/(linked.length+steps.length)*100):0;return <View key={goal.id} style={styles.mobileGoal}><View style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{linked.length+steps.length>0?percent+"% complete · "+done+"/"+linked.length+" tasks · "+completed+"/"+steps.length+" milestones":"No measurable progress yet"}</Text></View><TouchableOpacity onPress={() => openGoalEditor(goal)}><Text style={styles.link}>Edit</Text></TouchableOpacity></View>{steps.map(step=><TouchableOpacity key={step.id} style={styles.mobileMilestone} onPress={()=>void toggleMilestone(goal.id,step)}><View style={[styles.taskCircle,step.status==="completed"&&styles.taskCircleDone]}/><Text style={[styles.taskMeta,step.status==="completed"&&styles.taskDone]}>{step.title}</Text></TouchableOpacity>)}<View style={styles.mobileMilestoneComposer}><TextInput style={styles.mobileInlineInput} placeholder="Add a milestone…" placeholderTextColor={colors.muted} value={milestoneDrafts[goal.id]||""} onChangeText={value=>setMilestoneDrafts(current=>({...current,[goal.id]:value}))}/><TouchableOpacity onPress={()=>void addMilestone(goal.id)}><Text style={styles.link}>Add</Text></TouchableOpacity></View></View>;})}</>}
         {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text><Text style={styles.taskMeta}>Schedule work without changing a task deadline.</Text><TextInput style={styles.mobileInlineInput} value={scheduleDate} onChangeText={setScheduleDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/><View style={styles.mobileTimeRow}><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleStart} onChangeText={setScheduleStart} placeholder="09:00" placeholderTextColor={colors.muted}/><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleEnd} onChangeText={setScheduleEnd} placeholder="10:00" placeholderTextColor={colors.muted}/></View><Text style={styles.taskMeta}>Choose an open task to schedule it:</Text>{tasks.filter(task=>task.status!=="done"&&task.status!=="cancelled").slice(0,20).map(task=><TouchableOpacity key={task.id} style={styles.mobileScheduleRow} onPress={()=>void scheduleTask(task.id)}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.link}>Schedule</Text></TouchableOpacity>)}{timeBlocks.map(block=><View key={block.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{tasks.find(task=>task.id===block.taskId)?.title||"Scheduled task"}</Text><Text style={styles.taskMeta}>{new Date(block.startsAt).toLocaleString()} – {new Date(block.endsAt).toLocaleTimeString()}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't remove block.");}}}><Text style={styles.link}>Remove</Text></TouchableOpacity></View>) }{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
         {tab === "organize" && organizeSection === "projects" && <>
           {selectedProjectId ? (() => {
@@ -544,6 +586,18 @@ export default function App() {
           <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
         </TouchableOpacity>)}
       </View>
+      <Modal visible={goalEditingId !== null} transparent animationType="fade" onRequestClose={() => setGoalEditingId(null)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>LONG-TERM DIRECTION</Text><Text style={styles.mobileCaptureTitle}>Edit goal</Text></View><TouchableOpacity onPress={() => setGoalEditingId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <TextInput style={styles.mobileCaptureInput} value={goalEditTitle} onChangeText={setGoalEditTitle} placeholder="Goal title" placeholderTextColor={colors.muted}/>
+            <TextInput style={[styles.mobileCaptureInput,{minHeight:76,textAlignVertical:"top"}]} value={goalEditDescription} onChangeText={setGoalEditDescription} placeholder="Why does this matter to you?" placeholderTextColor={colors.muted} multiline/>
+            <TextInput style={styles.mobileCaptureInput} value={goalEditDate} onChangeText={setGoalEditDate} placeholder="Target date · YYYY-MM-DD" placeholderTextColor={colors.muted}/>
+            <View style={styles.mobileAreaPicker}>{lifeAreas.map(area=><TouchableOpacity key={area.id} style={[styles.mobileTaskPriority,goalEditArea===area.id&&styles.mobileTaskPriorityActive]} onPress={()=>setGoalEditArea(goalEditArea===area.id?"":area.id)}><Text style={[styles.mobileTaskPriorityText,goalEditArea===area.id&&styles.mobileTaskFilterTextActive]}>{area.name}</Text></TouchableOpacity>)}</View>
+            <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void saveGoalEditor()} disabled={!goalEditTitle.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <Modal visible={taskEditId !== null} transparent animationType="fade" onRequestClose={() => setTaskEditId(null)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -607,6 +661,7 @@ const styles = StyleSheet.create({
   mobileCaptureTitle: { color: colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.5 },
   mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
   mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
+  mobileAreaPicker: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   mobileTaskPriorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   mobileTaskPriority: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
   mobileTaskPriorityActive: { borderColor: "rgba(167,139,250,0.4)", backgroundColor: "rgba(167,139,250,0.12)" },
