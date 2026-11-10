@@ -34,11 +34,6 @@ function calendarDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function parseCalendarDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day, 12);
-}
-
 function shiftCalendarDate(date: Date, amount: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + amount);
@@ -541,9 +536,8 @@ export default function Home() {
                 : calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
             const moveCalendar = (direction: number) => setCalendarDate(current => {
               if (calendarMode === "month") {
-                const next = new Date(current);
-                next.setMonth(next.getMonth() + direction);
-                return next;
+                // Anchor to the first so moving from the 29th–31st never skips a month.
+                return new Date(current.getFullYear(), current.getMonth() + direction, 1, 12);
               }
               return shiftCalendarDate(current, direction * (calendarMode === "week" ? 7 : 1));
             });
