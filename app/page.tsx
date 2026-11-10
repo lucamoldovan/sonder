@@ -127,7 +127,7 @@ function TaskDatePicker({ label, value, onChange }: {
   const DateIcon = label === "Schedule" ? CalendarClock : CalendarCheck;
 
   return (
-    <div className="task-date-field">
+    <div className="task-date-field" onKeyDown={event => { if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); } }}>
       <button type="button" className={"task-date-trigger " + (open ? "is-open" : "")} onClick={() => {
         if (!open) {
           const selected = selectedDay ? new Date(selectedDay + "T12:00:00") : new Date();
@@ -160,7 +160,7 @@ function TaskDatePicker({ label, value, onChange }: {
             const isSelected = day === selectedDay;
             const isToday = day === calendarDateKey(new Date());
             const isCurrentMonth = date.getMonth() === month.getMonth();
-            return <button key={day} type="button" className={[
+            return <button key={day} type="button" aria-label={date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} aria-pressed={isSelected} aria-current={isToday ? "date" : undefined} className={[
               isSelected ? "selected" : "",
               isToday ? "today" : "",
               !isCurrentMonth ? "outside-month" : ""
