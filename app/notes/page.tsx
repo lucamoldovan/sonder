@@ -60,6 +60,7 @@ export default function NotesPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -380,7 +381,7 @@ export default function NotesPage() {
         </div>
       </header>
 
-      {error && <div className="notes-error"><span>{error}</span><button onClick={() => setError("")}><X size={14}/></button></div>}
+      {error && <div className="notes-error"><span>{error}</span><button onClick={() => setError("")}><X size={14}/></button></div>}{notice && <div className="notes-notice"><span>{notice}</span><button onClick={() => setNotice("")}><X size={14}/></button></div>}
 
       {!selected ? <div className="notes-empty"><div className="notes-empty-icon">✳</div><div className="notes-eyebrow">YOUR PERSONAL WIKI</div><h1>A place for everything.</h1><p>Capture ideas, build your own knowledge base, and connect it all to the things you&apos;re working on.</p><button className="notes-create-cta" onClick={() => void createNote()}><Plus size={16}/> Create your first page</button></div> :
       <div className="notes-document-wrap">
