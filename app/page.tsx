@@ -13,6 +13,7 @@ import type { ApiCalendarEvent, ApiGoal, ApiHabit, ApiHabitEntry, ApiInboxItem, 
 
 type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "Habits" | "Life Areas";
 type Priority = ApiTask["priority"];
+type CommandResult = { id: string; title: string; subtitle: string | null; type: string };
 
 const defaultAreas = [
   { name: "School", color: "#A78BFA", icon: "book-open" },
@@ -77,6 +78,10 @@ export default function Home() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandResults, setCommandResults] = useState<CommandResult[]>([]);
+  const [commandLoading, setCommandLoading] = useState(false);
   const [filterArea, setFilterArea] = useState("all");
   const [capture, setCapture] = useState("");
   const [taskOpen, setTaskOpen] = useState(false);
@@ -93,7 +98,14 @@ export default function Home() {
   const [taskPriority, setTaskPriority] = useState<Priority>("medium");
   const [taskArea, setTaskArea] = useState("");
   const [taskProject, setTaskProject] = useState("");
+  const [taskGoal, setTaskGoal] = useState("");
+  const [taskRepeat, setTaskRepeat] = useState<"none" | "daily" | "weekly" | "monthly">("none");
+  const [taskRepeatInterval, setTaskRepeatInterval] = useState("1");
+  const [taskRepeatUntil, setTaskRepeatUntil] = useState("");
+  const [taskReminder, setTaskReminder] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [projectGoal, setProjectGoal] = useState("");
+  const [projectArea, setProjectArea] = useState("");
   const [goalOpen, setGoalOpen] = useState(false);
   const [habitOpen, setHabitOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
@@ -104,6 +116,7 @@ export default function Home() {
   const [habitName, setHabitName] = useState("");
   const [habitFrequency, setHabitFrequency] = useState<"daily" | "weekdays" | "weekly">("daily");
   const [habitArea, setHabitArea] = useState("");
+  const [habitGoal, setHabitGoal] = useState("");
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("09:00");
@@ -114,17 +127,18 @@ export default function Home() {
 
   const loadWorkspace = useCallback(async () => {
     try {
-      const [taskResult, areaResult, projectResult, inboxResult, goalResult, habitResult, eventResult] = await Promise.all([
-        apiRequest<ApiList<ApiTask[]>>("/tasks"),
-        apiRequest<ApiList<ApiLifeArea[]>>("/life-areas"),
-        apiRequest<ApiList<ApiProject[]>>("/projects"),
-        apiRequest<ApiList<ApiInboxItem[]>>("/inbox?status=inbox"),
-        apiRequest<ApiList<ApiGoal[]>>("/goals"),
-        apiRequest<{ data: ApiHabit[]; entries: ApiHabitEntry[] }>("/habits"),
-        apiRequest<ApiList<ApiCalendarEvent[]>>("/calendar")
-      ]);
+      const workspace = await apiRequest<ApiList<{
+        tasks: ApiTask[];
+        lifeAreas: ApiLifeArea[];
+        projects: ApiProject[];
+        inbox: ApiInboxItem[];
+        goals: ApiGoal[];
+        habits: ApiHabit[];
+        habitEntries: ApiHabitEntry[];
+        events: ApiCalendarEvent[];
+      }>>("/workspace/dashboard");
 
-      let loadedAreas = areaResult.data;
+      let loadedAreas = workspace.data.lifeAreas;
       if (loadedAreas.length === 0) {
         await Promise.all(defaultAreas.map((area, position) =>
           apiRequest("/life-areas", {
@@ -137,14 +151,14 @@ export default function Home() {
       }
 
       setError("");
-      setTasks(taskResult.data);
+      setTasks(workspace.data.tasks);
       setAreas(loadedAreas);
-      setProjects(projectResult.data);
-      setInbox(inboxResult.data);
-      setGoals(goalResult.data);
-      setHabits(habitResult.data);
-      setHabitEntries(habitResult.entries);
-      setEvents(eventResult.data);
+      setProjects(workspace.data.projects);
+      setInbox(workspace.data.inbox);
+      setGoals(workspace.data.goals);
+      setHabits(workspace.data.habits);
+      setHabitEntries(workspace.data.habitEntries);
+      setEvents(workspace.data.events);
       setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
       setTaskProject("");
       setFilterArea(current => current === "all" || loadedAreas.some(area => area.id === current) ? current : "all");
@@ -152,6 +166,29 @@ export default function Home() {
       setError(cause instanceof Error ? cause.message : "Couldn't load your workspace.");
     }
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); }
+      if (event.key === "Escape") setCommandOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!commandOpen || commandQuery.trim().length < 2) { setCommandResults([]); return; }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setCommandLoading(true);
+      try {
+        const result = await apiRequest<ApiList<CommandResult[]>>("/workspace/search?q=" + encodeURIComponent(commandQuery.trim()));
+        if (!cancelled) setCommandResults(result.data);
+      } catch { if (!cancelled) setCommandResults([]); }
+      finally { if (!cancelled) setCommandLoading(false); }
+    }, 180);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [commandOpen, commandQuery]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -224,6 +261,11 @@ export default function Home() {
           priority: taskPriority,
           lifeAreaId: taskArea || null,
           projectId: taskProject || null,
+          goalId: taskGoal || projects.find(project => project.id === taskProject)?.goalId || null,
+          reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
+          recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
+          recurrenceInterval: Number(taskRepeatInterval),
+          recurrenceUntil: taskRepeatUntil || null,
           status: "todo"
         })
       });
@@ -232,6 +274,11 @@ export default function Home() {
       setTaskDescription("");
       setTaskDue("");
       setTaskProject("");
+      setTaskGoal("");
+      setTaskRepeat("none");
+      setTaskRepeatInterval("1");
+      setTaskRepeatUntil("");
+      setTaskReminder("");
       setTaskOpen(false);
       setNotice("Task created.");
     } catch (cause) {
@@ -290,6 +337,14 @@ export default function Home() {
     }
   }
 
+  async function convertInboxToNote(item: ApiInboxItem) {
+    try {
+      await apiRequest(`/inbox/${item.id}/convert-to-note`, { method: "POST" });
+      setInbox(current => current.filter(entry => entry.id !== item.id));
+      setNotice("Inbox item converted into a note.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not convert the inbox item."); }
+  }
+
   async function archiveInboxItem(item: ApiInboxItem) {
     try {
       await apiRequest(`/inbox/${item.id}`, {
@@ -315,7 +370,7 @@ export default function Home() {
     event.preventDefault();
     if (!habitName.trim()) return;
     try {
-      const result = await apiRequest<ApiList<ApiHabit>>("/habits", { method: "POST", body: JSON.stringify({ name: habitName.trim(), frequency: habitFrequency, targetPerWeek: habitFrequency === "daily" ? 7 : habitFrequency === "weekdays" ? 5 : 1, lifeAreaId: habitArea || null }) });
+      const result = await apiRequest<ApiList<ApiHabit>>("/habits", { method: "POST", body: JSON.stringify({ name: habitName.trim(), frequency: habitFrequency, targetPerWeek: habitFrequency === "daily" ? 7 : habitFrequency === "weekdays" ? 5 : 1, lifeAreaId: habitArea || null, goalId: habitGoal || null }) });
       setHabits(current => [...current, result.data]); setHabitName(""); setHabitOpen(false); setNotice("Habit created.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the habit."); }
   }
@@ -423,10 +478,12 @@ export default function Home() {
     try {
       const result = await apiRequest<ApiList<ApiProject>>("/projects", {
         method: "POST",
-        body: JSON.stringify({ name: projectName.trim() })
+        body: JSON.stringify({ name: projectName.trim(), goalId: projectGoal || null, lifeAreaId: projectArea || null })
       });
       setProjects(current => [...current, result.data].sort((a, b) => a.name.localeCompare(b.name)));
       setProjectName("");
+      setProjectGoal("");
+      setProjectArea("");
       setProjectOpen(false);
       setNotice("Project created.");
     } catch (cause) {
