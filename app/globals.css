@@ -599,3 +599,5 @@ h1,h2,h3,.brand-name,.stat-value,.insight-card strong{font-family:inherit}
   .topbar-actions .icon-button:first-child{display:grid}
   .page-content{padding:25px 14px 42px}
 }
+
+@media(max-width:760px){.topbar-refresh{display:none}}
