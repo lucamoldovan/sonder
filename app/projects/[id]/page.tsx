@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, Check, CheckCircle2, Circle, FileText, FolderKanban, LoaderCircle, Target } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Circle, FileText, FolderKanban, LoaderCircle, Target } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
 
