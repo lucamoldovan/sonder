@@ -111,7 +111,7 @@ export default function NotesPage() {
         setSaveState("saved");
         setError("");
       }
-      return true;
+      return draftVersion.current === version;
     } catch (cause) {
       setSaveState("error");
       setError(cause instanceof Error ? cause.message : "Couldn't save this page.");
@@ -174,7 +174,7 @@ export default function NotesPage() {
     markDirty();
   };
 
-  const saveDraftForVersion = async (noteId: string, version: number) => {
+  const saveDraftForVersion = useCallback(async (noteId: string, version: number) => {
     try {
       const result = await apiRequest<ApiList<ApiNote>>("/notes/" + noteId, {
         method: "PATCH",
@@ -200,7 +200,7 @@ export default function NotesPage() {
         setError(cause instanceof Error ? cause.message : "Couldn't save this page.");
       }
     }
-  };
+  }, [title, icon, blocks, tagsText, lifeAreaId, projectId, parentId]);
 
   useEffect(() => {
     if (!dirty || !selectedId) return;
@@ -210,7 +210,7 @@ export default function NotesPage() {
       await saveDraftForVersion(noteId, version);
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [dirty, selectedId, title, icon, blocks, tagsText, lifeAreaId, projectId, parentId]);
+  }, [dirty, selectedId, saveDraftForVersion]);
 
   const toggleFavorite = async (note: ApiNote) => {
     try {
