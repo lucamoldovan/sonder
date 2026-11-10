@@ -31,9 +31,18 @@ async function validateRelations(
   }
   if (values.parentTaskId) {
     if (values.parentTaskId === currentTaskId) return "A task cannot be its own parent.";
-    const [parent] = await database.select({ id: tasks.id }).from(tasks)
-      .where(and(eq(tasks.id, values.parentTaskId), eq(tasks.userId, userId))).limit(1);
-    if (!parent) return "The parent task does not exist.";
+    const rows = await database.select({ id: tasks.id, parentTaskId: tasks.parentTaskId })
+      .from(tasks).where(eq(tasks.userId, userId));
+    const parents = new Map(rows.map(row => [row.id, row.parentTaskId]));
+    if (!parents.has(values.parentTaskId)) return "The parent task does not exist.";
+    const visited = new Set<string>();
+    let cursor: string | null = values.parentTaskId;
+    while (cursor) {
+      if (cursor === currentTaskId) return "That parent would create a subtask cycle.";
+      if (visited.has(cursor)) return "The existing task hierarchy contains a cycle.";
+      visited.add(cursor);
+      cursor = parents.get(cursor) ?? null;
+    }
   }
   return null;
 }
