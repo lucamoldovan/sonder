@@ -422,3 +422,11 @@
 @media(max-width:760px){.today-intro{align-items:flex-start;flex-direction:column;margin-top:0}.today-intro .primary-button{align-self:stretch}.today-layout{grid-template-columns:1fr;gap:18px}.today-secondary-column{gap:20px}.today-context-line{flex-wrap:wrap}.today-habits-list{grid-template-columns:1fr 1fr}}
 @media(max-width:420px){.today-agenda-row{grid-template-columns:58px 7px minmax(0,1fr) auto;gap:9px}.today-habits-list{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.today-inbox-link{transition:none}}
+
+/* Organize hub: module navigation without duplicating module dashboards */
+.organize-intro{max-width:620px;margin:0 0 25px}.organize-intro p{color:var(--muted);font-size:12px;line-height:1.7;margin:8px 0 0}
+.organize-list{max-width:780px;border-top:1px solid var(--line)}
+.organize-item{width:100%;display:flex;align-items:center;gap:14px;padding:15px 3px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--soft);transition:color .16s ease}
+.organize-item:hover{color:var(--text)}.organize-item-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--lav);background:var(--lav-dim);flex:none}
+.organize-item>span:nth-child(2){display:grid;gap:4px;flex:1}.organize-item strong{font-size:12px;font-weight:600;color:var(--text)}.organize-item small{font-size:10px;color:var(--muted)}.organize-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.organize-item{transition:none}}
