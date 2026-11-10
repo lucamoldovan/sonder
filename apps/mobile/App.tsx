@@ -331,5 +331,15 @@ const styles = StyleSheet.create({
   inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },
   archiveLink: { color: colors.muted, fontSize: 10 },
   error: { color: "#E18A91", fontSize: 11, marginTop: 12 },
-  footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 }
+  footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 },
+  tabs: { marginTop: 22, maxHeight: 42 },
+  tabsContent: { flexDirection: "row", gap: 7, alignItems: "center" },
+  tab: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9 },
+  tabActive: { backgroundColor: "#292137", borderColor: colors.lavender },
+  tabText: { color: colors.muted, fontSize: 10, fontWeight: "600" },
+  tabTextActive: { color: "#D8CAFF" },
+  taskCircleDone: { backgroundColor: colors.lavender, borderColor: colors.lavender },
+  taskDone: { color: colors.muted, textDecorationLine: "line-through" },
+  eventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#79B7D7" },
+  goalDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.lavender }
 });
