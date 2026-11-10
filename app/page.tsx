@@ -19,7 +19,7 @@ type ApiTimeBlock = { id: string; taskId: string; startsAt: string; endsAt: stri
 type ApiMilestone = { id: string; goalId: string; title: string; description: string | null; targetDate: string | null; status: "pending" | "completed"; position: number; completedAt: string | null };
 
 const defaultAreas = [
-  { name: "School", color: "#B4A4FF", icon: "book-open" },
+  { name: "School", color: "#F5F5F7", icon: "book-open" },
   { name: "Church", color: "#E6A2B0", icon: "heart" },
   { name: "Projects", color: "#82B8E7", icon: "layers" },
   { name: "Personal", color: "#D5B77D", icon: "compass" },
@@ -146,7 +146,7 @@ export default function Home() {
   const [eventEndTime, setEventEndTime] = useState("10:00");
   const [eventArea, setEventArea] = useState("");
   const [areaName, setAreaName] = useState("");
-  const [areaColor, setAreaColor] = useState("#B4A4FF");
+  const [areaColor, setAreaColor] = useState("#F5F5F7");
 
   const loadWorkspace = useCallback(async () => {
     try {
@@ -963,7 +963,7 @@ export default function Home() {
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
-                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#B4A4FF" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
+                        {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
                         {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
                         {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTasks.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
                         {dayEvents.length + dayTasks.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length + dayBlocks.length - 3} more</span>}
@@ -981,7 +981,7 @@ export default function Home() {
                         const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime()+60*60*1000);
                         const top = Math.max(0, (start.getHours()-6)*56 + start.getMinutes()/60*56);
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
-                        return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#B4A4FF" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
+                        return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#F5F5F7" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
                       {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarDays size={11}/>{item.title} · deadline</div>)}
                       {timeBlocks.filter(block => localDate(block.startsAt) === calendarDateKey(date)).map(block => {
