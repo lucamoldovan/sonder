@@ -790,7 +790,7 @@ export default function Home() {
                     <button className="text-button" onClick={() => setView("Tasks")}>All tasks <ArrowRight size={14}/></button>
                   </div>
                   {nextActionTasks.length > 0
-                    ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask}/>)}</div>
+                    ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask}/>)}</div>
                     : <div className="today-quiet-state"><Check size={18}/><div><strong>No urgent tasks asking for attention.</strong><span>You can choose something meaningful to work on, or enjoy the breathing room.</span></div></div>}
                   <button className="add-task-row" onClick={() => setTaskOpen(true)}><Plus size={15}/>Add a task</button>
                 </section>
