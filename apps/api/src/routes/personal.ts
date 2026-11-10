@@ -169,7 +169,7 @@ function icsEscape(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 }
 function icsDate(value: Date) {
-  return value.toISOString().replace(/[-:]/g, "").replace(/\\.\\d{3}Z$/, "Z");
+  return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 personalRoutes.get("/export/calendar.ics", async (c) => {
   const user = await getSessionUser(c);
