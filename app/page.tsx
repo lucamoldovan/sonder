@@ -5,7 +5,7 @@ import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers, Pencil,
-  LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
+  LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
