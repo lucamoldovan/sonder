@@ -73,6 +73,10 @@ export default function App() {
   const [habitDraftFrequency, setHabitDraftFrequency] = useState<"daily" | "weekdays" | "weekly">("daily");
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{id:string;title:string;subtitle:string|null;type:string;href:string}[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -172,6 +176,29 @@ export default function App() {
     } finally {
       setAuthBusy(false);
     }
+  }
+
+  async function runMobileSearch() {
+    if (searchQuery.trim().length < 2) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const result = await apiRequest<List<{id:string;title:string;subtitle:string|null;type:string;href:string}[]>>("/workspace/search?q=" + encodeURIComponent(searchQuery.trim()));
+      setSearchResults(result.data);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't search Sonder.");
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function openSearchResult(result: {id:string;type:string}) {
+    setSearchOpen(false);
+    if (result.type === "project") { setSelectedProjectId(result.id); openOrganizeSection("projects"); }
+    else if (result.type === "task") { setTaskFilter("all"); openOrganizeSection("tasks"); }
+    else if (result.type === "goal") openOrganizeSection("goals");
+    else if (result.type === "habit") openOrganizeSection("habits");
+    else if (result.type === "event") setTab("calendar");
+    else if (result.type === "note") setTab("notes");
   }
 
   async function addCapture() {
@@ -551,7 +578,7 @@ export default function App() {
       <ScrollView style={{flex:1}} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View><Text style={styles.kicker}>YOUR WORKSPACE</Text><Text style={styles.heading}>{tab === "organize" ? (organizeSection === "home" ? "Organize." : organizeSection[0].toUpperCase()+organizeSection.slice(1)+".") : tab === "today" ? "Today." : tab[0].toUpperCase()+tab.slice(1)+"."}</Text><Text style={styles.muted}>A little clarity goes a long way.</Text></View>
-          <View style={styles.mobileHeaderActions}><TouchableOpacity style={styles.mobileCaptureButton} onPress={() => setCaptureOpen(true)}><Text style={styles.mobileCaptureButtonText}>Capture</Text></TouchableOpacity><TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity></View>
+          <View style={styles.mobileHeaderActions}><TouchableOpacity style={styles.mobileCaptureButton} onPress={() => setSearchOpen(true)}><Text style={styles.mobileCaptureButtonText}>Search</Text></TouchableOpacity><TouchableOpacity style={styles.mobileCaptureButton} onPress={() => setCaptureOpen(true)}><Text style={styles.mobileCaptureButtonText}>Capture</Text></TouchableOpacity><TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity></View>
         </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
         {tab === "today" && <>
@@ -665,6 +692,18 @@ export default function App() {
           <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
         </TouchableOpacity>)}
       </View>
+      <Modal visible={searchOpen} transparent animationType="fade" onRequestClose={() => setSearchOpen(false)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>SEARCH YOUR LIFE</Text><Text style={styles.mobileCaptureTitle}>Find anything.</Text></View><TouchableOpacity onPress={() => setSearchOpen(false)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <View style={styles.mobileSearchInputRow}><TextInput autoFocus style={[styles.mobileCaptureInput,{flex:1}]} value={searchQuery} onChangeText={setSearchQuery} placeholder="Search tasks, projects, goals, notes…" placeholderTextColor={colors.muted} onSubmitEditing={() => void runMobileSearch()}/><TouchableOpacity onPress={() => void runMobileSearch()}><Text style={styles.link}>Go</Text></TouchableOpacity></View>
+            {searchLoading&&<ActivityIndicator color={colors.lavender}/>}
+            {searchResults.map(result=><TouchableOpacity key={result.type+":"+result.id} style={styles.mobileSearchResult} onPress={() => openSearchResult(result)}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{result.title}</Text><Text style={styles.taskMeta}>{result.type}{result.subtitle?" · "+result.subtitle:""}</Text></View><Text style={styles.link}>›</Text></TouchableOpacity>)}
+            {!searchLoading&&searchQuery.trim().length>=2&&searchResults.length===0&&<Text style={styles.muted}>No matches. Try a different phrase.</Text>}
+            {searchQuery.trim().length<2&&<Text style={styles.taskMeta}>Enter at least two characters to search across your workspace.</Text>}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <Modal visible={goalEditingId !== null} transparent animationType="fade" onRequestClose={() => setGoalEditingId(null)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -734,6 +773,8 @@ const styles = StyleSheet.create({
   mobileHeaderActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   mobileCaptureButton: { borderWidth: 1, borderColor: "rgba(167,139,250,0.35)", backgroundColor: "rgba(167,139,250,0.12)", borderRadius: 9, paddingHorizontal: 11, paddingVertical: 8 },
   mobileCaptureButtonText: { color: "#D8CAFF", fontSize: 10, fontWeight: "600" },
+  mobileSearchInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  mobileSearchResult: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileCaptureOverlay: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.76)" },
   mobileCaptureCard: { padding: 20, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 12 },
   mobileCaptureModalHeading: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
