@@ -277,7 +277,7 @@ export default function Home() {
     return completedThisWeek < habit.targetPerWeek;
   });
   const nextActionTasks = [...openTasks]
-    .filter(task => (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
+    .filter(task => task.status === "in_progress" || (task.dueAt && localDate(task.dueAt) <= today) || task.priority === "urgent" || task.priority === "high")
     .sort((a,b) => {
       const aOverdue = a.dueAt && localDate(a.dueAt) < today ? 0 : 1;
       const bOverdue = b.dueAt && localDate(b.dueAt) < today ? 0 : 1;
