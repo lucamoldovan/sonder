@@ -63,7 +63,8 @@ function nextOccurrence(task: typeof tasks.$inferSelect) {
   const reminderAt = task.reminderAt && task.dueAt
     ? new Date(next.getTime() - (task.dueAt.getTime() - task.reminderAt.getTime()))
     : null;
-  return { dueAt: next, reminderAt };
+  const scheduledAt = task.scheduledAt ? new Date(task.scheduledAt.getTime() + (next.getTime() - task.dueAt.getTime())) : null;
+  return { dueAt: next, reminderAt, scheduledAt };
 }
 
 taskRoutes.get("/", async (c) => {
@@ -92,6 +93,7 @@ taskRoutes.post("/", async (c) => {
     parentTaskId: data.parentTaskId ?? null,
     status: data.status,
     priority: data.priority,
+    scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
     dueAt: data.dueAt ? new Date(data.dueAt) : null,
     reminderAt: data.reminderAt ? new Date(data.reminderAt) : null,
     recurrenceFrequency: data.recurrenceFrequency ?? null,
@@ -177,6 +179,7 @@ taskRoutes.patch("/:id", async (c) => {
   if (data.parentTaskId !== undefined) updates.parentTaskId = data.parentTaskId;
   if (data.status !== undefined) updates.status = data.status;
   if (data.priority !== undefined) updates.priority = data.priority;
+  if (data.scheduledAt !== undefined) updates.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
   if (data.dueAt !== undefined) updates.dueAt = data.dueAt ? new Date(data.dueAt) : null;
   if (data.reminderAt !== undefined) updates.reminderAt = data.reminderAt ? new Date(data.reminderAt) : null;
   if (data.recurrenceFrequency !== undefined) updates.recurrenceFrequency = data.recurrenceFrequency;
@@ -201,6 +204,7 @@ taskRoutes.patch("/:id", async (c) => {
         parentTaskId: updated.parentTaskId,
         status: "todo",
         priority: updated.priority,
+        scheduledAt: next.scheduledAt,
         dueAt: next.dueAt,
         reminderAt: next.reminderAt,
         recurrenceFrequency: updated.recurrenceFrequency,
