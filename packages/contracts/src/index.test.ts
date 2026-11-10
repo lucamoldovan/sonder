@@ -31,6 +31,20 @@ describe("shared request contracts", () => {
     expect(CreateTaskSchema.safeParse({ title: "   " }).success).toBe(false);
   });
 
+  test("preserves explicit time intent for scheduled dates and deadlines", () => {
+    expect(CreateTaskSchema.parse({
+      title: "Meet at noon",
+      scheduledAt: "2026-11-12T12:00:00.000Z",
+      scheduledHasTime: true,
+      dueAt: "2026-11-12T12:00:00.000Z",
+      dueHasTime: false
+    })).toMatchObject({ scheduledHasTime: true, dueHasTime: false });
+    expect(UpdateTaskSchema.parse({ scheduledHasTime: true, dueHasTime: false })).toEqual({
+      scheduledHasTime: true,
+      dueHasTime: false
+    });
+  });
+
   test("allows explicitly clearing nullable task relationships", () => {
     expect(UpdateTaskSchema.parse({ projectId: null, lifeAreaId: null })).toEqual({
       projectId: null,
