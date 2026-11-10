@@ -9,6 +9,10 @@ import { habitRoutes } from "./habits";
 import { calendarRoutes } from "./calendar";
 import { noteRoutes } from "./notes";
 import { workspaceRoutes } from "./workspace";
+import { timeBlockRoutes } from "./time-blocks";
+import { milestoneRoutes } from "./milestones";
+import { noteTemplateRoutes } from "./note-templates";
+import { noteLinkRoutes } from "./note-links";
 
 export const v1Routes = new Hono<AppEnv>();
 
@@ -20,4 +24,8 @@ v1Routes.route("/goals", goalRoutes);
 v1Routes.route("/habits", habitRoutes);
 v1Routes.route("/calendar", calendarRoutes);
 v1Routes.route("/notes", noteRoutes);
+v1Routes.route("/notes", noteLinkRoutes);
+v1Routes.route("/note-templates", noteTemplateRoutes);
+v1Routes.route("/time-blocks", timeBlockRoutes);
+v1Routes.route("/", milestoneRoutes);
 v1Routes.route("/workspace", workspaceRoutes);

@@ -15,6 +15,8 @@ type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "H
 type Priority = ApiTask["priority"];
 type CommandResult = { id: string; title: string; subtitle: string | null; type: string };
 type ApiNotification = { id: string; title: string; body: string | null; href: string | null; readAt: string | null; createdAt: string };
+type ApiTimeBlock = { id: string; taskId: string; startsAt: string; endsAt: string; note: string | null };
+type ApiMilestone = { id: string; goalId: string; title: string; description: string | null; targetDate: string | null; status: "pending" | "completed"; position: number; completedAt: string | null };
 
 const defaultAreas = [
   { name: "School", color: "#A78BFA", icon: "book-open" },
@@ -69,6 +71,13 @@ export default function Home() {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [habitEntries, setHabitEntries] = useState<ApiHabitEntry[]>([]);
   const [events, setEvents] = useState<ApiCalendarEvent[]>([]);
+  const [timeBlocks, setTimeBlocks] = useState<ApiTimeBlock[]>([]);
+  const [milestones, setMilestones] = useState<Record<string, ApiMilestone[]>>({});
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleTask, setScheduleTask] = useState("");
+  const [scheduleDate, setScheduleDate] = useState(calendarDateKey(new Date()));
+  const [scheduleStart, setScheduleStart] = useState("09:00");
+  const [scheduleEnd, setScheduleEnd] = useState("10:00");
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [calendarMode, setCalendarMode] = useState<"month" | "week" | "day">("month");
   const [eventEditingId, setEventEditingId] = useState<string | null>(null);
@@ -132,7 +141,7 @@ export default function Home() {
 
   const loadWorkspace = useCallback(async () => {
     try {
-      const workspace = await apiRequest<ApiList<{
+      const [workspace, blockResult] = await Promise.all([apiRequest<ApiList<{
         tasks: ApiTask[];
         lifeAreas: ApiLifeArea[];
         projects: ApiProject[];
@@ -141,7 +150,7 @@ export default function Home() {
         habits: ApiHabit[];
         habitEntries: ApiHabitEntry[];
         events: ApiCalendarEvent[];
-      }>>("/workspace/dashboard");
+      }>>("/workspace/dashboard"), apiRequest<ApiList<ApiTimeBlock[]>>("/time-blocks")]);
 
       let loadedAreas = workspace.data.lifeAreas;
       if (loadedAreas.length === 0) {
@@ -164,6 +173,11 @@ export default function Home() {
       setHabits(workspace.data.habits);
       setHabitEntries(workspace.data.habitEntries);
       setEvents(workspace.data.events);
+      setTimeBlocks(blockResult.data);
+      const milestoneResults = await Promise.all(workspace.data.goals.map(goal =>
+        apiRequest<ApiList<ApiMilestone[]>>("/goals/" + goal.id + "/milestones")
+      ));
+      setMilestones(Object.fromEntries(workspace.data.goals.map((goal, index) => [goal.id, milestoneResults[index].data])));
       const notificationResult = await apiRequest<{ data: ApiNotification[]; unreadCount: number }>("/workspace/notifications");
       setNotifications(notificationResult.data);
       setTaskArea(current => loadedAreas.some(area => area.id === current) ? current : loadedAreas[0]?.id || "");
@@ -392,6 +406,59 @@ export default function Home() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't archive the item.");
     }
+  }
+
+  async function moveTimeBlock(id: string, date: Date, hour: number) {
+    const block = timeBlocks.find(item => item.id === id);
+    if (!block) return;
+    const startsAt = new Date(date);
+    startsAt.setHours(hour, 0, 0, 0);
+    const duration = new Date(block.endsAt).getTime() - new Date(block.startsAt).getTime();
+    const endsAt = new Date(startsAt.getTime() + duration);
+    try {
+      const result = await apiRequest<ApiList<ApiTimeBlock> & { conflicts?: { id: string }[] }>("/time-blocks/" + id, {
+        method: "PATCH", body: JSON.stringify({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() })
+      });
+      setTimeBlocks(current => current.map(item => item.id === id ? result.data : item).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));
+      setNotice(result.conflicts?.length ? "Work block moved. It overlaps another block." : "Work block moved.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not move the work block."); }
+  }
+
+  async function createTimeBlock(event: FormEvent) {
+    event.preventDefault();
+    if (!scheduleTask || !scheduleDate) return;
+    try {
+      const result = await apiRequest<ApiList<ApiTimeBlock> & { conflicts?: { id: string }[] }>("/time-blocks", {
+        method: "POST",
+        body: JSON.stringify({
+          taskId: scheduleTask,
+          startsAt: new Date(scheduleDate + "T" + scheduleStart).toISOString(),
+          endsAt: new Date(scheduleDate + "T" + scheduleEnd).toISOString()
+        })
+      });
+      setTimeBlocks(current => [...current, result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      setScheduleOpen(false);
+      setNotice(result.conflicts?.length ? "Task scheduled. There is an overlap with another work block." : "Task scheduled.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not schedule task."); }
+  }
+
+  async function addMilestone(goalId: string) {
+    const title = window.prompt("Milestone name");
+    if (!title?.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<ApiMilestone>>("/goals/" + goalId + "/milestones", {
+        method: "POST", body: JSON.stringify({ title: title.trim(), position: milestones[goalId]?.length ?? 0 })
+      });
+      setMilestones(current => ({ ...current, [goalId]: [...(current[goalId] ?? []), result.data] }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not add milestone."); }
+  }
+
+  async function toggleMilestone(goalId: string, milestone: ApiMilestone) {
+    const status = milestone.status === "completed" ? "pending" : "completed";
+    try {
+      const result = await apiRequest<ApiList<ApiMilestone>>("/milestones/" + milestone.id, { method: "PATCH", body: JSON.stringify({ status }) });
+      setMilestones(current => ({ ...current, [goalId]: (current[goalId] ?? []).map(item => item.id === milestone.id ? result.data : item) }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update milestone."); }
   }
 
   async function createGoal(event: FormEvent) {
@@ -648,7 +715,7 @@ export default function Home() {
             return <div className="section-page calendar-workspace">
               <div className="calendar-heading">
                 <div><div className="eyebrow">YOUR TIME, IN ONE PLACE</div><h1>Calendar</h1><p className="subheading">A clear view of what’s ahead.</p></div>
-                <button className="primary-button" onClick={() => openNewEvent()}><Plus size={16}/>Create event</button>
+                <div className="calendar-heading-actions"><button className="secondary-button" onClick={() => { setScheduleDate(calendarDateKey(calendarDate)); setScheduleOpen(true); }}>Schedule task</button><button className="primary-button" onClick={() => openNewEvent()}><Plus size={16}/>Create event</button></div>
               </div>
               <section className="panel calendar-main-panel">
                 <div className="calendar-toolbar">
@@ -668,13 +735,15 @@ export default function Home() {
                     const key = calendarDateKey(date);
                     const dayEvents = eventsFor(date);
                     const dayTasks = tasksFor(date);
+                    const dayBlocks = timeBlocks.filter(block => localDate(block.startsAt) === key);
                     const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
                     return <button key={key} className={`month-day ${isCurrentMonth ? "" : "outside-month"} ${key === todayKey ? "is-today" : ""} ${key === calendarDateKey(calendarDate) ? "is-selected" : ""}`} onClick={() => { setCalendarDate(date); setCalendarMode("day"); }}>
                       <span className="month-day-number">{date.getDate()}</span>
                       <span className="month-day-items">
                         {dayEvents.slice(0, 3).map(item => <span key={item.id} className="month-event" style={{ "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as CSSProperties} onClick={event => { event.stopPropagation(); openEditEvent(item); }}>{item.title}</span>)}
                         {dayTasks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length, 3))).map(item => <span key={item.id} className="month-event task-calendar-event">{item.title}</span>)}
-                        {dayEvents.length + dayTasks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length - 3} more</span>}
+                        {dayBlocks.slice(0, Math.max(0, 3 - Math.min(dayEvents.length + dayTasks.length, 3))).map(block => <span key={block.id} className="month-event time-block-month-event">{tasks.find(task => task.id === block.taskId)?.title || "Work block"}</span>)}
+                        {dayEvents.length + dayTasks.length + dayBlocks.length > 3 && <span className="month-more">+{dayEvents.length + dayTasks.length + dayBlocks.length - 3} more</span>}
                       </span>
                     </button>;
                   })}</div>
@@ -683,7 +752,7 @@ export default function Home() {
                   <div className="agenda-all-day"><div className="agenda-time-label">all-day</div>{visibleDays.map(date => <div className="agenda-all-day-cell" key={calendarDateKey(date)}>{eventsFor(date).filter(item => item.allDay).map(item => <button key={item.id} className="agenda-event all-day-event" onClick={() => openEditEvent(item)}>{item.title}</button>)}</div>)}</div>
                   <div className="agenda-scroll"><div className="agenda-time-column">{Array.from({length:17},(_,index)=>index+6).map(hour=><div key={hour} className="agenda-hour-label">{String(hour).padStart(2,"0")}:00</div>)}</div>
                     <div className="agenda-days">{visibleDays.map(date => <div className="agenda-day-column" key={calendarDateKey(date)}>
-                      {Array.from({length:17},(_,index)=><button key={index} className="agenda-hour-cell" onClick={() => { setCalendarDate(date); setEventDate(calendarDateKey(date)); setEventTime(String(index+6).padStart(2,"0")+":00"); setEventEndTime(String(index+7).padStart(2,"0")+":00"); setEventAllDay(false); setEventEditingId(null); setEventTitle(""); setEventDescription(""); setEventLocation(""); setEventArea(""); setEventProject(""); setEventOpen(true); }} aria-label={`Create event at ${index+6}:00`}/>)}
+                      {Array.from({length:17},(_,index)=><button key={index} className="agenda-hour-cell" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const id=event.dataTransfer.getData("text/time-block-id");if(id)void moveTimeBlock(id,date,index+6);}} onClick={() => { setCalendarDate(date); setEventDate(calendarDateKey(date)); setEventTime(String(index+6).padStart(2,"0")+":00"); setEventEndTime(String(index+7).padStart(2,"0")+":00"); setEventAllDay(false); setEventEditingId(null); setEventTitle(""); setEventDescription(""); setEventLocation(""); setEventArea(""); setEventProject(""); setEventOpen(true); }} aria-label={`Create event at ${index+6}:00`}/>)}
                       {eventsFor(date).filter(item => !item.allDay).map(item => {
                         const start = new Date(item.startsAt);
                         const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime()+60*60*1000);
@@ -691,17 +760,24 @@ export default function Home() {
                         const height = Math.max(30, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
                         return <button key={item.id} className="agenda-event timed-agenda-event" style={{ top, height, "--event-color": areas.find(area => area.id === item.lifeAreaId)?.color || "#A78BFA" } as React.CSSProperties} onClick={() => openEditEvent(item)}><strong>{item.title}</strong><span>{formatEventTime(item.startsAt)}{item.endsAt ? " – "+formatEventTime(item.endsAt) : ""}</span></button>;
                       })}
-                      {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarDays size={11}/>{item.title}</div>)}
+                      {tasksFor(date).map(item => <div key={item.id} className="agenda-task-deadline"><CalendarDays size={11}/>{item.title} · deadline</div>)}
+                      {timeBlocks.filter(block => localDate(block.startsAt) === calendarDateKey(date)).map(block => {
+                        const task = tasks.find(item => item.id === block.taskId);
+                        const start = new Date(block.startsAt), end = new Date(block.endsAt);
+                        const top = Math.max(0, (start.getHours()-6)*56 + start.getMinutes()/60*56);
+                        const height = Math.max(28, Math.min(952-top, (end.getTime()-start.getTime())/60000/60*56));
+                        return <button key={block.id} draggable onDragStart={event=>event.dataTransfer.setData("text/time-block-id",block.id)} className="agenda-event timed-agenda-event time-block-event" style={{top,height}} title="Drag to another hour to reschedule · click to remove" onClick={async()=>{if(window.confirm("Remove this scheduled block?")){try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not remove time block.");}}}}><strong>{task?.title || "Scheduled task"}</strong><span>{formatEventTime(block.startsAt)} – {formatEventTime(block.endsAt)} · work block</span></button>;
+                      })}
                     </div>)}</div>
                   </div>
                 </div>}
-                <div className="calendar-legend"><span><i className="legend-event"/>Events</span><span><i className="legend-task"/>Task deadlines</span><span className="calendar-hint">Select a day or event to see more</span></div>
+                <div className="calendar-legend"><span><i className="legend-event"/>Events</span><span><i className="legend-task"/>Task deadlines</span><span>Work blocks</span><span className="calendar-hint">Select a day or event to see more</span></div>
               </section>
             </div>;
           })()}
 
-          {view === "Goals" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE BIGGER PICTURE</div><h1>Your goals.</h1><p className="subheading">Give your longer-term intentions a place to live.</p></div><button className="primary-button" onClick={()=>setGoalOpen(true)}><Plus size={17}/>New goal</button></div><section className="project-grid">{goals.map(goal=>{const linkedTasks=tasks.filter(task=>task.goalId===goal.id);const doneTasks=linkedTasks.filter(task=>task.status==="done").length;const linkedHabits=habits.filter(habit=>habit.goalId===goal.id);return <article className="panel project-card" key={goal.id}><div className="section-kicker">{goal.status.toUpperCase()}</div><h2>{goal.title}</h2><p>{goal.description||"A direction worth making time for."}</p><div className="goal-progress"><span>{doneTasks}/{linkedTasks.length} linked tasks · {linkedHabits.length} habits</span><i><b style={{width:linkedTasks.length?doneTasks/linkedTasks.length*100+"%":"0%"}}/></i></div><span>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No target date"}</span><div className="goal-actions"><button className="secondary-button" onClick={async()=>{const status=goal.status==="completed"?"active":"completed";try{const result=await apiRequest<ApiList<ApiGoal>>("/goals/"+goal.id,{method:"PATCH",body:JSON.stringify({status})});setGoals(current=>current.map(item=>item.id===goal.id?result.data:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not update goal.");}}}>{goal.status==="completed"?"Reopen":"Mark complete"}</button><button className="icon-button" onClick={async()=>{try{await apiRequest("/goals/"+goal.id,{method:"DELETE"});setGoals(current=>current.filter(item=>item.id!==goal.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not delete goal.");}}} aria-label="Delete goal"><Trash2 size={14}/></button></div></article>;})}{goals.length===0&&<div className="empty-state"><Flag size={20}/><strong>No goals yet</strong><span>Start with something you want to move towards.</span></div>}</section></div>}
-          {view === "Habits" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">SMALL THINGS, REPEATED</div><h1>Your habits.</h1><p className="subheading">Build consistency without the pressure of perfect streaks.</p></div><button className="primary-button" onClick={()=>setHabitOpen(true)}><Plus size={17}/>New habit</button></div><section className="panel full-task-panel">{habits.filter(habit=>!habit.archivedAt).map(habit=>{const today=localDate(new Date().toISOString());const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);const area=areas.find(item=>item.id===habit.lifeAreaId);const recent=habitEntries.filter(entry=>entry.habitId===habit.id).length;return <div className="habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label="Toggle today's check-in">{checked&&<Check size={13}/>}</button><div className="task-copy"><strong className="task-title">{habit.name}</strong><div className="task-meta"><span className="area-tag">{area?.name||"Personal"}</span><span className="repeat-tag">{habit.frequency==="weekdays"?"Weekdays":habit.frequency==="weekly"?"Weekly":"Daily"}</span><span className="due-tag">{recent} check-ins</span></div></div><button className="icon-button" onClick={async()=>{try{await apiRequest("/habits/"+habit.id,{method:"PATCH",body:JSON.stringify({archived:true})});setHabits(current=>current.map(item=>item.id===habit.id?{...item,archivedAt:new Date().toISOString()}:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not archive habit.");}}} aria-label="Archive habit"><CheckCheck size={15}/></button></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<div className="empty-state"><Heart size={20}/><strong>No habits yet</strong><span>Choose one small practice you want to repeat.</span></div>}</section></div>}
+          {view === "Goals" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE BIGGER PICTURE</div><h1>Your goals.</h1><p className="subheading">Give your longer-term intentions a place to live.</p></div><button className="primary-button" onClick={()=>setGoalOpen(true)}><Plus size={17}/>New goal</button></div><section className="project-grid">{goals.map(goal=>{const linkedTasks=tasks.filter(task=>task.goalId===goal.id);const doneTasks=linkedTasks.filter(task=>task.status==="done").length;const linkedHabits=habits.filter(habit=>habit.goalId===goal.id);const goalSteps=milestones[goal.id]||[];const doneSteps=goalSteps.filter(item=>item.status==="completed").length;const progress=(goalSteps.length+linkedTasks.length)?Math.round((doneSteps+doneTasks)/(goalSteps.length+linkedTasks.length)*100):0;return <article className="panel project-card" key={goal.id}><div className="section-kicker">{goal.status.toUpperCase()}</div><h2>{goal.title}</h2><p>{goal.description||"A direction worth making time for."}</p><div className="goal-progress"><span>{progress}% complete · {doneTasks}/{linkedTasks.length} tasks · {doneSteps}/{goalSteps.length} milestones · {linkedHabits.length} habits</span><i><b style={{width:progress+"%"}}/></i></div><span>{goal.targetDate?"Target · "+new Date(goal.targetDate+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"No target date"}</span><div className="goal-milestones"><div className="goal-milestones-heading"><strong>Milestones</strong><button className="text-button" onClick={()=>void addMilestone(goal.id)}>+ Add</button></div>{(milestones[goal.id]||[]).map(milestone=><label className="goal-milestone-row" key={milestone.id}><input type="checkbox" checked={milestone.status==="completed"} onChange={()=>void toggleMilestone(goal.id,milestone)}/><span className={milestone.status==="completed"?"milestone-done":""}>{milestone.title}</span>{milestone.targetDate&&<small>{milestone.targetDate}</small>}</label>)}<small>{(milestones[goal.id]||[]).filter(item=>item.status==="completed").length}/{(milestones[goal.id]||[]).length} milestones complete</small></div><div className="goal-actions"><button className="secondary-button" onClick={async()=>{const status=goal.status==="completed"?"active":"completed";try{const result=await apiRequest<ApiList<ApiGoal>>("/goals/"+goal.id,{method:"PATCH",body:JSON.stringify({status})});setGoals(current=>current.map(item=>item.id===goal.id?result.data:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not update goal.");}}}>{goal.status==="completed"?"Reopen":"Mark complete"}</button><button className="icon-button" onClick={async()=>{try{await apiRequest("/goals/"+goal.id,{method:"DELETE"});setGoals(current=>current.filter(item=>item.id!==goal.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not delete goal.");}}} aria-label="Delete goal"><Trash2 size={14}/></button></div></article>;})}{goals.length===0&&<div className="empty-state"><Flag size={20}/><strong>No goals yet</strong><span>Start with something you want to move towards.</span></div>}</section></div>}
+          {view === "Habits" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">SMALL THINGS, REPEATED</div><h1>Your habits.</h1><p className="subheading">Build consistency without the pressure of perfect streaks.</p></div><button className="primary-button" onClick={()=>setHabitOpen(true)}><Plus size={17}/>New habit</button></div><section className="panel full-task-panel">{habits.filter(habit=>!habit.archivedAt).map(habit=>{const today=localDate(new Date().toISOString());const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===today);const area=areas.find(item=>item.id===habit.lifeAreaId);const recent=habitEntries.filter(entry=>entry.habitId===habit.id).length;return <div className="habit-row" key={habit.id}><button className={"task-check "+(checked?"checked":"")} onClick={()=>void checkInHabit(habit)} aria-label="Toggle today's check-in">{checked&&<Check size={13}/>}</button><div className="task-copy"><strong className="task-title">{habit.name}</strong><div className="habit-history-grid" aria-label="Last 28 days">{Array.from({length:28},(_,index)=>{const day=new Date();day.setDate(day.getDate()-(27-index));const key=calendarDateKey(day);const done=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);return <span key={key} className={done?"habit-history-day is-done":"habit-history-day"} title={key+(done?" · completed":" · not completed")}/>})}</div><div className="task-meta"><span className="area-tag">{area?.name||"Personal"}</span><span className="repeat-tag">{habit.frequency==="weekdays"?"Weekdays":habit.frequency==="weekly"?"Weekly":"Daily"}</span><span className="due-tag">{recent} check-ins</span></div></div><button className="icon-button" onClick={async()=>{try{await apiRequest("/habits/"+habit.id,{method:"PATCH",body:JSON.stringify({archived:true})});setHabits(current=>current.map(item=>item.id===habit.id?{...item,archivedAt:new Date().toISOString()}:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not archive habit.");}}} aria-label="Archive habit"><CheckCheck size={15}/></button></div>;})}{habits.filter(habit=>!habit.archivedAt).length===0&&<div className="empty-state"><Heart size={20}/><strong>No habits yet</strong><span>Choose one small practice you want to repeat.</span></div>}</section></div>}
           {view === "Life Areas" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THE CONTEXT BEHIND YOUR WORK</div><h1>Your life areas.</h1><p className="subheading">Organize responsibilities without splitting your life into silos.</p></div><button className="primary-button" onClick={()=>setAreaOpen(true)}><Plus size={17}/>New area</button></div><section className="project-grid">{areas.map(area=><article className="panel project-card" key={area.id}><div className="section-kicker">LIFE AREA</div><h2><span className="area-mini-icon" style={{display:"inline-grid",background:area.color+"22",color:area.color,marginRight:8}}>●</span>{area.name}</h2><p>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects</p><div className="goal-actions"><button className="secondary-button" onClick={()=>{setFilterArea(area.id);setView("Tasks");}}>View tasks</button><button className="icon-button" onClick={()=>void deleteArea(area)} aria-label="Delete life area"><Trash2 size={14}/></button></div></article>)}</section></div>}
           {view === "Projects" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">THINGS YOU&apos;RE BUILDING</div><h1>Your projects.</h1><p className="subheading">Keep the bigger picture connected to the next step.</p></div><button className="primary-button" onClick={() => setProjectOpen(true)}><Plus size={17} />New project</button></div><section className="project-grid">{projects.map(project => <Link className="project-card-link" href={"/projects/" + project.id} key={project.id}><article className="panel project-card"><div className="section-kicker">{project.status.replace("_", " ").toUpperCase()}</div><h2>{project.name}</h2><p>{project.description || "No description yet."}</p><span>{tasks.filter(task => task.projectId === project.id).length} linked tasks · {events.filter(event => event.projectId === project.id).length} events</span><small>Open project workspace →</small></article></Link>)}{projects.length === 0 && <div className="empty-state"><Command size={20} /><strong>No projects yet</strong><span>Create a project when something needs more than one step.</span></div>}</section></div>}
         </div>
@@ -722,6 +798,7 @@ export default function Home() {
         <div className="form-grid"><label className="form-label">Life area<select value={eventArea} onChange={event=>setEventArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Project<select value={eventProject} onChange={event=>setEventProject(event.target.value)}><option value="">None</option>{projects.map(project=><option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div>
         <div className="modal-footer">{eventEditingId && <button type="button" className="calendar-delete-button" onClick={() => { void deleteEvent(eventEditingId); setEventOpen(false); }}>Delete event</button>}<button type="button" className="secondary-button" onClick={()=>setEventOpen(false)}>Cancel</button><button className="primary-button" type="submit">{eventEditingId ? "Save changes" : "Create event"}</button></div>
       </form></div>}
+      {scheduleOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTimeBlock}><div className="modal-heading"><div><div className="section-kicker">MAKE ROOM FOR DEEP WORK</div><h2>Schedule a task</h2></div><button type="button" className="icon-button" onClick={()=>setScheduleOpen(false)}><X size={18}/></button></div><label className="form-label">Task<select required value={scheduleTask} onChange={event=>setScheduleTask(event.target.value)}><option value="">Choose a task</option>{openTasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><div className="form-grid"><label className="form-label">Date<input required type="date" value={scheduleDate} onChange={event=>setScheduleDate(event.target.value)}/></label><label className="form-label">Starts<input required type="time" value={scheduleStart} onChange={event=>setScheduleStart(event.target.value)}/></label><label className="form-label">Ends<input required type="time" value={scheduleEnd} onChange={event=>setScheduleEnd(event.target.value)}/></label></div><p className="muted-note">This creates a work block. It does not change the task deadline.</p><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setScheduleOpen(false)}>Cancel</button><button className="primary-button" type="submit">Schedule task</button></div></form></div>}
       {areaOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createArea}><div className="modal-heading"><div><div className="section-kicker">MAKE IT YOURS</div><h2>New life area</h2></div><button type="button" className="icon-button" onClick={()=>setAreaOpen(false)}><X size={18}/></button></div><label className="form-label">Area name<input required autoFocus value={areaName} onChange={event=>setAreaName(event.target.value)} placeholder="e.g. Learning"/></label><label className="form-label">Color<input type="color" value={areaColor} onChange={event=>setAreaColor(event.target.value)}/></label><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setAreaOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create area</button></div></form></div>}
       {projectOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createProject}><div className="modal-heading"><div><div className="section-kicker">START SOMETHING</div><h2>New project</h2></div><button type="button" className="icon-button" onClick={() => setProjectOpen(false)}><X size={18} /></button></div><label className="form-label">Project name<input required autoFocus value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="What are you working on?" /></label><div className="form-grid"><label className="form-label">Life area<select value={projectArea} onChange={event=>setProjectArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Supports goal<select value={projectGoal} onChange={event=>setProjectGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setProjectOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create project</button></div></form></div>}
     </main>

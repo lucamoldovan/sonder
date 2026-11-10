@@ -286,3 +286,31 @@ export type NoteRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+
+export const CreateTimeBlockSchema = z.object({
+  taskId: z.string().uuid(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  note: z.string().max(1000).nullable().optional()
+}).refine(value => new Date(value.endsAt) > new Date(value.startsAt), {
+  message: "End time must be after start time", path: ["endsAt"]
+});
+export type CreateTimeBlockInput = z.infer<typeof CreateTimeBlockSchema>;
+export type TimeBlockRecord = { id: string; taskId: string; startsAt: string; endsAt: string; note: string | null };
+
+export const GoalMilestoneSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  description: z.string().max(2000).nullable().optional(),
+  targetDate: DateOnlySchema.nullable().optional(),
+  position: z.number().int().min(0).max(10000).optional()
+});
+export type GoalMilestoneInput = z.infer<typeof GoalMilestoneSchema>;
+export type GoalMilestoneRecord = { id: string; goalId: string; title: string; description: string | null; targetDate: string | null; status: "pending" | "completed"; position: number; completedAt: string | null };
+
+export const NoteTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(300).nullable().optional(),
+  content: NoteContentSchema.default([])
+});
+export type NoteTemplateInput = z.infer<typeof NoteTemplateSchema>;

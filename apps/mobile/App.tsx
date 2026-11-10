@@ -7,6 +7,10 @@ import type { CalendarEventRecord, GoalRecord, HabitEntryRecord, HabitRecord, In
 import { API_BASE_URL, apiRequest, authClient } from "./auth-client";
 
 type Task = TaskRecord;
+type TimeBlock = { id: string; taskId: string; startsAt: string; endsAt: string; note: string | null };
+type Milestone = { id: string; goalId: string; title: string; description: string | null; targetDate: string | null; status: "pending" | "completed"; position: number; completedAt: string | null };
+type NoteTemplate = { id: string; name: string; description: string | null; content: NoteRecord["content"] };
+type Backlink = { id: string; title: string; updatedAt: string };
 type InboxItem = InboxItemRecord;
 type Tab = "today" | "tasks" | "inbox" | "habits" | "goals" | "calendar" | "projects" | "notes" | "areas";
 type List<T> = { data: T };
@@ -34,6 +38,14 @@ export default function App() {
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [lifeAreas, setLifeAreas] = useState<LifeAreaRecord[]>([]);
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
+  const [milestones, setMilestones] = useState<Record<string, Milestone[]>>({});
+  const [milestoneDrafts, setMilestoneDrafts] = useState<Record<string, string>>({});
+  const [noteTemplates, setNoteTemplates] = useState<NoteTemplate[]>([]);
+  const [noteBacklinks, setNoteBacklinks] = useState<Record<string, Backlink[]>>({});
+  const [scheduleDate, setScheduleDate] = useState(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-"); });
+  const [scheduleStart, setScheduleStart] = useState("09:00");
+  const [scheduleEnd, setScheduleEnd] = useState("10:00");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteBody, setNoteBody] = useState("");
   const [tab, setTab] = useState<Tab>("today");
@@ -44,7 +56,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const [result, noteResult] = await Promise.all([apiRequest<List<{
+      const [result, noteResult, blockResult, templateResult] = await Promise.all([apiRequest<List<{
         tasks: Task[];
         inbox: InboxItem[];
         projects: ProjectRecord[];
@@ -53,7 +65,7 @@ export default function App() {
         habitEntries: HabitEntryRecord[];
         events: CalendarEventRecord[];
         lifeAreas: LifeAreaRecord[];
-      }>>("/workspace/dashboard"), apiRequest<List<NoteRecord[]>>("/notes")]);
+      }>>("/workspace/dashboard"), apiRequest<List<NoteRecord[]>>("/notes"), apiRequest<List<TimeBlock[]>>("/time-blocks"), apiRequest<List<NoteTemplate[]>>("/note-templates")]);
       setTasks(result.data.tasks);
       setInbox(result.data.inbox);
       setProjects(result.data.projects);
@@ -63,6 +75,10 @@ export default function App() {
       setEvents(result.data.events);
       setLifeAreas(result.data.lifeAreas);
       setNotes(noteResult.data);
+      setTimeBlocks(blockResult.data);
+      setNoteTemplates(templateResult.data);
+      const milestoneResults = await Promise.all(result.data.goals.map(goal => apiRequest<List<Milestone[]>>("/goals/" + goal.id + "/milestones")));
+      setMilestones(Object.fromEntries(result.data.goals.map((goal, index) => [goal.id, milestoneResults[index].data])));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your data.");
     } finally {
@@ -81,6 +97,10 @@ export default function App() {
       setEvents([]);
       setNotes([]);
       setLifeAreas([]);
+      setTimeBlocks([]);
+      setMilestones({});
+      setNoteTemplates([]);
+      setNoteBacklinks({});
       return;
     }
     void loadData();
@@ -172,6 +192,48 @@ export default function App() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create note.");
     }
+  }
+
+  async function scheduleTask(taskId: string) {
+    try {
+      const result = await apiRequest<List<TimeBlock>>("/time-blocks", {
+        method: "POST",
+        body: JSON.stringify({ taskId, startsAt: new Date(scheduleDate + "T" + scheduleStart).toISOString(), endsAt: new Date(scheduleDate + "T" + scheduleEnd).toISOString() })
+      });
+      setTimeBlocks(current => [...current, result.data].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't schedule that task."); }
+  }
+
+  async function toggleMilestone(goalId: string, milestone: Milestone) {
+    try {
+      const result = await apiRequest<List<Milestone>>("/milestones/" + milestone.id, { method: "PATCH", body: JSON.stringify({ status: milestone.status === "completed" ? "pending" : "completed" }) });
+      setMilestones(current => ({ ...current, [goalId]: (current[goalId] || []).map(item => item.id === milestone.id ? result.data : item) }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't update milestone."); }
+  }
+
+  async function addMilestone(goalId: string) {
+    const title = milestoneDrafts[goalId]?.trim();
+    if (!title) return;
+    try {
+      const result = await apiRequest<List<Milestone>>("/goals/" + goalId + "/milestones", { method: "POST", body: JSON.stringify({ title, position: milestones[goalId]?.length || 0 }) });
+      setMilestones(current => ({ ...current, [goalId]: [...(current[goalId] || []), result.data] }));
+      setMilestoneDrafts(current => ({ ...current, [goalId]: "" }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't add milestone."); }
+  }
+
+  async function saveNoteTemplate() {
+    if (!noteTitle.trim() || !noteBody.trim()) return;
+    try {
+      const result = await apiRequest<List<NoteTemplate>>("/note-templates", { method: "POST", body: JSON.stringify({ name: noteTitle.trim(), content: [{ id: String(Date.now()), type: "paragraph", text: noteBody.trim() }] }) });
+      setNoteTemplates(current => [...current, result.data]);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't save template."); }
+  }
+
+  async function loadNoteBacklinks(noteId: string) {
+    try {
+      const result = await apiRequest<List<Backlink[]>>("/notes/" + noteId + "/backlinks");
+      setNoteBacklinks(current => ({ ...current, [noteId]: result.data }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't load backlinks."); }
   }
 
   async function createNote() {
@@ -299,11 +361,11 @@ export default function App() {
         </>}
         {tab === "tasks" && <><Text style={styles.sectionTitle}>All tasks</Text>{tasks.map(renderTask)}</>}
         {tab === "inbox" && <><Text style={styles.sectionTitle}>Capture now · Organize later</Text><View style={styles.capture}><TextInput style={styles.captureInput} placeholder="Capture a thought…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/><TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity></View>{inbox.map(item=><View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={()=>void convertInboxItem(item)}><Text style={styles.link}>Task</Text></TouchableOpacity><TouchableOpacity onPress={()=>void convertInboxToNote(item)}><Text style={styles.link}>Note</Text></TouchableOpacity><TouchableOpacity onPress={()=>void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}</>}
-        {tab === "habits" && <><Text style={styles.sectionTitle}>Your habits</Text>{habits.filter(habit=>!habit.archivedAt).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);return <TouchableOpacity key={habit.id} style={styles.taskRow} onPress={()=>void checkInHabit(habit)}><View style={[styles.taskCircle,checked&&styles.taskCircleDone]}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text></View></TouchableOpacity>;})}</>}
-        {tab === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;return <View key={goal.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.status} · {done}/{linked.length} linked tasks</Text></View></View>;})}</>}
-        {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text>{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
+        {tab === "habits" && <><Text style={styles.sectionTitle}>Your habits</Text>{habits.filter(habit=>!habit.archivedAt).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);const history=Array.from({length:28},(_,index)=>{const d=new Date();d.setDate(d.getDate()-(27-index));const key=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");return habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===key);});return <View key={habit.id} style={styles.mobileHabitRow}><TouchableOpacity style={[styles.taskCircle,checked&&styles.taskCircleDone]} onPress={()=>void checkInHabit(habit)}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text><View style={styles.mobileHeatmap}>{history.map((done,index)=><View key={index} style={[styles.mobileHeatCell,done&&styles.mobileHeatCellDone]}/>)}</View></View></View>;})}</>}
+        {tab === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;const steps=milestones[goal.id]||[];const completed=steps.filter(step=>step.status==="completed").length;const percent=linked.length+steps.length?Math.round((done+completed)/(linked.length+steps.length)*100):0;return <View key={goal.id} style={styles.mobileGoal}><View style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{percent}% complete · {done}/{linked.length} tasks · {completed}/{steps.length} milestones</Text></View></View>{steps.map(step=><TouchableOpacity key={step.id} style={styles.mobileMilestone} onPress={()=>void toggleMilestone(goal.id,step)}><View style={[styles.taskCircle,step.status==="completed"&&styles.taskCircleDone]}/><Text style={[styles.taskMeta,step.status==="completed"&&styles.taskDone]}>{step.title}</Text></TouchableOpacity>)}<View style={styles.mobileMilestoneComposer}><TextInput style={styles.mobileInlineInput} placeholder="Add a milestone…" placeholderTextColor={colors.muted} value={milestoneDrafts[goal.id]||""} onChangeText={value=>setMilestoneDrafts(current=>({...current,[goal.id]:value}))}/><TouchableOpacity onPress={()=>void addMilestone(goal.id)}><Text style={styles.link}>Add</Text></TouchableOpacity></View></View>;})}</>}
+        {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text><Text style={styles.taskMeta}>Schedule work without changing a task deadline.</Text><TextInput style={styles.mobileInlineInput} value={scheduleDate} onChangeText={setScheduleDate} placeholder="Date · YYYY-MM-DD" placeholderTextColor={colors.muted}/><View style={styles.mobileTimeRow}><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleStart} onChangeText={setScheduleStart} placeholder="09:00" placeholderTextColor={colors.muted}/><TextInput style={[styles.mobileInlineInput,styles.mobileTimeInput]} value={scheduleEnd} onChangeText={setScheduleEnd} placeholder="10:00" placeholderTextColor={colors.muted}/></View><Text style={styles.taskMeta}>Choose an open task to schedule it:</Text>{tasks.filter(task=>task.status!=="done"&&task.status!=="cancelled").slice(0,20).map(task=><TouchableOpacity key={task.id} style={styles.mobileScheduleRow} onPress={()=>void scheduleTask(task.id)}><Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.link}>Schedule</Text></TouchableOpacity>)}{timeBlocks.map(block=><View key={block.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{tasks.find(task=>task.id===block.taskId)?.title||"Scheduled task"}</Text><Text style={styles.taskMeta}>{new Date(block.startsAt).toLocaleString()} – {new Date(block.endsAt).toLocaleTimeString()}</Text></View><TouchableOpacity onPress={async()=>{try{await apiRequest("/time-blocks/"+block.id,{method:"DELETE"});setTimeBlocks(current=>current.filter(item=>item.id!==block.id));}catch(cause){setError(cause instanceof Error?cause.message:"Couldn't remove block.");}}}><Text style={styles.link}>Remove</Text></TouchableOpacity></View>) }{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
         {tab === "projects" && <><Text style={styles.sectionTitle}>Your projects</Text>{projects.map(project=><View key={project.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View></View>)}</>}
-        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity></View>{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text></View></View>)}</>}
+        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity><TouchableOpacity style={styles.mobileTemplateSave} onPress={()=>void saveNoteTemplate()}><Text style={styles.link}>Save current draft as template</Text></TouchableOpacity></View>{noteTemplates.map(template=><TouchableOpacity key={template.id} style={styles.mobileTemplateChip} onPress={()=>{setNoteTitle(template.name);setNoteBody(template.content.map(block=>block.text).join("\n"));}}><Text style={styles.link}>Use {template.name}</Text></TouchableOpacity>)}{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text>{(noteBacklinks[note.id]||[]).map(backlink=><Text key={backlink.id} style={styles.taskMeta}>Linked from: {backlink.title}</Text>)}</View><TouchableOpacity onPress={()=>void loadNoteBacklinks(note.id)}><Text style={styles.link}>Backlinks</Text></TouchableOpacity></View>)}</>}
         {tab === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
@@ -362,6 +424,19 @@ const styles = StyleSheet.create({
   inboxActions: { flexDirection: "row", alignItems: "center", gap: 13 },
   archiveLink: { color: colors.muted, fontSize: 10 },
   error: { color: "#E18A91", fontSize: 11, marginTop: 12 },
+  mobileHabitRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mobileHeatmap: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 9, maxWidth: 220 },
+  mobileHeatCell: { width: 9, height: 9, borderRadius: 3, backgroundColor: colors.surface2 },
+  mobileHeatCellDone: { backgroundColor: colors.lavender },
+  mobileGoal: { marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mobileMilestone: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, paddingLeft: 30 },
+  mobileMilestoneComposer: { flexDirection: "row", alignItems: "center", gap: 12, paddingLeft: 30 },
+  mobileInlineInput: { minHeight: 42, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 11, color: colors.text, backgroundColor: colors.surface, marginVertical: 6, fontSize: 12 },
+  mobileTimeRow: { flexDirection: "row", gap: 8 },
+  mobileTimeInput: { flex: 1 },
+  mobileScheduleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mobileTemplateSave: { marginTop: 12 },
+  mobileTemplateChip: { alignSelf: "flex-start", paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.surface2, marginBottom: 8 },
   footer: { color: "#55515D", fontSize: 10, textAlign: "center", marginTop: 35 },
   tabs: { marginTop: 22, maxHeight: 42 },
   tabsContent: { flexDirection: "row", gap: 7, alignItems: "center" },

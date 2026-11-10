@@ -298,3 +298,48 @@ export const notifications = pgTable("notifications", {
   index("notifications_user_unread_idx").on(table.userId, table.readAt),
   uniqueIndex("notifications_user_source_unique").on(table.userId, table.sourceKey)
 ]).enableRLS();
+
+
+export const timeBlocks = pgTable("time_blocks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("time_blocks_user_start_idx").on(table.userId, table.startsAt),
+  index("time_blocks_task_idx").on(table.taskId)
+]).enableRLS();
+
+export const noteTemplates = pgTable("note_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  content: jsonb("content").$type<NoteBlock[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  uniqueIndex("note_templates_user_name_unique").on(table.userId, table.name),
+  index("note_templates_user_idx").on(table.userId)
+]).enableRLS();
+
+export const goalMilestones = pgTable("goal_milestones", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  goalId: uuid("goal_id").notNull().references(() => goals.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  targetDate: date("target_date"),
+  status: text("status").notNull().default("pending"),
+  position: integer("position").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("goal_milestones_goal_position_idx").on(table.goalId, table.position),
+  index("goal_milestones_user_idx").on(table.userId, table.goalId)
+]).enableRLS();
