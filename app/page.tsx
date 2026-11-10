@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox,
+  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiRequest } from "@/lib/api";
 import type { ApiCalendarEvent, ApiGoal, ApiHabit, ApiHabitEntry, ApiInboxItem, ApiLifeArea, ApiList, ApiProject, ApiTask } from "@/lib/api";
 
-type View = "Today" | "Inbox" | "Tasks" | "Projects" | "Calendar" | "Goals" | "Habits" | "Life Areas";
+type View = "Today" | "Calendar" | "Organize" | "Inbox" | "Tasks" | "Projects" | "Goals" | "Habits" | "Life Areas";
 type Priority = ApiTask["priority"];
 type CommandResult = { id: string; title: string; subtitle: string | null; type: string };
 type ApiNotification = { id: string; title: string; body: string | null; href: string | null; readAt: string | null; createdAt: string };
@@ -672,13 +672,8 @@ export default function Home() {
         <nav className="main-nav">
           {([
             ["Today", LayoutDashboard],
-            ["Inbox", Inbox],
-            ["Tasks", ListTodo],
-            ["Projects", Command],
             ["Calendar", CalendarRange],
-            ["Goals", Flag],
-            ["Habits", Heart],
-            ["Life Areas", Target]
+            ["Organize", Layers]
           ] as const).map(([name, Icon]) =>
             <button key={name} className={`nav-item ${view === name ? "active" : ""}`} onClick={() => setView(name)}>
               <Icon size={17} strokeWidth={1.8} /><span>{name}</span>
@@ -811,6 +806,18 @@ export default function Home() {
               </aside>
             </div>
           </>}
+          {view === "Organize" && <div className="section-page organize-page">
+            <div className="welcome-row"><div><div className="eyebrow">ONE CONNECTED WORKSPACE</div><h1>Organize.</h1><p className="subheading">Everything has a place. Nothing needs to live in isolation.</p></div></div>
+            <div className="organize-intro"><span className="section-kicker">YOUR PERSONAL SYSTEMS</span><p>Choose the part of your life you want to work on. Your tasks, projects, goals, habits and notes stay connected wherever they appear.</p></div>
+            <div className="organize-list">
+              <button className="organize-item" onClick={() => setView("Inbox")}><span className="organize-item-icon"><Inbox size={18}/></span><span><strong>Inbox</strong><small>Capture and sort things later</small></span><span className="organize-count">{inbox.length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Tasks")}><span className="organize-item-icon"><ListTodo size={18}/></span><span><strong>Tasks</strong><small>Next actions and commitments</small></span><span className="organize-count">{openTasks.length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Projects")}><span className="organize-item-icon"><Command size={18}/></span><span><strong>Projects</strong><small>Work that takes more than one step</small></span><span className="organize-count">{projects.filter(project => project.status === "active").length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Goals")}><span className="organize-item-icon"><Flag size={18}/></span><span><strong>Goals</strong><small>Longer-term direction and milestones</small></span><span className="organize-count">{goals.filter(goal => goal.status === "active").length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Habits")}><span className="organize-item-icon"><Heart size={18}/></span><span><strong>Habits</strong><small>Small practices you choose to repeat</small></span><span className="organize-count">{habits.filter(habit => !habit.archivedAt).length}</span><ArrowRight size={15}/></button>
+              <button className="organize-item" onClick={() => setView("Life Areas")}><span className="organize-item-icon"><Target size={18}/></span><span><strong>Life areas</strong><small>Contexts that help organize your life</small></span><span className="organize-count">{areas.length}</span><ArrowRight size={15}/></button>
+            </div>
+          </div>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
           {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
           {view === "Calendar" && (() => {
