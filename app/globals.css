@@ -440,3 +440,20 @@
 .capture-modal-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px}
 .capture-modal-actions>span{font-size:10px;color:var(--muted);line-height:1.5}
 @media(max-width:520px){.capture-overlay{padding:12vh 14px 20px}.capture-modal{padding:17px}.capture-modal-actions{align-items:flex-start;flex-direction:column}.capture-modal-actions .primary-button{width:100%}}
+
+/* Project workspace: useful next-step actions and reversible lifecycle controls */
+.project-topbar-actions{display:flex;align-items:center;gap:9px}
+.project-topbar-actions>button{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid #302b38;border-radius:8px;background:#15131b;color:#c9c1d2;font-size:10px}
+.project-topbar-actions>button:hover{border-color:#74619e;color:#fff}
+.project-progress-empty>div{display:grid;gap:7px}.project-progress-empty span,.project-panel-hint{font-size:9px;letter-spacing:.1em;color:#8f8798}.project-progress-empty strong{font-size:14px;font-weight:600;color:#e9e3f1}.project-progress-empty p{font-size:11px;color:#898291;margin:0;line-height:1.6}
+.project-quick-task{display:flex;gap:8px;margin:0 0 12px;padding-bottom:12px;border-bottom:1px solid #24212a}
+.project-quick-task input{flex:1;min-width:0;height:36px;padding:0 11px;border:1px solid #302b38;border-radius:8px;background:#0c0b10;color:#eeeaf4;font-size:11px}
+.project-quick-task button{display:flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(167,139,250,.35);border-radius:8px;background:rgba(167,139,250,.13);color:#d5c6ff;font-size:10px}
+.project-quick-task button:disabled{opacity:.4;cursor:not-allowed}
+.project-edit-backdrop{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(10px)}
+.project-edit-modal{width:min(520px,100%);padding:22px;border:1px solid #393342;border-radius:16px;background:#15131b;display:grid;gap:14px;box-shadow:0 25px 80px rgba(0,0,0,.5)}
+.project-edit-heading{display:flex;align-items:flex-start;justify-content:space-between}.project-edit-heading span{font-size:9px;letter-spacing:.13em;color:#9d91b0}.project-edit-heading h2{font-size:21px;letter-spacing:-.6px;margin:6px 0 0;color:#f1edf6}.project-edit-heading>button{width:30px;height:30px;border:1px solid #302b38;border-radius:8px;background:transparent;color:#a49baa;font-size:20px}
+.project-edit-modal label{display:grid;gap:6px;color:#aaa2b2;font-size:10px}.project-edit-modal input,.project-edit-modal textarea,.project-edit-modal select{width:100%;border:1px solid #302b38;border-radius:8px;background:#0d0c12;color:#f1edf6;padding:10px 11px;font:inherit;font-size:11px}.project-edit-modal textarea{resize:vertical;line-height:1.5}
+.project-edit-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.project-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.project-edit-actions button{padding:9px 13px;border:1px solid #37313f;border-radius:8px;background:#201c27;color:#cfc7d8;font-size:10px}.project-edit-actions button[type="submit"]{background:#a78bfa;color:#17121f;border-color:#a78bfa;font-weight:700}.project-edit-actions button:disabled{opacity:.5}
+@media(max-width:650px){.project-workspace-topbar{padding:0 16px}.project-topbar-actions>span{display:none}.project-workspace-content{padding:30px 17px 60px}.project-workspace-heading{flex-direction:column}.project-workspace-grid{grid-template-columns:1fr}.project-edit-fields{grid-template-columns:1fr}.project-quick-task{flex-wrap:wrap}.project-quick-task input{flex-basis:100%}.project-quick-task button{min-height:34px}}
