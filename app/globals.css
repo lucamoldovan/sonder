@@ -325,3 +325,13 @@
 .notification-row p{margin:4px 0;font-size:10px;color:#b5adbd}
 .notification-row small,.notification-empty{font-size:9px;color:#817a89}
 .notification-empty{text-align:center;padding:25px 10px}
+
+
+.dependency-form{display:grid;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid #292530}
+.dependency-form>span{font-size:8px;letter-spacing:.12em;color:#8f8798}
+.dependency-form>div{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+.dependency-form select{min-width:0;height:32px;background:#17141d;border:1px solid #393342;border-radius:6px;color:#cfc8d8;padding:0 7px;font-size:9px}
+.dependency-form button{border:0;border-radius:6px;background:#2a2237;color:#cbb9ff;padding:0 10px;font-size:9px;font-weight:650}
+.dependency-form button:disabled{opacity:.4}
+.project-task-row small{font-size:9px;color:#c09c83}
+@media(max-width:720px){.dependency-form>div{grid-template-columns:1fr}.dependency-form button{height:34px}}
