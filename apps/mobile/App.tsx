@@ -415,7 +415,7 @@ export default function App() {
     ...todayEvents.map(event => ({ id: event.id, kind: "event" as const, startsAt: event.startsAt, endsAt: event.endsAt, title: event.title, event })),
     ...todayBlocks.map(block => ({ id: block.id, kind: "block" as const, startsAt: block.startsAt, endsAt: block.endsAt, title: tasks.find(task => task.id === block.taskId)?.title || "Scheduled work", block }))
   ].sort((a,b) => a.startsAt.localeCompare(b.startsAt));
-  const nextActionTasks = activeTasks.filter(task => (task.dueAt && localDateKey(task.dueAt) <= todayKey) || task.priority === "urgent" || task.priority === "high")
+  const nextActionTasks = activeTasks.filter(task => task.status === "in_progress" || (task.dueAt && localDateKey(task.dueAt) <= todayKey) || task.priority === "urgent" || task.priority === "high")
     .sort((a,b) => (a.dueAt || "9999").localeCompare(b.dueAt || "9999") || ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority)).slice(0,5);
   const habitsDueToday = habits.filter(habit => {
     if (habit.archivedAt) return false;
