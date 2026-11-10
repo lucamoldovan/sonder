@@ -33,6 +33,7 @@ export const CreateTaskSchema = z.object({
   recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.default("todo"),
   priority: TaskPrioritySchema.default("medium"),
+  scheduledAt: z.string().datetime().nullable().optional(),
   dueAt: z.string().datetime().nullable().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
@@ -51,6 +52,7 @@ export const UpdateTaskSchema = z.object({
   recurrenceUntil: DateOnlySchema.nullable().optional(),
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
   dueAt: z.string().datetime().nullable().optional(),
   estimateMinutes: z.number().int().positive().max(1440).nullable().optional()
 });
@@ -153,6 +155,7 @@ export type TaskRecord = {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  scheduledAt: string | null;
   dueAt: string | null;
   lifeAreaId: string | null;
   projectId: string | null;
