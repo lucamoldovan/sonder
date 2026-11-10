@@ -43,7 +43,6 @@ export default function App() {
   const [milestoneDrafts, setMilestoneDrafts] = useState<Record<string, string>>({});
   const [noteTemplates, setNoteTemplates] = useState<NoteTemplate[]>([]);
   const [noteBacklinks, setNoteBacklinks] = useState<Record<string, Backlink[]>>({});
-  const [scheduleTaskId, setScheduleTaskId] = useState("");
   const [scheduleDate, setScheduleDate] = useState(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-"); });
   const [scheduleStart, setScheduleStart] = useState("09:00");
   const [scheduleEnd, setScheduleEnd] = useState("10:00");
@@ -202,7 +201,6 @@ export default function App() {
         body: JSON.stringify({ taskId, startsAt: new Date(scheduleDate + "T" + scheduleStart).toISOString(), endsAt: new Date(scheduleDate + "T" + scheduleEnd).toISOString() })
       });
       setTimeBlocks(current => [...current, result.data].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));
-      setScheduleTaskId("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't schedule that task."); }
   }
 
