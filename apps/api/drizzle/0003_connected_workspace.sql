@@ -4,7 +4,7 @@ CREATE INDEX "projects_goal_id_idx" ON "projects" ("goal_id");
 
 ALTER TABLE "tasks"
   ADD COLUMN "goal_id" uuid REFERENCES "goals"("id") ON DELETE SET NULL,
-  ADD COLUMN "parent_task_id" uuid REFERENCES "tasks"("id") ON DELETE CASCADE,
+  ADD COLUMN "parent_task_id" uuid REFERENCES "tasks"("id") ON DELETE SET NULL,
   ADD COLUMN "reminder_at" timestamptz,
   ADD COLUMN "recurrence_frequency" text,
   ADD COLUMN "recurrence_interval" integer DEFAULT 1 NOT NULL,
