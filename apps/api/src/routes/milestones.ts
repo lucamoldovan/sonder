@@ -7,11 +7,11 @@ import { getSessionUser } from "../lib/session";
 
 export const milestoneRoutes = new Hono<AppEnv>();
 const Id = z.string().uuid();
-const DateOnly = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).refine(value => { const date = new Date(value + "T00:00:00.000Z"); return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value; }, "Expected a real calendar date");
+const DateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => { const date = new Date(value + "T00:00:00.000Z"); return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value; }, "Expected a real calendar date");
 const Fields = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().max(2000).nullable().optional(),
-  targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  targetDate: DateOnly.nullable().optional(),
   position: z.number().int().min(0).max(10000).optional()
 });
 
