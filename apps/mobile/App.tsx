@@ -51,6 +51,12 @@ export default function App() {
   const [noteBody, setNoteBody] = useState("");
   const [tab, setTab] = useState<Tab>("today");
   const [taskFilter, setTaskFilter] = useState<"open" | "completed" | "all">("open");
+  const [taskDraft, setTaskDraft] = useState("");
+  const [taskEditId, setTaskEditId] = useState<string | null>(null);
+  const [taskEditTitle, setTaskEditTitle] = useState("");
+  const [taskEditDescription, setTaskEditDescription] = useState("");
+  const [taskEditPriority, setTaskEditPriority] = useState<Task["priority"]>("medium");
+  const [taskEditDue, setTaskEditDue] = useState("");
   const [organizeSection, setOrganizeSection] = useState<OrganizeSection>("home");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectTaskDraft, setProjectTaskDraft] = useState("");
@@ -304,6 +310,47 @@ export default function App() {
     }
   }
 
+  async function createQuickTask() {
+    if (!taskDraft.trim()) return;
+    try {
+      const result = await apiRequest<{ data: Task }>("/tasks", {
+        method: "POST",
+        body: JSON.stringify({ title: taskDraft.trim(), status: "todo", priority: "medium" })
+      });
+      setTasks(current => [result.data, ...current]);
+      setTaskDraft("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create the task.");
+    }
+  }
+
+  function openTaskEditor(task: Task) {
+    setTaskEditId(task.id);
+    setTaskEditTitle(task.title);
+    setTaskEditDescription(task.description || "");
+    setTaskEditPriority(task.priority);
+    setTaskEditDue(task.dueAt ? localDateKey(task.dueAt) : "");
+  }
+
+  async function saveTaskEditor() {
+    if (!taskEditId || !taskEditTitle.trim()) return;
+    try {
+      const result = await apiRequest<{ data: Task }>(`/tasks/${taskEditId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: taskEditTitle.trim(),
+          description: taskEditDescription.trim() || null,
+          priority: taskEditPriority,
+          dueAt: taskEditDue ? new Date(taskEditDue + "T12:00:00").toISOString() : null
+        })
+      });
+      setTasks(current => current.map(task => task.id === taskEditId ? result.data : task));
+      setTaskEditId(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't update the task.");
+    }
+  }
+
   async function toggleTask(task: Task) {
     try {
       const result = await apiRequest<{ data: Task; nextOccurrence?: Task | null }>(`/tasks/${task.id}`, {
@@ -383,10 +430,11 @@ export default function App() {
   };
 
   const renderTask = (task: Task) => (
-    <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => void toggleTask(task)}>
-      <View style={[styles.taskCircle, task.status === "done" && styles.taskCircleDone]} />
+    <View key={task.id} style={styles.taskRow}>
+      <TouchableOpacity onPress={() => void toggleTask(task)}><View style={[styles.taskCircle, task.status === "done" && styles.taskCircleDone]} /></TouchableOpacity>
       <View style={styles.taskCopy}><Text style={[styles.taskTitle, task.status === "done" && styles.taskDone]}>{task.title}</Text><Text style={styles.taskMeta}>{task.priority} priority{task.dueAt ? " · " + new Date(task.dueAt).toLocaleDateString() : ""}{task.recurrenceFrequency ? " · Repeats " + task.recurrenceFrequency : ""}</Text></View>
-    </TouchableOpacity>
+      <TouchableOpacity onPress={() => openTaskEditor(task)}><Text style={styles.link}>Edit</Text></TouchableOpacity>
+    </View>
   );
 
   return (
@@ -459,6 +507,7 @@ export default function App() {
         </>}
         {tab === "organize" && organizeSection === "tasks" && <>
           <Text style={styles.sectionTitle}>Tasks</Text>
+          <View style={styles.projectTaskComposer}><TextInput style={styles.mobileInlineInput} value={taskDraft} onChangeText={setTaskDraft} placeholder="Add a next action…" placeholderTextColor={colors.muted} onSubmitEditing={() => void createQuickTask()}/><TouchableOpacity onPress={() => void createQuickTask()} disabled={!taskDraft.trim()}><Text style={styles.link}>Add</Text></TouchableOpacity></View>
           <View style={styles.mobileTaskFilters}>{(["open","completed","all"] as const).map(filter=><TouchableOpacity key={filter} style={[styles.mobileTaskFilter,taskFilter===filter&&styles.mobileTaskFilterActive]} onPress={()=>setTaskFilter(filter)}><Text style={[styles.mobileTaskFilterText,taskFilter===filter&&styles.mobileTaskFilterTextActive]}>{filter[0].toUpperCase()+filter.slice(1)}</Text><Text style={[styles.mobileTaskFilterCount,taskFilter===filter&&styles.mobileTaskFilterTextActive]}>{filter==="all"?tasks.length:filter==="completed"?tasks.filter(task=>task.status==="done").length:tasks.filter(task=>!["done","cancelled"].includes(task.status)).length}</Text></TouchableOpacity>)}</View>
           {tasks.filter(task=>taskFilter==="all"||(taskFilter==="completed"?task.status==="done":!["done","cancelled"].includes(task.status))).map(renderTask)}
         </>}
@@ -494,6 +543,18 @@ export default function App() {
           <Text style={[styles.mobileBottomLabel,tab===item&&styles.mobileBottomLabelActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
         </TouchableOpacity>)}
       </View>
+      <Modal visible={taskEditId !== null} transparent animationType="fade" onRequestClose={() => setTaskEditId(null)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>TASK DETAILS</Text><Text style={styles.mobileCaptureTitle}>Edit task</Text></View><TouchableOpacity onPress={() => setTaskEditId(null)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <TextInput style={styles.mobileCaptureInput} value={taskEditTitle} onChangeText={setTaskEditTitle} placeholder="Task title" placeholderTextColor={colors.muted}/>
+            <TextInput style={[styles.mobileCaptureInput,{minHeight:76,textAlignVertical:"top"}]} value={taskEditDescription} onChangeText={setTaskEditDescription} placeholder="Add context (optional)" placeholderTextColor={colors.muted} multiline/>
+            <TextInput style={styles.mobileCaptureInput} value={taskEditDue} onChangeText={setTaskEditDue} placeholder="Due date · YYYY-MM-DD" placeholderTextColor={colors.muted}/>
+            <View style={styles.mobileTaskPriorityRow}>{(["low","medium","high","urgent"] as const).map(priority=><TouchableOpacity key={priority} style={[styles.mobileTaskPriority,taskEditPriority===priority&&styles.mobileTaskPriorityActive]} onPress={()=>setTaskEditPriority(priority)}><Text style={[styles.mobileTaskPriorityText,taskEditPriority===priority&&styles.mobileTaskFilterTextActive]}>{priority}</Text></TouchableOpacity>)}</View>
+            <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void saveTaskEditor()} disabled={!taskEditTitle.trim()}><Text style={styles.captureButtonText}>Save changes</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <Modal visible={captureOpen} transparent animationType="fade" onRequestClose={() => setCaptureOpen(false)}>
         <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.mobileCaptureCard}>
@@ -545,6 +606,10 @@ const styles = StyleSheet.create({
   mobileCaptureTitle: { color: colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.5 },
   mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
   mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
+  mobileTaskPriorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  mobileTaskPriority: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
+  mobileTaskPriorityActive: { borderColor: "rgba(167,139,250,0.4)", backgroundColor: "rgba(167,139,250,0.12)" },
+  mobileTaskPriorityText: { color: colors.muted, fontSize: 10, textTransform: "capitalize" },
   mobileTaskFilters: { flexDirection: "row", gap: 6, marginBottom: 14 },
   mobileTaskFilter: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: "transparent" },
   mobileTaskFilterActive: { borderColor: "rgba(167,139,250,0.3)", backgroundColor: "rgba(167,139,250,0.12)" },
