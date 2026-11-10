@@ -304,11 +304,11 @@ export default function Home() {
   async function toggleTask(task: ApiTask) {
     const status = task.status === "done" ? "todo" : "done";
     try {
-      const result = await apiRequest<ApiList<ApiTask>>(`/tasks/${task.id}`, {
+      const result = await apiRequest<{ data: ApiTask; nextOccurrence?: ApiTask | null }>(`/tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status })
       });
-      setTasks(current => current.map(item => item.id === task.id ? result.data : item));
+      setTasks(current => [...current.map(item => item.id === task.id ? result.data : item), ...(result.nextOccurrence ? [result.nextOccurrence] : [])]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't update the task.");
     }
