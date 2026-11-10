@@ -17,5 +17,5 @@ noteLinkRoutes.get("/:id/backlinks", async c => {
   const rows = await db.select({ id: notes.id, title: notes.title, content: notes.content, updatedAt: notes.updatedAt }).from(notes)
     .where(and(eq(notes.userId, user.id), isNull(notes.archivedAt)));
   const marker = new RegExp("\\[\\[note:" + id.data + "\\]\\]", "i");
-  return c.json({ data: rows.filter(row => row.id !== id.data && JSON.stringify(row.content).match(marker)).map(({ content, ...row }) => row) });
+  return c.json({ data: rows.filter(row => row.id !== id.data && JSON.stringify(row.content).match(marker)).map(row => ({ id: row.id, title: row.title, updatedAt: row.updatedAt })) });
 });
