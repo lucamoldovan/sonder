@@ -3,12 +3,12 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from "react-native";
-import type { CalendarEventRecord, GoalRecord, HabitEntryRecord, HabitRecord, InboxItemRecord, ProjectRecord, TaskRecord } from "@sonder/contracts";
+import type { CalendarEventRecord, GoalRecord, HabitEntryRecord, HabitRecord, InboxItemRecord, LifeAreaRecord, NoteRecord, ProjectRecord, TaskRecord } from "@sonder/contracts";
 import { API_BASE_URL, apiRequest, authClient } from "./auth-client";
 
 type Task = TaskRecord;
 type InboxItem = InboxItemRecord;
-type Tab = "today" | "tasks" | "inbox" | "habits" | "goals" | "calendar" | "projects";
+type Tab = "today" | "tasks" | "inbox" | "habits" | "goals" | "calendar" | "projects" | "notes" | "areas";
 type List<T> = { data: T };
 
 const colors = {
@@ -32,6 +32,10 @@ export default function App() {
   const [habits, setHabits] = useState<HabitRecord[]>([]);
   const [habitEntries, setHabitEntries] = useState<HabitEntryRecord[]>([]);
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
+  const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const [lifeAreas, setLifeAreas] = useState<LifeAreaRecord[]>([]);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteBody, setNoteBody] = useState("");
   const [tab, setTab] = useState<Tab>("today");
   const [capture, setCapture] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +44,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const result = await apiRequest<List<{
+      const [result, noteResult] = await Promise.all([apiRequest<List<{
         tasks: Task[];
         inbox: InboxItem[];
         projects: ProjectRecord[];
@@ -48,7 +52,8 @@ export default function App() {
         habits: HabitRecord[];
         habitEntries: HabitEntryRecord[];
         events: CalendarEventRecord[];
-      }>>("/workspace/dashboard");
+        lifeAreas: LifeAreaRecord[];
+      }>>("/workspace/dashboard"), apiRequest<List<NoteRecord[]>>("/notes")]);
       setTasks(result.data.tasks);
       setInbox(result.data.inbox);
       setProjects(result.data.projects);
@@ -56,6 +61,8 @@ export default function App() {
       setHabits(result.data.habits);
       setHabitEntries(result.data.habitEntries);
       setEvents(result.data.events);
+      setLifeAreas(result.data.lifeAreas);
+      setNotes(noteResult.data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your data.");
     } finally {
@@ -72,6 +79,8 @@ export default function App() {
       setHabits([]);
       setHabitEntries([]);
       setEvents([]);
+      setNotes([]);
+      setLifeAreas([]);
       return;
     }
     void loadData();
@@ -164,6 +173,24 @@ export default function App() {
     }
   }
 
+  async function createNote() {
+    if (!noteTitle.trim()) return;
+    try {
+      const result = await apiRequest<List<NoteRecord>>("/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          title: noteTitle.trim(),
+          content: noteBody.trim() ? [{ id: String(Date.now()), type: "paragraph", text: noteBody.trim() }] : []
+        })
+      });
+      setNotes(current => [result.data, ...current]);
+      setNoteTitle("");
+      setNoteBody("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't create note.");
+    }
+  }
+
   async function archiveInboxItem(item: InboxItem) {
     try {
       await apiRequest(`/inbox/${item.id}`, {
@@ -243,7 +270,7 @@ export default function App() {
           <TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
-          {(["today","tasks","inbox","habits","goals","calendar","projects"] as Tab[]).map(item=><TouchableOpacity key={item} style={[styles.tab,tab===item&&styles.tabActive]} onPress={()=>setTab(item)}><Text style={[styles.tabText,tab===item&&styles.tabTextActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></TouchableOpacity>)}
+          {(["today","tasks","inbox","habits","goals","calendar","projects","notes","areas"] as Tab[]).map(item=><TouchableOpacity key={item} style={[styles.tab,tab===item&&styles.tabActive]} onPress={()=>setTab(item)}><Text style={[styles.tabText,tab===item&&styles.tabTextActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></TouchableOpacity>)}
         </ScrollView>
         {!!error && <Text style={styles.error}>{error}</Text>}
         {tab === "today" && <>
@@ -274,6 +301,8 @@ export default function App() {
         {tab === "goals" && <><Text style={styles.sectionTitle}>Your goals</Text>{goals.map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;return <View key={goal.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{goal.status} · {done}/{linked.length} linked tasks</Text></View></View>;})}</>}
         {tab === "calendar" && <><Text style={styles.sectionTitle}>Upcoming calendar</Text>{events.map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}</>}
         {tab === "projects" && <><Text style={styles.sectionTitle}>Your projects</Text>{projects.map(project=><View key={project.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{project.name}</Text><Text style={styles.taskMeta}>{project.status} · {tasks.filter(task=>task.projectId===project.id).length} linked tasks</Text></View></View>)}</>}
+        {tab === "notes" && <><Text style={styles.sectionTitle}>Your notes</Text><View style={styles.noteComposer}><TextInput style={styles.noteTitleInput} placeholder="Note title" placeholderTextColor={colors.muted} value={noteTitle} onChangeText={setNoteTitle}/><TextInput style={styles.noteBodyInput} placeholder="Start writing…" placeholderTextColor={colors.muted} value={noteBody} onChangeText={setNoteBody} multiline/><TouchableOpacity style={styles.captureButton} onPress={()=>void createNote()}><Text style={styles.captureButtonText}>Save note</Text></TouchableOpacity></View>{notes.filter(note=>!note.archivedAt).map(note=><View key={note.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{note.icon||"📝"} {note.title}</Text><Text style={styles.taskMeta}>{note.tags.join(" · ")||"Note"} · Updated {new Date(note.updatedAt).toLocaleDateString()}</Text></View></View>)}</>}
+        {tab === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
     </SafeAreaView>
