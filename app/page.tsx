@@ -172,7 +172,11 @@ export default function Home() {
       setGoals(workspace.data.goals);
       setHabits(workspace.data.habits);
       setHabitEntries(workspace.data.habitEntries);
-      setEvents(workspace.data.events);
+      setEvents(current => {
+        const merged = new Map(current.map(item => [item.id, item]));
+        for (const item of workspace.data.events) merged.set(item.id, item);
+        return [...merged.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      });
       setTimeBlocks(blockResult.data);
       const milestoneResults = await Promise.all(workspace.data.goals.map(goal =>
         apiRequest<ApiList<ApiMilestone[]>>("/goals/" + goal.id + "/milestones")
