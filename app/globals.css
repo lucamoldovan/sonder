@@ -809,3 +809,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 @media(prefers-reduced-motion:reduce){
   .quick-task-fab,.quick-task-popover,.task-date-panel,.task-date-chevron,.task-date-grid button{animation:none;transition:none}
 }
+
+.agenda-task-scheduled-time{background:rgba(255,255,255,.13)!important;border-color:rgba(255,255,255,.55)!important;color:#F5F5F7!important}
+.agenda-task-scheduled-time span{color:#D4D4D8!important}
+.agenda-task-deadline{background:rgba(255,255,255,.055);color:#D4D4D8}
