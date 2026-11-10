@@ -17,9 +17,9 @@ type OrganizeSection = "home" | "tasks" | "inbox" | "habits" | "goals" | "projec
 type List<T> = { data: T };
 
 const colors = {
-  bg: "#0B0B0F", surface: "#15131C", surface2: "#1B1823",
-  text: "#F3F0F7", muted: "#85818F", lavender: "#A78BFA",
-  border: "rgba(255,255,255,0.09)", green: "#83C9A1"
+  bg: "#101114", surface: "#181A1F", surface2: "#202228",
+  text: "#F5F5F7", muted: "#9699A2", lavender: "#B4A4FF",
+  border: "rgba(255,255,255,0.075)", green: "#30D158"
 };
 
 export default function App() {
