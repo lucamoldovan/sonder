@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
+import { and, asc, eq, gt, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { tasks, timeBlocks } from "../db/schema";
@@ -13,6 +13,12 @@ const Payload = z.object({
   endsAt: z.string().datetime(),
   note: z.string().max(1000).nullable().optional()
 }).refine(v => new Date(v.endsAt) > new Date(v.startsAt), { path: ["endsAt"], message: "End time must be after start time." });
+const PatchPayload = z.object({
+  taskId: Id.optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().optional(),
+  note: z.string().max(1000).nullable().optional()
+}).refine(v => !v.startsAt || !v.endsAt || new Date(v.endsAt) > new Date(v.startsAt), { path: ["endsAt"], message: "End time must be after start time." });
 
 timeBlockRoutes.get("/", async c => {
   const user = await getSessionUser(c);
@@ -20,7 +26,7 @@ timeBlockRoutes.get("/", async c => {
   const from = c.req.query("from");
   const to = c.req.query("to");
   const filters = [eq(timeBlocks.userId, user.id)];
-  if (from && !Number.isNaN(Date.parse(from))) filters.push(gte(timeBlocks.startsAt, new Date(from)));
+  if (from && !Number.isNaN(Date.parse(from))) filters.push(gt(timeBlocks.endsAt, new Date(from)));
   if (to && !Number.isNaN(Date.parse(to))) filters.push(lt(timeBlocks.startsAt, new Date(to)));
   const rows = await c.get("db").select().from(timeBlocks).where(and(...filters)).orderBy(asc(timeBlocks.startsAt));
   return c.json({ data: rows });
@@ -44,7 +50,7 @@ timeBlockRoutes.patch("/:id", async c => {
   const user = await getSessionUser(c);
   if (!user) return c.json({ error: { code: "UNAUTHORIZED", message: "Sign in to continue." } }, 401);
   const id = Id.safeParse(c.req.param("id"));
-  const parsed = Payload.partial().safeParse(await c.req.json().catch(() => null));
+  const parsed = PatchPayload.safeParse(await c.req.json().catch(() => null));
   if (!id.success || !parsed.success || Object.keys(parsed.data ?? {}).length === 0) return c.json({ error: { code: "VALIDATION_ERROR", message: "Provide a valid time block and changes." } }, 400);
   const db = c.get("db");
   const [existing] = await db.select().from(timeBlocks).where(and(eq(timeBlocks.id, id.data), eq(timeBlocks.userId, user.id))).limit(1);
