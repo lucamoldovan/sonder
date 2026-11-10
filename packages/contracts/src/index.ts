@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const DateOnlySchema = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/, "Expected a date in YYYY-MM-DD format").refine((value) => {
+  const parsed = new Date(value + "T00:00:00.000Z");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, "Expected a real calendar date");
+
 export const TaskStatusSchema = z.enum([
   "inbox",
   "todo",
@@ -97,6 +102,7 @@ export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   status: ProjectStatusSchema.default("active"),
   startDate: DateOnlySchema.nullable().optional(),
   dueDate: DateOnlySchema.nullable().optional()
@@ -106,6 +112,7 @@ export const UpdateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().max(10_000).nullable().optional(),
   lifeAreaId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   status: ProjectStatusSchema.optional(),
   startDate: DateOnlySchema.nullable().optional(),
   dueDate: DateOnlySchema.nullable().optional()
@@ -178,6 +185,7 @@ export type ProjectRecord = {
   description: string | null;
   status: ProjectStatus;
   lifeAreaId: string | null;
+  goalId?: string | null;
   startDate: string | null;
   dueDate: string | null;
 };
