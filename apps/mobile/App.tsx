@@ -118,6 +118,7 @@ export default function App() {
       setHabits([]);
       setHabitEntries([]);
       setEvents([]);
+      setCalendarRangeEvents([]);
       setNotes([]);
       setLifeAreas([]);
       setTimeBlocks([]);
