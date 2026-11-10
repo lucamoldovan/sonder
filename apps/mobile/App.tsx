@@ -317,6 +317,27 @@ export default function App() {
   const dueToday = activeTasks.filter(task => task.dueAt && new Date(task.dueAt).toDateString() === new Date().toDateString());
   const todayDate = new Date();
   const todayKey = [todayDate.getFullYear(), String(todayDate.getMonth() + 1).padStart(2, "0"), String(todayDate.getDate()).padStart(2, "0")].join("-");
+  const localDateKey = (value: string) => {
+    const date = new Date(value);
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+  };
+  const weekStartDate = new Date(todayDate);
+  weekStartDate.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
+  const weekStartKey = [weekStartDate.getFullYear(), String(weekStartDate.getMonth() + 1).padStart(2, "0"), String(weekStartDate.getDate()).padStart(2, "0")].join("-");
+  const todayEvents = events.filter(event => localDateKey(event.startsAt) === todayKey).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayBlocks = timeBlocks.filter(block => localDateKey(block.startsAt) === todayKey).sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const todayAgendaItems = [
+    ...todayEvents.map(event => ({ id: event.id, kind: "event" as const, startsAt: event.startsAt, endsAt: event.endsAt, title: event.title, event })),
+    ...todayBlocks.map(block => ({ id: block.id, kind: "block" as const, startsAt: block.startsAt, endsAt: block.endsAt, title: tasks.find(task => task.id === block.taskId)?.title || "Scheduled work", block }))
+  ].sort((a,b) => a.startsAt.localeCompare(b.startsAt));
+  const nextActionTasks = activeTasks.filter(task => (task.dueAt && localDateKey(task.dueAt) <= todayKey) || task.priority === "urgent" || task.priority === "high")
+    .sort((a,b) => (a.dueAt || "9999").localeCompare(b.dueAt || "9999") || ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority)).slice(0,5);
+  const habitsDueToday = habits.filter(habit => {
+    if (habit.archivedAt) return false;
+    if (habit.frequency === "daily") return true;
+    if (habit.frequency === "weekdays") return todayDate.getDay() !== 0 && todayDate.getDay() !== 6;
+    return habitEntries.filter(entry => entry.habitId === habit.id && entry.entryDate >= weekStartKey).length < habit.targetPerWeek;
+  });
 
   const renderTask = (task: Task) => (
     <TouchableOpacity key={task.id} style={styles.taskRow} onPress={() => void toggleTask(task)}>
@@ -338,26 +359,47 @@ export default function App() {
         </ScrollView>
         {!!error && <Text style={styles.error}>{error}</Text>}
         {tab === "today" && <>
-          <View style={styles.welcome}><Text style={styles.welcomeName}>Hey, {session.user.name?.split(" ")[0] || "there"}.</Text><Text style={styles.muted}>Make room for what matters.</Text></View>
-          <View style={styles.stats}>
-            <View style={styles.stat}><Text style={styles.statValue}>{activeTasks.length}</Text><Text style={styles.statLabel}>Open tasks</Text></View>
-            <View style={styles.stat}><Text style={styles.statValue}>{dueToday.length}</Text><Text style={styles.statLabel}>Due today</Text></View>
-            <View style={styles.stat}><Text style={styles.statValue}>{inbox.length}</Text><Text style={styles.statLabel}>Inbox</Text></View>
+          <View style={styles.mobileTodayIntro}>
+            <Text style={styles.mobileTodayDate}>{todayDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</Text>
+            <Text style={styles.mobileTodayTitle}>Hey, {session.user.name?.split(" ")[0] || "there"}.</Text>
+            <Text style={styles.muted}>Here’s what matters today. Take it one thing at a time.</Text>
           </View>
-          <Text style={styles.sectionTitle}>Quick capture</Text>
           <View style={styles.capture}>
-            <TextInput style={styles.captureInput} placeholder="Don't forget…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done" />
-            <TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity>
+            <TextInput style={styles.captureInput} placeholder="Get it out of your head…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done" />
+            <TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Capture</Text></TouchableOpacity>
           </View>
-          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Your priorities</Text><TouchableOpacity onPress={() => void loadData()}><Text style={styles.link}>Refresh</Text></TouchableOpacity></View>
-          {loading ? <ActivityIndicator color={colors.lavender} /> : (dueToday.length ? dueToday : activeTasks).slice(0,8).map(renderTask)}
-          {!loading && activeTasks.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>All clear for now</Text><Text style={styles.muted}>Capture something above when it comes to mind.</Text></View>}
-          <Text style={styles.sectionTitle}>Daily habits</Text>
-          {habits.filter(habit=>!habit.archivedAt).slice(0,5).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);return <TouchableOpacity key={habit.id} style={styles.taskRow} onPress={()=>void checkInHabit(habit)}><View style={[styles.taskCircle,checked&&styles.taskCircleDone]}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{habit.frequency} · {habitEntries.filter(entry=>entry.habitId===habit.id).length} check-ins</Text></View></TouchableOpacity>;})}
-          <Text style={styles.sectionTitle}>Coming up</Text>
-          {events.slice(0,4).map(event=><View key={event.id} style={styles.taskRow}><View style={styles.eventDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{new Date(event.startsAt).toLocaleString()}</Text></View></View>)}
-          <Text style={styles.sectionTitle}>Goals</Text>
-          {goals.filter(goal=>goal.status==="active").slice(0,4).map(goal=>{const linked=tasks.filter(task=>task.goalId===goal.id);const done=linked.filter(task=>task.status==="done").length;return <View key={goal.id} style={styles.taskRow}><View style={styles.goalDot}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{goal.title}</Text><Text style={styles.taskMeta}>{done}/{linked.length} linked tasks</Text></View></View>;})}
+          <Text style={styles.mobileDayContext}>{todayAgendaItems.length} scheduled · {dueToday.length} due today{activeTasks.some(task=>task.dueAt&&localDateKey(task.dueAt)<todayKey)?" · Some overdue":""}</Text>
+
+          <View style={styles.mobileTodaySection}>
+            <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Today’s agenda</Text><TouchableOpacity onPress={()=>setTab("calendar")}><Text style={styles.link}>Calendar</Text></TouchableOpacity></View>
+            {todayAgendaItems.length === 0
+              ? <View style={styles.mobileTodayEmpty}><Text style={styles.mobileTodayEmptyTitle}>Nothing scheduled today.</Text><Text style={styles.muted}>That’s room you can use—or leave free.</Text></View>
+              : todayAgendaItems.map(item=><View key={item.kind+":"+item.id} style={styles.mobileTodayAgendaRow}>
+                <Text style={styles.mobileTodayTime}>{item.kind==="event"&&item.event.allDay?"All day":new Date(item.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text>
+                <View style={[styles.mobileTodayDot,{backgroundColor:item.kind==="event"?"#79B7D7":colors.lavender}]}/>
+                <View style={styles.taskCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.kind==="block"?new Date(item.endsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})+" · Work block":item.event.location||"Calendar event"}</Text></View>
+              </View>)}
+          </View>
+
+          <View style={styles.mobileTodaySection}>
+            <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Next actions</Text><TouchableOpacity onPress={()=>setTab("tasks")}><Text style={styles.link}>All tasks</Text></TouchableOpacity></View>
+            {loading ? <ActivityIndicator color={colors.lavender}/> : nextActionTasks.length ? nextActionTasks.map(renderTask) : <View style={styles.mobileTodayEmpty}><Text style={styles.mobileTodayEmptyTitle}>Nothing urgent asking for attention.</Text><Text style={styles.muted}>Choose something meaningful, or enjoy the breathing room.</Text></View>}
+          </View>
+
+          {habitsDueToday.length>0&&<View style={styles.mobileTodaySection}>
+            <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Small things, repeated</Text><TouchableOpacity onPress={()=>setTab("habits")}><Text style={styles.link}>All habits</Text></TouchableOpacity></View>
+            {habitsDueToday.slice(0,5).map(habit=>{const checked=habitEntries.some(entry=>entry.habitId===habit.id&&entry.entryDate===todayKey);return <TouchableOpacity key={habit.id} style={styles.mobileTodayHabitRow} onPress={()=>void checkInHabit(habit)}><View style={[styles.taskCircle,checked&&styles.taskCircleDone]}/><View style={styles.taskCopy}><Text style={[styles.taskTitle,checked&&styles.taskDone]}>{habit.name}</Text><Text style={styles.taskMeta}>{checked?"Checked in today":"Optional check-in"}</Text></View></TouchableOpacity>;})}
+          </View>}
+
+          {todayAgendaItems.length>=5&&<View style={styles.mobileTodayNote}><Text style={styles.mobileTodayNoteTitle}>A full day ahead.</Text><Text style={styles.muted}>You have several scheduled commitments. Leave a little space between them where you can.</Text></View>}
+
+          <View style={styles.mobileTodaySection}>
+            <View style={styles.mobileTodaySectionHeader}><Text style={styles.mobileTodaySectionTitle}>Coming up</Text><TouchableOpacity onPress={()=>setTab("calendar")}><Text style={styles.link}>Calendar</Text></TouchableOpacity></View>
+            {events.filter(event=>new Date(event.startsAt)>new Date()&&localDateKey(event.startsAt)!==todayKey).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,3).map(event=><View key={event.id} style={styles.mobileTodayAgendaRow}><Text style={styles.mobileTodayTime}>{new Date(event.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</Text><View style={[styles.mobileTodayDot,{backgroundColor:"#79B7D7"}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{event.title}</Text><Text style={styles.taskMeta}>{event.allDay?"All day":new Date(event.startsAt).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</Text></View></View>)}
+            {events.filter(event=>new Date(event.startsAt)>new Date()&&localDateKey(event.startsAt)!==todayKey).length===0&&<Text style={styles.muted}>Nothing else on the calendar yet.</Text>}
+          </View>
+
+          <TouchableOpacity style={styles.mobileTodayInbox} onPress={()=>setTab("inbox")}><View style={styles.taskCopy}><Text style={styles.taskTitle}>{inbox.length} items to sort</Text><Text style={styles.taskMeta}>Capture now. Organize when you’re ready.</Text></View><Text style={styles.link}>Open inbox →</Text></TouchableOpacity>
         </>}
         {tab === "tasks" && <><Text style={styles.sectionTitle}>All tasks</Text>{tasks.map(renderTask)}</>}
         {tab === "inbox" && <><Text style={styles.sectionTitle}>Capture now · Organize later</Text><View style={styles.capture}><TextInput style={styles.captureInput} placeholder="Capture a thought…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/><TouchableOpacity style={styles.captureButton} onPress={() => void addCapture()}><Text style={styles.captureButtonText}>Add</Text></TouchableOpacity></View>{inbox.map(item=><View key={item.id} style={styles.inboxRow}><View style={styles.inboxCopy}><Text style={styles.taskTitle}>{item.title}</Text><Text style={styles.taskMeta}>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><View style={styles.inboxActions}><TouchableOpacity onPress={()=>void convertInboxItem(item)}><Text style={styles.link}>Task</Text></TouchableOpacity><TouchableOpacity onPress={()=>void convertInboxToNote(item)}><Text style={styles.link}>Note</Text></TouchableOpacity><TouchableOpacity onPress={()=>void archiveInboxItem(item)}><Text style={styles.archiveLink}>Archive</Text></TouchableOpacity></View></View>)}</>}
@@ -395,6 +437,22 @@ const styles = StyleSheet.create({
   switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
   footnote: { color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 28 },
   apiHint: { color: "#514d5a", fontSize: 9, textAlign: "center", marginTop: 12 },
+  mobileTodayIntro: { marginTop: 30, marginBottom: 22 },
+  mobileTodayDate: { color: colors.muted, fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 9 },
+  mobileTodayTitle: { color: colors.text, fontSize: 30, fontWeight: "600", letterSpacing: -1, marginBottom: 6 },
+  mobileDayContext: { color: colors.muted, fontSize: 10, marginTop: 13, marginBottom: 6 },
+  mobileTodaySection: { marginTop: 26, paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mobileTodaySectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  mobileTodaySectionTitle: { color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: -0.3 },
+  mobileTodayAgendaRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.045)" },
+  mobileTodayTime: { color: colors.muted, fontSize: 10, width: 65, fontVariant: ["tabular-nums"] },
+  mobileTodayDot: { width: 7, height: 7, borderRadius: 4 },
+  mobileTodayEmpty: { paddingVertical: 15, gap: 5 },
+  mobileTodayEmptyTitle: { color: colors.text, fontSize: 12, fontWeight: "600" },
+  mobileTodayHabitRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.045)" },
+  mobileTodayNote: { marginTop: 22, padding: 16, borderRadius: 12, backgroundColor: colors.surface2, gap: 6 },
+  mobileTodayNoteTitle: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  mobileTodayInbox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 22, paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
   content: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 50 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   signOut: { borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8 },
