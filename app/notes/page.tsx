@@ -248,8 +248,8 @@ export default function NotesPage() {
         <button className="notes-new-button" onClick={() => void createNote()}><Plus size={15}/> New page</button>
         <label className="notes-search"><Search size={15}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search your pages..."/><kbd>⌘ K</kbd></label>
         <div className="notes-sidebar-label">WORKSPACE</div>
-        <button className={`notes-filter ${!showFavorites && !showArchived ? "active" : ""}`} onClick={() => { setShowFavorites(false); setShowArchived(false); }}><FilePlus2 size={15}/> All pages <span>{notes.length}</span></button>
-        <button className={`notes-filter ${showFavorites ? "active" : ""}`} onClick={() => { setShowFavorites(true); setShowArchived(false); }}><Heart size={15}/> Favorites</button>
+        <button className={`notes-filter ${!showFavorites && !showArchived ? "active" : ""}`} onClick={() => { void switchArchiveView(false); setShowFavorites(false); }}><FilePlus2 size={15}/> All pages <span>{notes.length}</span></button>
+        <button className={`notes-filter ${showFavorites ? "active" : ""}`} onClick={() => { void switchArchiveView(false); setShowFavorites(true); }}><Heart size={15}/> Favorites</button>
         <button className={`notes-filter ${showArchived ? "active" : ""}`} onClick={() => void switchArchiveView(!showArchived)}><Archive size={15}/> Archived</button>
         <div className="notes-sidebar-label notes-pages-label">YOUR PAGES <button onClick={() => void createNote()}><Plus size={14}/></button></div>
         <div className="notes-tree">{renderTree(null)}</div>
