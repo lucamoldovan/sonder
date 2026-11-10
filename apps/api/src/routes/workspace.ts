@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
 import { Hono } from "hono";
-import { activityLog, calendarEvents, goals, habitEntries, habits, inboxItems, lifeAreas, notes, notifications, projects, tasks } from "../db/schema";
+import { activityLog, calendarEvents, goals, habitEntries, habits, inboxItems, lifeAreas, notes, notifications, projects, taskDependencies, tasks } from "../db/schema";
 import type { AppEnv } from "../env";
 import { getSessionUser } from "../lib/session";
 
@@ -86,16 +86,17 @@ workspaceRoutes.get("/projects/:id", async (c) => {
   const db = c.get("db");
   const [project] = await db.select().from(projects).where(and(eq(projects.id, id), eq(projects.userId, user.id))).limit(1);
   if (!project) return c.json({ error: { code: "NOT_FOUND", message: "Project not found." } }, 404);
-  const [taskRows, eventRows, noteRows, activityRows, goalRows, areaRows] = await Promise.all([
+  const [taskRows, eventRows, noteRows, activityRows, goalRows, areaRows, dependencyRows] = await Promise.all([
     db.select().from(tasks).where(and(eq(tasks.userId, user.id), eq(tasks.projectId, id))).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)),
     db.select().from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), eq(calendarEvents.projectId, id))).orderBy(asc(calendarEvents.startsAt)),
     db.select().from(notes).where(and(eq(notes.userId, user.id), eq(notes.projectId, id))).orderBy(desc(notes.updatedAt)),
     db.select().from(activityLog).where(and(eq(activityLog.userId, user.id), eq(activityLog.entityId, id))).orderBy(desc(activityLog.createdAt)).limit(30),
     project.goalId ? db.select().from(goals).where(and(eq(goals.id, project.goalId), eq(goals.userId, user.id))).limit(1) : Promise.resolve([]),
-    project.lifeAreaId ? db.select().from(lifeAreas).where(and(eq(lifeAreas.id, project.lifeAreaId), eq(lifeAreas.userId, user.id))).limit(1) : Promise.resolve([])
+    project.lifeAreaId ? db.select().from(lifeAreas).where(and(eq(lifeAreas.id, project.lifeAreaId), eq(lifeAreas.userId, user.id))).limit(1) : Promise.resolve([]),
+    db.select().from(taskDependencies).where(eq(taskDependencies.userId, user.id))
   ]);
   const completed = taskRows.filter(task => task.status === "done").length;
-  return c.json({ data: { project, tasks: taskRows, events: eventRows, notes: noteRows, activity: activityRows, goal: goalRows[0] ?? null, lifeArea: areaRows[0] ?? null, progress: { completed, total: taskRows.length, percentage: taskRows.length ? Math.round(completed / taskRows.length * 100) : 0 } } });
+  return c.json({ data: { project, tasks: taskRows, events: eventRows, notes: noteRows, activity: activityRows, dependencies: dependencyRows.filter(row => taskRows.some(task => task.id === row.taskId)), goal: goalRows[0] ?? null, lifeArea: areaRows[0] ?? null, progress: { completed, total: taskRows.length, percentage: taskRows.length ? Math.round(completed / taskRows.length * 100) : 0 } } });
 });
 
 workspaceRoutes.get("/activity", async (c) => {
