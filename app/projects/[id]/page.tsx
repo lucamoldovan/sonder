@@ -105,7 +105,7 @@ export default function ProjectWorkspacePage() {
 
   async function createProjectTask(event: FormEvent) {
     event.preventDefault();
-    if (!workspace || !taskDraft.trim()) return;
+    if (!workspace || !taskDraft.trim() || ["archived", "completed"].includes(workspace.project.status)) return;
     try {
       await apiRequest("/tasks", {
         method: "POST",
@@ -156,7 +156,7 @@ export default function ProjectWorkspacePage() {
       </section> : <section className="project-progress-panel project-progress-empty"><div><span>READY WHEN YOU ARE</span><strong>This project is waiting for its first step.</strong><p>Add a task below to turn the idea into something you can move forward.</p></div></section>}
       <div className="project-workspace-grid">
         <section className="project-workspace-panel project-workspace-tasks">
-          <div className="project-workspace-panel-heading"><div><span>MAKE PROGRESS</span><h2>Tasks <small>{tasks.length}</small></h2></div><span className="project-panel-hint">Small next steps add up</span></div><form className="project-quick-task" onSubmit={createProjectTask}><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder="Add the next step…" aria-label="New project task"/><button disabled={!taskDraft.trim()}><Plus size={14}/> Add task</button></form>
+          <div className="project-workspace-panel-heading"><div><span>MAKE PROGRESS</span><h2>Tasks <small>{tasks.length}</small></h2></div><span className="project-panel-hint">Small next steps add up</span></div><form className="project-quick-task" onSubmit={createProjectTask}><input value={taskDraft} onChange={event => setTaskDraft(event.target.value)} placeholder={["archived", "completed"].includes(project.status) ? "Restore this project to add tasks…" : "Add the next step…"} aria-label="New project task"/><button disabled={!taskDraft.trim() || ["archived", "completed"].includes(project.status)}><Plus size={14}/> Add task</button></form>
           {tasks.length ? tasks.map(task => <div className={"project-task-row " + (task.status === "done" ? "is-done" : "")} style={{paddingLeft:task.parentTaskId?22:0}} key={task.id}>
             <button onClick={() => void toggleTask(task)} aria-label="Toggle task">{task.status === "done" ? <CheckCircle2 size={17}/> : <Circle size={17}/>}</button>
             <div><strong>{task.title}</strong><span>{task.priority}{task.dueAt ? " · Due " + new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span>{dependencies.filter(item=>item.taskId===task.id).map(item=><small key={item.id}>Blocked by: {tasks.find(other=>other.id===item.dependsOnTaskId)?.title||"another task"}</small>)}</div>
