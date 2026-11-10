@@ -144,12 +144,13 @@ export default function ProjectWorkspacePage() {
 
   if (isPending || loading) return <main className="project-workspace-loading"><LoaderCircle className="spin" size={20}/>Loading project…</main>;
   if (!session?.user) return <main className="project-workspace-loading">Please <Link href="/">sign in</Link> to continue.</main>;
-  if (error || !workspace) return <main className="project-workspace-loading"><p>{error || "Project not found."}</p><Link href="/">Back to Sonder</Link></main>;
+  if (!workspace) return <main className="project-workspace-loading"><p>{error || "Project not found."}</p><Link href="/">Back to Sonder</Link></main>;
 
   const { project, tasks, events, notes, activity, dependencies, goal, lifeArea, progress } = workspace;
   return <main className="project-workspace">
     <header className="project-workspace-topbar"><Link href="/"><ArrowLeft size={16}/> Back to Sonder</Link><div className="project-topbar-actions"><span>PROJECT WORKSPACE</span><button onClick={openProjectEditor}><Pencil size={13}/> Edit</button><button onClick={() => void toggleArchiveProject()}><Archive size={13}/>{workspace.project.status === "archived" ? "Restore" : "Archive"}</button></div></header>
     <div className="project-workspace-content">
+      {error && <div className="project-workspace-error" role="alert">{error}</div>}
       <div className="project-workspace-eyebrow"><FolderKanban size={14}/>{lifeArea?.name || "Project"}{goal && <><span>·</span><Target size={13}/>{goal.title}</>}</div>
       <div className="project-workspace-heading"><div><h1>{project.name}</h1><p>{project.description || "Everything connected to this project, in one place."}</p></div><span className={"project-status-pill status-" + project.status}>{project.status.replace("_", " ")}</span></div>
       {progress.total > 0 ? <section className="project-progress-panel">
