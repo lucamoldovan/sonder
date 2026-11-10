@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, SafeAreaView,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from "react-native";
 import type { CalendarEventRecord, GoalRecord, HabitEntryRecord, HabitRecord, InboxItemRecord, LifeAreaRecord, NoteRecord, ProjectRecord, TaskRecord } from "@sonder/contracts";
@@ -52,6 +52,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("today");
   const [organizeSection, setOrganizeSection] = useState<OrganizeSection>("home");
   const [capture, setCapture] = useState("");
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -150,6 +151,7 @@ export default function App() {
       });
       setInbox(current => [result.data, ...current]);
       setCapture("");
+      setCaptureOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save that item.");
     }
@@ -359,7 +361,7 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View><Text style={styles.kicker}>YOUR WORKSPACE</Text><Text style={styles.heading}>{tab === "organize" ? (organizeSection === "home" ? "Organize." : organizeSection[0].toUpperCase()+organizeSection.slice(1)+".") : tab === "today" ? "Today." : tab[0].toUpperCase()+tab.slice(1)+"."}</Text><Text style={styles.muted}>A little clarity goes a long way.</Text></View>
-          <TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity>
+          <View style={styles.mobileHeaderActions}><TouchableOpacity style={styles.mobileCaptureButton} onPress={() => setCaptureOpen(true)}><Text style={styles.mobileCaptureButtonText}>Capture</Text></TouchableOpacity><TouchableOpacity style={styles.signOut} onPress={() => void authClient.signOut()}><Text style={styles.signOutText}>Sign out</Text></TouchableOpacity></View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
           {(["today","calendar","organize","notes"] as Tab[]).map(item=><TouchableOpacity key={item} style={[styles.tab,tab===item&&styles.tabActive]} onPress={()=>{if(item==="organize")setOrganizeSection("home");setTab(item);}}><Text style={[styles.tabText,tab===item&&styles.tabTextActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></TouchableOpacity>)}
@@ -434,6 +436,16 @@ export default function App() {
         {tab === "organize" && organizeSection === "areas" && <><Text style={styles.sectionTitle}>Your life areas</Text>{lifeAreas.map(area=><View key={area.id} style={styles.taskRow}><View style={[styles.areaDot,{backgroundColor:area.color}]}/><View style={styles.taskCopy}><Text style={styles.taskTitle}>{area.name}</Text><Text style={styles.taskMeta}>{tasks.filter(task=>task.lifeAreaId===area.id).length} tasks · {projects.filter(project=>project.lifeAreaId===area.id).length} projects · {goals.filter(goal=>goal.lifeAreaId===area.id).length} goals</Text></View></View>)}</>}
         <Text style={styles.footer}>Sonder · Your life, in perspective.</Text>
       </ScrollView>
+      <Modal visible={captureOpen} transparent animationType="fade" onRequestClose={() => setCaptureOpen(false)}>
+        <KeyboardAvoidingView style={styles.mobileCaptureOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.mobileCaptureCard}>
+            <View style={styles.mobileCaptureModalHeading}><View style={{flex:1}}><Text style={styles.kicker}>QUICK CAPTURE</Text><Text style={styles.mobileCaptureTitle}>Get it out of your head.</Text></View><TouchableOpacity onPress={() => setCaptureOpen(false)}><Text style={styles.link}>Close</Text></TouchableOpacity></View>
+            <TextInput autoFocus style={styles.mobileCaptureInput} placeholder="A task, thought, idea, or reminder…" placeholderTextColor={colors.muted} value={capture} onChangeText={setCapture} onSubmitEditing={() => void addCapture()} returnKeyType="done"/>
+            <Text style={styles.taskMeta}>Saved to your inbox. Sort it whenever you’re ready.</Text>
+            <TouchableOpacity style={styles.mobileCaptureSave} onPress={() => void addCapture()} disabled={!capture.trim()}><Text style={styles.captureButtonText}>Capture</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -460,6 +472,15 @@ const styles = StyleSheet.create({
   switchText: { color: colors.lavender, fontSize: 12, textAlign: "center", marginTop: 20 },
   footnote: { color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 28 },
   apiHint: { color: "#514d5a", fontSize: 9, textAlign: "center", marginTop: 12 },
+  mobileHeaderActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  mobileCaptureButton: { borderWidth: 1, borderColor: "rgba(167,139,250,0.35)", backgroundColor: "rgba(167,139,250,0.12)", borderRadius: 9, paddingHorizontal: 11, paddingVertical: 8 },
+  mobileCaptureButtonText: { color: "#D8CAFF", fontSize: 10, fontWeight: "600" },
+  mobileCaptureOverlay: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.76)" },
+  mobileCaptureCard: { padding: 20, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 12 },
+  mobileCaptureModalHeading: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  mobileCaptureTitle: { color: colors.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.5 },
+  mobileCaptureInput: { minHeight: 50, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, fontSize: 13 },
+  mobileCaptureSave: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: colors.lavender },
   mobileOrganizeRow: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileOrganizeCount: { color: colors.muted, fontSize: 11, fontVariant: ["tabular-nums"] },
   mobileTodayIntro: { marginTop: 30, marginBottom: 22 },
