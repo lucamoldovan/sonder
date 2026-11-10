@@ -511,3 +511,7 @@
 .integration-guide p strong{color:#ddd6e7}
 @media(max-width:800px){.focus-layout,.wellbeing-layout,.insights-grid{grid-template-columns:1fr}.focus-stats{display:grid;grid-template-columns:repeat(3,1fr)}.insights-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.life-page{padding:22px 14px 42px}.life-toolbar{flex-wrap:wrap}.life-search{flex-basis:100%}.task-board{grid-template-columns:1fr}.integration-grid{grid-template-columns:1fr}.wellbeing-averages{grid-template-columns:repeat(2,1fr)}.focus-stats{grid-template-columns:1fr 1fr}.integration-guide{flex-direction:column}}
+
+.integration-file-label{position:relative;overflow:hidden;cursor:pointer}
+.integration-file-label input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.integration-card>.life-secondary-button{margin-top:2px;width:max-content;text-decoration:none}
