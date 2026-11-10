@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers,
+  ArrowRight, Bell, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Command, Flag, Heart, Inbox, Layers, Pencil,
   LayoutDashboard, ListTodo, LogOut, NotebookPen, Plus, RefreshCw, Search, Target, Trash2, X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -100,6 +100,7 @@ export default function Home() {
   const [capture, setCapture] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [taskEditingId, setTaskEditingId] = useState<string | null>(null);
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<"active" | "completed" | "archived" | "all">("active");
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
@@ -332,31 +333,53 @@ export default function Home() {
     }
   }
 
+  function openEditTask(task: ApiTask) {
+    setTaskEditingId(task.id);
+    setTaskTitle(task.title);
+    setTaskDescription(task.description || "");
+    setTaskArea(task.lifeAreaId || "");
+    setTaskPriority(task.priority);
+    setTaskDue(task.dueAt ? localDate(task.dueAt) : "");
+    setTaskProject(task.projectId || "");
+    setTaskGoal(task.goalId || "");
+    setTaskParent(task.parentTaskId || "");
+    setTaskRepeat(task.recurrenceFrequency || "none");
+    setTaskRepeatInterval(String(task.recurrenceInterval || 1));
+    setTaskRepeatUntil(task.recurrenceUntil || "");
+    if (task.reminderAt) {
+      const reminder = new Date(task.reminderAt);
+      setTaskReminder(new Date(reminder.getTime() - reminder.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    } else setTaskReminder("");
+    setTaskOpen(true);
+  }
+
   async function createTask(event: FormEvent) {
     event.preventDefault();
     if (!taskTitle.trim()) return;
     if (taskRepeat !== "none" && !taskDue) { setError("Choose a due date for a recurring task."); return; }
     try {
       const dueAt = taskDue ? new Date(taskDue + "T12:00:00").toISOString() : null;
-      const result = await apiRequest<ApiList<ApiTask>>("/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          description: taskDescription.trim() || null,
-          dueAt,
-          priority: taskPriority,
-          lifeAreaId: taskArea || null,
-          projectId: taskProject || null,
-          goalId: taskGoal || projects.find(project => project.id === taskProject)?.goalId || null,
-          parentTaskId: taskParent || null,
-          reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
-          recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
-          recurrenceInterval: Number(taskRepeatInterval),
-          recurrenceUntil: taskRepeatUntil || null,
-          status: "todo"
-        })
+      const payload = {
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || null,
+        dueAt,
+        priority: taskPriority,
+        lifeAreaId: taskArea || null,
+        projectId: taskProject || null,
+        goalId: taskGoal || projects.find(project => project.id === taskProject)?.goalId || null,
+        parentTaskId: taskParent || null,
+        reminderAt: taskReminder ? new Date(taskReminder).toISOString() : null,
+        recurrenceFrequency: taskRepeat === "none" ? null : taskRepeat,
+        recurrenceInterval: Number(taskRepeatInterval),
+        recurrenceUntil: taskRepeatUntil || null
+      };
+      const result = await apiRequest<ApiList<ApiTask>>(taskEditingId ? "/tasks/" + taskEditingId : "/tasks", {
+        method: taskEditingId ? "PATCH" : "POST",
+        body: JSON.stringify(taskEditingId ? payload : { ...payload, status: "todo" })
       });
-      setTasks(current => [result.data, ...current]);
+      setTasks(current => taskEditingId
+        ? current.map(item => item.id === taskEditingId ? result.data : item)
+        : [result.data, ...current]);
       setTaskTitle("");
       setTaskDescription("");
       setTaskDue("");
@@ -368,7 +391,8 @@ export default function Home() {
       setTaskRepeatUntil("");
       setTaskReminder("");
       setTaskOpen(false);
-      setNotice("Task created.");
+      setNotice(taskEditingId ? "Task updated." : "Task created.");
+      setTaskEditingId(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create the task.");
     }
@@ -831,7 +855,7 @@ export default function Home() {
             </div>
           </div>}
           {view === "Inbox" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">CAPTURE NOW · ORGANIZE LATER</div><h1>Your inbox.</h1><p className="subheading">Get it out of your head. Decide what it means later.</p></div></div><form className="capture-form" onSubmit={quickCapture}><Plus size={18} /><input value={capture} onChange={event => setCapture(event.target.value)} placeholder="Capture a task, thought, idea…" /><button className="primary-button" disabled={!capture.trim()}>Add to inbox</button></form><section className="panel full-task-panel">{inbox.length ? inbox.map(item => <div className="inbox-row" key={item.id}><div className="inbox-item-copy"><strong>{item.title}</strong><span>{item.type} · {new Date(item.createdAt).toLocaleDateString()}</span>{item.content && <p>{item.content}</p>}</div><div className="inbox-actions"><button className="secondary-button" onClick={() => void convertInboxItem(item)}>Make task</button><button className="secondary-button" onClick={() => void convertInboxToNote(item)}>Make note</button><button className="secondary-button" onClick={() => void convertInboxToEvent(item)}>Make event</button><button className="icon-button" onClick={() => void archiveInboxItem(item)} aria-label="Archive"><Check size={16} /></button></div></div>) : <div className="empty-state"><Inbox size={20} /><strong>Your inbox is clear</strong><span>Capture anything you don&apos;t want to forget.</span></div>}</section></div>}
-          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
+          {view === "Tasks" && <div className="section-page"><div className="welcome-row"><div><div className="eyebrow">MAKE SPACE FOR WHAT MATTERS</div><h1>Your tasks.</h1><p className="subheading">Everything you&apos;re carrying, in one place.</p></div><button className="primary-button" onClick={() => setTaskOpen(true)}><Plus size={17} />New task</button></div><div className="task-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks…" /></div><select className="area-filter" value={filterArea} onChange={event => setFilterArea(event.target.value)}><option value="all">All life areas</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></div><section className="panel full-task-panel">{visibleTasks.length ? visibleTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask} />) : <div className="empty-state"><ListTodo size={20} /><strong>No tasks yet</strong><span>Start with one small thing.</span></div>}</section></div>}
           {view === "Calendar" && (() => {
             const todayKey = calendarDateKey(new Date());
             const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1, 12);
@@ -929,7 +953,7 @@ export default function Home() {
 
       {reviewOpen && <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setReviewOpen(false);}}><section className="task-modal weekly-review-modal"><div className="modal-heading"><div><div className="section-kicker">PAUSE AND TAKE STOCK</div><h2>Your weekly review.</h2></div><button className="icon-button" onClick={()=>setReviewOpen(false)} aria-label="Close review"><X size={18}/></button></div><div className="weekly-review-metrics"><div><strong>{completedThisWeek}</strong><span>Tasks completed</span></div><div><strong>{checkinsThisWeek}</strong><span>Habit check-ins</span></div><div><strong>{overdue.length}</strong><span>Still overdue</span></div><div><strong>{dueToday.length}</strong><span>Due today</span></div></div><div className="weekly-review-detail"><h3>Things to bring forward</h3>{overdue.slice(0,5).map(task=><p key={task.id}>{task.title}<small>Overdue</small></p>)}{overdue.length===0&&<p className="muted-note">No overdue tasks. Nice.</p>}</div><div className="weekly-review-detail"><h3>Coming up</h3>{events.filter(item=>new Date(item.startsAt)>=new Date()).slice(0,5).map(item=><p key={item.id}>{item.title}<small>{new Date(item.startsAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</small></p>)}{events.filter(item=>new Date(item.startsAt)>=new Date()).length===0&&<p className="muted-note">Nothing scheduled yet.</p>}</div><div className="modal-footer"><button className="primary-button" onClick={()=>setReviewOpen(false)}>Done</button></div></section></div>}
       {commandOpen && <div className="command-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setCommandOpen(false);}}><section className="command-palette"><div className="command-search-row"><Search size={18}/><input autoFocus value={commandQuery} onChange={event=>setCommandQuery(event.target.value)} placeholder="Search tasks, projects, notes, goals…"/><kbd>ESC</kbd></div><div className="command-results">{commandLoading?<p>Searching…</p>:commandQuery.trim().length<2?<p>Type at least two characters to search across Sonder.</p>:commandResults.length?commandResults.map(result=><button key={result.type+result.id} onClick={()=>{setCommandOpen(false);if(result.type==="project"){window.location.href="/projects/"+result.id;return;}if(result.type==="note"){window.location.href="/notes";return;}setView(result.type==="task"?"Tasks":result.type==="goal"?"Goals":result.type==="habit"?"Habits":"Calendar");setQuery(result.title);}}><span className="command-result-type">{result.type}</span><strong>{result.title}</strong><small>{result.subtitle||" "}</small></button>):<p>No matching items found.</p>}</div><div className="command-footer"><span>Search everything in your workspace</span><span>CTRL K</span></div></section></div>}
-      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>New task</h2></div><button type="button" className="icon-button" onClick={() => setTaskOpen(false)}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => {setTaskProject(event.target.value);setTaskGoal(projects.find(project=>project.id===event.target.value)?.goalId||"");}}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-label">Goal<select value={taskGoal} onChange={event=>setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label className="form-label">Parent task<select value={taskParent} onChange={event=>setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task=>!task.parentTaskId&&task.status!=="done").map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><label className="form-label">Repeat<select value={taskRepeat} onChange={event=>setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>{taskRepeat!=="none"&&<><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event=>setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event=>setTaskRepeatUntil(event.target.value)}/></label></>}<label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event=>setTaskReminder(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => setTaskOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create task <ArrowRight size={14} /></button></div></form></div>}
+      {taskOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createTask}><div className="modal-heading"><div><div className="section-kicker">GET IT OUT OF YOUR HEAD</div><h2>{taskEditingId ? "Edit task" : "New task"}</h2></div><button type="button" className="icon-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}><X size={18} /></button></div><label className="form-label">Task name<input required autoFocus value={taskTitle} onChange={event => setTaskTitle(event.target.value)} placeholder="What needs your attention?" /></label><label className="form-label">Notes<textarea rows={3} value={taskDescription} onChange={event => setTaskDescription(event.target.value)} placeholder="Add a little context…" /></label><div className="form-grid"><label className="form-label">Life area<select value={taskArea} onChange={event => setTaskArea(event.target.value)}><option value="">None</option>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Priority<select value={taskPriority} onChange={event => setTaskPriority(event.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-label">Due date<input type="date" value={taskDue} onChange={event => setTaskDue(event.target.value)} /></label><label className="form-label">Project<select value={taskProject} onChange={event => {setTaskProject(event.target.value);setTaskGoal(projects.find(project=>project.id===event.target.value)?.goalId||"");}}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-label">Goal<select value={taskGoal} onChange={event=>setTaskGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label className="form-label">Parent task<select value={taskParent} onChange={event=>setTaskParent(event.target.value)}><option value="">No parent</option>{tasks.filter(task=>!task.parentTaskId&&task.status!=="done").map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label><label className="form-label">Repeat<select value={taskRepeat} onChange={event=>setTaskRepeat(event.target.value as typeof taskRepeat)}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>{taskRepeat!=="none"&&<><label className="form-label">Every<input type="number" min="1" max="52" value={taskRepeatInterval} onChange={event=>setTaskRepeatInterval(event.target.value)}/></label><label className="form-label">Repeat until<input type="date" value={taskRepeatUntil} onChange={event=>setTaskRepeatUntil(event.target.value)}/></label></>}<label className="form-label">Reminder<input type="datetime-local" value={taskReminder} onChange={event=>setTaskReminder(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={() => { setTaskOpen(false); setTaskEditingId(null); }}>Cancel</button><button className="primary-button" type="submit">{taskEditingId ? "Save changes" : "Create task"} <ArrowRight size={14} /></button></div></form></div>}
       {goalOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createGoal}><div className="modal-heading"><div><div className="section-kicker">THINK LONG TERM</div><h2>New goal</h2></div><button type="button" className="icon-button" onClick={()=>setGoalOpen(false)}><X size={18}/></button></div><label className="form-label">Goal<input required autoFocus value={goalTitle} onChange={event=>setGoalTitle(event.target.value)} placeholder="What do you want to work towards?"/></label><div className="form-grid"><label className="form-label">Life area<select value={goalArea} onChange={event=>setGoalArea(event.target.value)}><option value="">None</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Target date<input type="date" value={goalDate} onChange={event=>setGoalDate(event.target.value)}/></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setGoalOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create goal</button></div></form></div>}
       {habitOpen && <div className="modal-backdrop"><form className="task-modal" onSubmit={createHabit}><div className="modal-heading"><div><div className="section-kicker">BUILD A PRACTICE</div><h2>New habit</h2></div><button type="button" className="icon-button" onClick={()=>setHabitOpen(false)}><X size={18}/></button></div><label className="form-label">Habit name<input required autoFocus value={habitName} onChange={event=>setHabitName(event.target.value)} placeholder="e.g. Read for 15 minutes"/></label><div className="form-grid"><label className="form-label">Life area<select value={habitArea} onChange={event=>setHabitArea(event.target.value)}><option value="">Personal</option>{areas.map(area=><option key={area.id} value={area.id}>{area.name}</option>)}</select></label><label className="form-label">Frequency<select value={habitFrequency} onChange={event=>setHabitFrequency(event.target.value as typeof habitFrequency)}><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option></select></label><label className="form-label">Supports goal<select value={habitGoal} onChange={event=>setHabitGoal(event.target.value)}><option value="">None</option>{goals.filter(goal=>goal.status==="active").map(goal=><option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label></div><div className="modal-footer"><button type="button" className="secondary-button" onClick={()=>setHabitOpen(false)}>Cancel</button><button className="primary-button" type="submit">Create habit</button></div></form></div>}
       {eventOpen && <div className="modal-backdrop"><form className="task-modal calendar-event-modal" onSubmit={createEvent}>
@@ -954,6 +978,7 @@ function TaskRow({ task, areas, onToggle, onDelete }: {
   areas: ApiLifeArea[];
   onToggle: (task: ApiTask) => void;
   onDelete: (id: string) => void;
+  onEdit: (task: ApiTask) => void;
 }) {
   const area = areas.find(item => item.id === task.lifeAreaId);
   const due = task.dueAt ? localDate(task.dueAt) : "";
@@ -961,6 +986,6 @@ function TaskRow({ task, areas, onToggle, onDelete }: {
   return <div className={`task-row ${task.status === "done" ? "task-completed" : ""}`}>
     <button className={`task-check ${task.status === "done" ? "checked" : ""}`} onClick={() => onToggle(task)} aria-label="Toggle completion">{task.status === "done" && <Check size={13} />}</button>
     <div className="task-copy"><strong className="task-title">{task.title}</strong>{task.description && <span className="task-notes">{task.description}</span>}<div className="task-meta">{area && <span className="area-tag">{area.name}</span>}<span className={`priority-tag priority-${task.priority}`}><i />{task.priority}</span>{due && <span className={`due-tag ${due < today && task.status !== "done" ? "overdue-tag" : ""}`}><CalendarDays size={12} />{due === today ? "Today" : new Date(task.dueAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div></div>
-    <button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
+    <button className="icon-button task-more" onClick={() => onEdit(task)} aria-label="Edit task"><Pencil size={14}/></button><button className="icon-button task-more" onClick={() => onDelete(task.id)} aria-label="Delete task"><Trash2 size={15} /></button>
   </div>;
 }
