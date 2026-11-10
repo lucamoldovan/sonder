@@ -412,7 +412,7 @@ export default function Home() {
     event.preventDefault();
     if (!scheduleTask || !scheduleDate) return;
     try {
-      const result = await apiRequest<ApiList<ApiTimeBlock>>("/time-blocks", {
+      const result = await apiRequest<ApiList<ApiTimeBlock> & { conflicts?: { id: string }[] }>("/time-blocks", {
         method: "POST",
         body: JSON.stringify({
           taskId: scheduleTask,
@@ -422,7 +422,7 @@ export default function Home() {
       });
       setTimeBlocks(current => [...current, result.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       setScheduleOpen(false);
-      setNotice("Task scheduled.");
+      setNotice(result.conflicts?.length ? "Task scheduled. There is an overlap with another work block." : "Task scheduled.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not schedule task."); }
   }
 
