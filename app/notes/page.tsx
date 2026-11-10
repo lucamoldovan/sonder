@@ -10,6 +10,8 @@ import type { NoteBlock } from "@sonder/contracts";
 
 type BlockType = NoteBlock["type"];
 type SaveState = "saved" | "saving" | "unsaved" | "error";
+type NoteTemplate = { id: string; name: string; description: string | null; content: NoteBlock[] };
+type NoteBacklink = { id: string; title: string; updatedAt: string };
 
 const blockTools: { type: BlockType; label: string; icon: typeof Type }[] = [
   { type: "paragraph", label: "Text", icon: Type },
@@ -43,6 +45,8 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [areas, setAreas] = useState<ApiLifeArea[]>([]);
   const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+  const [backlinks, setBacklinks] = useState<NoteBacklink[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("📝");
@@ -66,14 +70,16 @@ export default function NotesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [noteResult, areaResult, projectResult] = await Promise.all([
+      const [noteResult, areaResult, projectResult, templateResult] = await Promise.all([
         apiRequest<ApiList<ApiNote[]>>("/notes"),
         apiRequest<ApiList<ApiLifeArea[]>>("/life-areas"),
-        apiRequest<ApiList<ApiProject[]>>("/projects")
+        apiRequest<ApiList<ApiProject[]>>("/projects"),
+        apiRequest<ApiList<NoteTemplate[]>>("/note-templates")
       ]);
       setNotes(noteResult.data);
       setAreas(areaResult.data);
       setProjects(projectResult.data);
+      setTemplates(templateResult.data);
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't load your notes.");
@@ -101,6 +107,15 @@ export default function NotesPage() {
   }, []);
 
   const selected = notes.find(note => note.id === selectedId) || null;
+
+  useEffect(() => {
+    if (!selectedId) { setBacklinks([]); return; }
+    let active = true;
+    void apiRequest<ApiList<NoteBacklink[]>>("/notes/" + selectedId + "/backlinks")
+      .then(result => { if (active) setBacklinks(result.data); })
+      .catch(() => { if (active) setBacklinks([]); });
+    return () => { active = false; };
+  }, [selectedId, notes]);
 
   const saveDraft = async () => {
     if (!dirty || !selectedId) return true;
@@ -167,6 +182,27 @@ export default function NotesPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create the page.");
     }
+  };
+
+  const saveTemplate = async () => {
+    if (!selected || !(await saveDraft())) return;
+    const name = window.prompt("Name this template");
+    if (!name?.trim()) return;
+    try {
+      const result = await apiRequest<ApiList<NoteTemplate>>("/note-templates", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), description: "Saved from " + selected.title, content: blocks })
+      });
+      setTemplates(current => [...current, result.data].sort((a,b) => a.name.localeCompare(b.name)));
+      setNotice("Template saved.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't save the template."); }
+  };
+
+  const applyTemplate = (id: string) => {
+    const template = templates.find(item => item.id === id);
+    if (!template) return;
+    setBlocks(template.content.map(block => ({ ...block, id: crypto.randomUUID() })));
+    markDirty();
   };
 
   const markDirty = () => {
@@ -356,6 +392,7 @@ export default function NotesPage() {
             <label><span>Project</span><select value={projectId} onChange={event => { setProjectId(event.target.value); markDirty(); }}><option value="">None</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
             <label className="notes-tags-field"><span>Tags</span><input value={tagsText} onChange={event => { setTagsText(event.target.value); markDirty(); }} placeholder="ideas, research, journal..." /></label>
           </div>
+          <div className="notes-template-tools"><label>Template<select defaultValue="" onChange={event => applyTemplate(event.target.value)}><option value="">Insert template…</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label><button onClick={() => void saveTemplate()}>Save as template</button><label>Link page<select defaultValue="" onChange={event => {const target=notes.find(note=>note.id===event.target.value);if(target){setBlocks(current=>[...current,{...newBlock("paragraph"),text:"[[note:"+target.id+"]]"}]);markDirty();}event.target.value="";}}><option value="">Insert page link…</option>{notes.filter(note=>note.id!==selectedId&&!note.archivedAt).map(note=><option key={note.id} value={note.id}>{note.title}</option>)}</select></label></div>
           <div className="notes-editor-toolbar"><span>ADD BLOCK</span>{blockTools.map(tool => <button key={tool.type} title={tool.label} onClick={() => addBlock(tool.type)}>{tool.type === "heading1" ? "H1" : tool.type === "heading2" ? "H2" : <tool.icon size={15}/>}</button>)}</div>
           <div className="notes-block-list">
             {blocks.map(block => <div className={`notes-block notes-block-${block.type}`} key={block.id}>
@@ -366,7 +403,8 @@ export default function NotesPage() {
             </div>)}
           </div>
           <button className="notes-add-line" onClick={() => addBlock("paragraph")}><Plus size={15}/> Add a block</button>
-          <div className="notes-editor-footer"><span>Last edited {selected.updatedAt ? new Date(selected.updatedAt).toLocaleString() : "just now"}</span><span>Type naturally. Organize later.</span></div>
+          {backlinks.length > 0 && <div className="notes-backlinks"><strong>Linked from</strong>{backlinks.map(note => <button key={note.id} onClick={() => {const target=notes.find(item=>item.id===note.id);if(target)void openNote(target);}}>{note.title}</button>)}</div>}
+          <div className="notes-editor-footer"><span>Use [[note:ID]] links to connect pages · Last edited {selected.updatedAt ? new Date(selected.updatedAt).toLocaleString() : "just now"}</span><span>Type naturally. Organize later.</span></div>
         </div>
       </div>}
     </section>
