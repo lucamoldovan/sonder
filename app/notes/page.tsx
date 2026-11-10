@@ -230,7 +230,7 @@ export default function NotesPage() {
         changed = false;
         for (const note of notes) if (note.parentId && affected.has(note.parentId) && !affected.has(note.id)) { affected.add(note.id); changed = true; }
       }
-      await Promise.all([...affected].map(id => apiRequest("/notes/" + id, { method: "PATCH", body: JSON.stringify({ archived: !showArchived }) })));
+      await apiRequest("/notes/" + selected.id, { method: "PATCH", body: JSON.stringify({ archived: !showArchived }) });
       setNotes(current => current.filter(item => !affected.has(item.id)));
       setSelectedId(null);
       setSaveState("saved");
