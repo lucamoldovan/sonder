@@ -21,7 +21,7 @@ Sonder is a personal life operating system: one calm, connected workspace for re
 - Theme: dark-first
 - Background: Graphite `#101114`
 - Surfaces: `#181A1F` / `#202228`
-- Accent: Soft lavender `#B4A4FF`
+- Accent: Monochrome white `#F5F5F7`
 - Typography: native system sans stack (SF Pro where available)
 - Logo: abstract geometric symbol + wordmark
 
