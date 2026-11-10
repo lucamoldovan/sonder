@@ -61,6 +61,7 @@ export default function NotesPage() {
   const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const draftVersion = useRef(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,18 @@ export default function NotesPage() {
   useEffect(() => {
     if (session?.user?.id) void load();
   }, [session?.user?.id, load]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (event.key === "Escape" && document.activeElement === searchInputRef.current) setSearch("");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const selected = notes.find(note => note.id === selectedId) || null;
 
@@ -119,8 +132,8 @@ export default function NotesPage() {
     }
   };
 
-  const openNote = async (note: ApiNote) => {
-    if (note.id !== selectedId && !(await saveDraft())) return;
+  const openNote = async (note: ApiNote, skipSave = false) => {
+    if (!skipSave && note.id !== selectedId && !(await saveDraft())) return;
     draftVersion.current += 1;
     setSelectedId(note.id);
     setTitle(note.title);
@@ -147,7 +160,7 @@ export default function NotesPage() {
       setShowFavorites(false);
       setNotes(current => [result.data, ...current.filter(note => !note.archivedAt)]);
       setExpanded(current => parent ? [...new Set([...current, parent])] : current);
-      openNote(result.data);
+      await openNote(result.data, true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't create the page.");
     }
@@ -307,7 +320,7 @@ export default function NotesPage() {
         <Link className="notes-back" href="/"><ArrowLeft size={15}/> Back to Sonder</Link>
         <div className="notes-brand"><span>✳</span><div><strong>Notes</strong><small>Your personal knowledge space</small></div></div>
         <button className="notes-new-button" onClick={() => void createNote()}><Plus size={15}/> New page</button>
-        <label className="notes-search"><Search size={15}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search your pages..."/><kbd>⌘ K</kbd></label>
+        <label className="notes-search"><Search size={15}/><input ref={searchInputRef} value={search} onChange={event => setSearch(event.target.value)} placeholder="Search your pages..."/><kbd>⌘ K</kbd></label>
         <div className="notes-sidebar-label">WORKSPACE</div>
         <button className={`notes-filter ${!showFavorites && !showArchived ? "active" : ""}`} onClick={() => { void switchArchiveView(false); setShowFavorites(false); }}><FilePlus2 size={15}/> All pages <span>{notes.length}</span></button>
         <button className={`notes-filter ${showFavorites ? "active" : ""}`} onClick={() => { void switchArchiveView(false); setShowFavorites(true); }}><Heart size={15}/> Favorites</button>
