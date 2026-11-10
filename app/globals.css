@@ -661,3 +661,27 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .upcoming-dot{background:#FFFFFF;box-shadow:0 0 10px rgba(255,255,255,.2)}
 .month-day.is-selected,.agenda-hour-cell:hover{background:rgba(255,255,255,.055)}
 .auth-screen{background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.055),transparent 48%),#090A0B}
+
+
+/* Sonder wordmark — typography is the identity, not a separate symbol. */
+.brand{gap:0!important}
+.brand-mark{display:none!important}
+.brand-name{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+  font-size:23px;
+  font-weight:650;
+  letter-spacing:-1.35px;
+  line-height:1;
+  color:#F7F7F8;
+}
+.brand-lockup{gap:0}
+.brand-wordmark{
+  display:block;
+  color:#F7F7F8;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+  font-size:34px;
+  font-weight:650;
+  letter-spacing:-2px;
+  line-height:1;
+}
+@media(max-width:760px){.brand-name{font-size:21px}}
