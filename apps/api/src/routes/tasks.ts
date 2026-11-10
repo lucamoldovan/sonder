@@ -52,7 +52,13 @@ function nextOccurrence(task: typeof tasks.$inferSelect) {
   const next = new Date(task.dueAt);
   if (task.recurrenceFrequency === "daily") next.setDate(next.getDate() + task.recurrenceInterval);
   if (task.recurrenceFrequency === "weekly") next.setDate(next.getDate() + 7 * task.recurrenceInterval);
-  if (task.recurrenceFrequency === "monthly") next.setMonth(next.getMonth() + task.recurrenceInterval);
+  if (task.recurrenceFrequency === "monthly") {
+    const originalDay = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + task.recurrenceInterval);
+    const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    next.setDate(Math.min(originalDay, lastDay));
+  }
   if (task.recurrenceUntil && next.toISOString().slice(0, 10) > task.recurrenceUntil) return null;
   const reminderAt = task.reminderAt && task.dueAt
     ? new Date(next.getTime() - (task.dueAt.getTime() - task.reminderAt.getTime()))
