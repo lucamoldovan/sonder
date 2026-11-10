@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
 import { Hono } from "hono";
 import { activityLog, calendarEvents, goals, habitEntries, habits, inboxItems, lifeAreas, notes, notifications, projects, tasks } from "../db/schema";
 import type { AppEnv } from "../env";
