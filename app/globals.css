@@ -465,3 +465,9 @@
 .project-filter-row button span{font-size:9px;color:var(--soft);font-variant-numeric:tabular-nums}
 .project-filter-row button.selected{border-color:rgba(167,139,250,.25);background:var(--lav-dim);color:#d9cefa}
 .project-filter-row button.selected span{color:#bba7f4}
+
+.task-list-filters{display:flex;align-items:center;gap:6px;margin:0 0 13px;flex-wrap:wrap}
+.task-list-filters button{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted);font-size:10px}
+.task-list-filters button span{font-size:9px;color:var(--soft);font-variant-numeric:tabular-nums}
+.task-list-filters button.selected{border-color:rgba(167,139,250,.25);background:var(--lav-dim);color:#d9cefa}
+.task-list-filters button.selected span{color:#bba7f4}
