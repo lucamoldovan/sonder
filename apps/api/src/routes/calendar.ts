@@ -55,6 +55,16 @@ calendarRoutes.patch("/:id", async (c) => {
   const relationError = await validRelations(db, user.id, parsed.data.lifeAreaId, parsed.data.projectId);
   if (relationError) return c.json({ error: { code: "INVALID_RELATION", message: relationError } }, 400);
   const data = parsed.data;
+  const [existing] = await db.select({ startsAt: calendarEvents.startsAt, endsAt: calendarEvents.endsAt })
+    .from(calendarEvents)
+    .where(and(eq(calendarEvents.id, id.data), eq(calendarEvents.userId, user.id)))
+    .limit(1);
+  if (!existing) return c.json({ error: { code: "NOT_FOUND", message: "Event not found." } }, 404);
+  const nextStartsAt = data.startsAt !== undefined ? new Date(data.startsAt) : existing.startsAt;
+  const nextEndsAt = data.endsAt !== undefined ? (data.endsAt ? new Date(data.endsAt) : null) : existing.endsAt;
+  if (nextEndsAt && nextEndsAt < nextStartsAt) {
+    return c.json({ error: { code: "VALIDATION_ERROR", message: "End time must be after start time." } }, 400);
+  }
   const updates: Partial<typeof calendarEvents.$inferInsert> = { updatedAt: new Date() };
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
