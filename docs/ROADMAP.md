@@ -59,10 +59,13 @@ This roadmap prioritizes user value and dependency order. It is intentionally se
 
 - [ ] Revisit AI only after core workflows are excellent
 - [ ] Any AI recommendation must explain source context and request approval before consequential changes
-- [ ] Implement dedicated, read-only Google Calendar connection with shared-calendar selection and incremental sync
-- [ ] Merge imported Google events into the agenda without duplicating native Sonder events
-- [ ] Add mobile and web share targets that capture selected conversation content into Inbox
-- [ ] Add safe task/event/note suggestions with confirmation and duplicate protection
+- [ ] Implement secure iCalendar/ICS URL subscriptions as the primary calendar integration; no Google login required
+- [ ] Parse and refresh subscribed calendars automatically; merge read-only imported events into the agenda without duplicating native Sonder events
+- [ ] Support Google Calendar secret iCal URLs; explain that a calendar ID alone cannot access a private calendar
+- [ ] Add a native iOS Share Sheet extension that sends selected text from Apple Messages, WhatsApp, Mail, and other apps into Sonder Quick Capture
+- [ ] Automatically create clear, high-confidence tasks/events from shared text; route ambiguous content to Inbox
+- [ ] Add duplicate protection, source context, and capture feedback
+- [ ] Keep Google OAuth as an optional later integration for cases where an ICS feed is unavailable
 - [ ] Evaluate platform integrations based on user demand and privacy
 - [ ] No paid service or billing change without explicit product approval
 
