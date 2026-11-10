@@ -9,12 +9,12 @@ CREATE TABLE "notes" (
   "icon" text DEFAULT '📝',
   "tags" text[] DEFAULT '{}'::text[] NOT NULL,
   "favorite" boolean DEFAULT false NOT NULL,
-  "archived_at" timestamp with time zone,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE INDEX "notes_user_updated_idx" ON "notes" USING btree ("user_id", "updated_at");
-CREATE INDEX "notes_parent_id_idx" ON "notes" USING btree ("parent_id");
-CREATE INDEX "notes_project_id_idx" ON "notes" USING btree ("project_id");
-CREATE INDEX "notes_life_area_id_idx" ON "notes" USING btree ("life_area_id");
-ALTER TABLE "notes" ENABLE ROW LEVEL SECURITY;
+  "archived_at" timestamptz,
+  "created_at" timestamptz DEFAULT now() NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL
+);--> statement-breakpoint
+ALTER TABLE "notes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE INDEX "notes_user_updated_idx" ON "notes" ("user_id", "updated_at");--> statement-breakpoint
+CREATE INDEX "notes_parent_id_idx" ON "notes" ("parent_id");--> statement-breakpoint
+CREATE INDEX "notes_project_id_idx" ON "notes" ("project_id");--> statement-breakpoint
+CREATE INDEX "notes_life_area_id_idx" ON "notes" ("life_area_id");--> statement-breakpoint
