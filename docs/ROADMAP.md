@@ -18,8 +18,8 @@ This roadmap prioritizes user value and dependency order. It is intentionally se
 
 ## Milestone B — Make existing modules feel like one product
 
-- [ ] Simplify navigation to Today, Calendar, Organize, and Notes without removing module capability
-- [ ] Make Organize a clear home for Inbox, Tasks, Projects, Goals, Habits, and Life Areas
+- [x] Simplify navigation to Today, Calendar, Organize, and Notes without removing module capability
+- [x] Make Organize a clear home for Inbox, Tasks, Projects, Goals, Habits, and Life Areas
 - [ ] Ensure project, goal, task, habit, event, and note relationships are visible where useful
 - [ ] Improve project editing, archiving, milestones, and linked-work management
 - [ ] Improve task filters, saved views, and recurrence edge cases
