@@ -872,3 +872,24 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   .month-grid{height:max(216px,calc(100dvh - 350px));}
   .month-day-items .month-event:nth-of-type(n+2){display:none;}
 }
+
+
+/* Mobile calendar viewport fit: leave room for the fixed bottom navigation. */
+@media(max-width:600px){
+  .calendar-workspace{padding-bottom:calc(112px + env(safe-area-inset-bottom));}
+  .calendar-main-panel{overflow:hidden;}
+  .month-grid{height:max(210px,min(380px,calc(100dvh - 560px)));grid-template-rows:repeat(6,minmax(0,1fr));}
+  .month-day{min-height:0;height:100%;padding:3px 2px;gap:2px;}
+  .month-day-number{width:18px;height:18px;font-size:8px;}
+  .month-day-items{gap:2px;}
+  .month-event{padding:2px 2px;font-size:6px;line-height:1.1;}
+  .month-more{font-size:6px;padding:1px;}
+}
+@media(max-width:600px) and (max-height:740px){
+  .month-grid{height:210px;}
+  .calendar-heading{margin-bottom:10px;gap:9px;}
+  .calendar-heading h1{font-size:26px;}
+  .calendar-heading .subheading{font-size:11px;}
+  .calendar-toolbar{padding:9px;gap:7px;}
+  .month-weekdays>div{padding:6px 1px;}
+}
