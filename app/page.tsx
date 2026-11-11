@@ -960,7 +960,6 @@ export default function Home() {
                 <h1>{greeting()}, {session.user.name?.split(" ")[0] || "there"}.</h1>
                 <p className="subheading">Here’s what matters today. You don’t need to do everything at once.</p>
               </div>
-              <button className="primary-button" onClick={openNewTask}><Plus size={17} />Add a task</button>
             </div>
 
             <form className="today-capture" onSubmit={quickCapture}>
@@ -1006,7 +1005,6 @@ export default function Home() {
                   {nextActionTasks.length > 0
                     ? <div className="today-task-list">{nextActionTasks.map(task => <TaskRow key={task.id} task={task} areas={areas} onToggle={toggleTask} onDelete={deleteTask} onEdit={openEditTask}/>)}</div>
                     : <div className="today-quiet-state"><Check size={18}/><div><strong>No urgent tasks asking for attention.</strong><span>You can choose something meaningful to work on, or enjoy the breathing room.</span></div></div>}
-                  <button className="add-task-row" onClick={openNewTask}><Plus size={15}/>Add a task</button>
                 </section>
 
                 {habitsDueToday.length > 0 && <section className="today-section">
